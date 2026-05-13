@@ -111,9 +111,9 @@ export default function PosPage() {
   }
 
   return (
-    <div className="h-full flex flex-col md:flex-row bg-white w-full max-w-full overflow-x-hidden">
+    <div className="h-full flex flex-col md:flex-row bg-white w-full max-w-full overflow-x-hidden md:overflow-hidden">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative w-full">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative w-full md:overflow-hidden">
 
         {/* Top Banner - Shop Info (Mobile + Desktop unified style) */}
         <div className="bg-gradient-to-r from-primary-600 to-primary-500 text-white px-4 pt-4 pb-6 safe-top rounded-b-3xl shadow-sm">
@@ -195,7 +195,7 @@ export default function PosPage() {
         </div>
 
         {/* Products Grid */}
-        <div className="flex-1 overflow-y-auto px-3 pt-3 pb-24 no-scrollbar">
+        <div className="flex-1 overflow-y-auto px-3 pt-3 pb-24 md:pb-4 no-scrollbar">
           <h3 className="text-sm font-semibold text-slate-500 mb-2 px-1">
             {activeCategory === 'all' ? 'เมนูทั้งหมด' : catLabel(activeCategory)}
             <span className="font-normal text-slate-400 ml-1">({products.length})</span>
@@ -290,8 +290,8 @@ export default function PosPage() {
       </div>
 
       {/* Desktop Cart Sidebar */}
-      <div className="hidden md:flex flex-col w-[380px] bg-white border-l border-slate-100 h-screen sticky top-0">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div className="hidden md:flex flex-col w-[380px] bg-white border-l border-slate-100 h-full overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
           <h2 className="font-bold text-slate-800 flex items-center space-x-2">
             <ShoppingCart size={20} className="text-primary-600" />
             <span>รายการ ({cartItems})</span>
@@ -300,7 +300,7 @@ export default function PosPage() {
             <button onClick={() => setCart([])} className="text-xs text-red-400 hover:text-red-600">ล้าง</button>
           )}
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
           {cart.length === 0 ? (
             <div className="text-center py-12">
               <ShoppingCart size={48} className="text-slate-200 mx-auto mb-3" />
@@ -333,7 +333,7 @@ export default function PosPage() {
             ))
           )}
         </div>
-        <div className="p-5 border-t border-slate-100 space-y-4">
+        <div className="p-5 border-t border-slate-100 space-y-4 shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-500">รวม {cartItems} ชิ้น</span>
             <span className="font-bold text-2xl text-slate-800">฿{cartTotal.toLocaleString()}</span>
