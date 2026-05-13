@@ -1,20 +1,44 @@
-import { useState, useEffect, useMemo } from 'react'
-import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { saleService, shopProductService } from '../services/mockData'
-import { startOfDay, endOfDay, subDays, format, parseISO, isSameDay } from 'date-fns'
+import { startOfDay, endOfDay, subDays, format, parseISO, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
 
 export default function SalesReportPage() {
   const { user } = useAuth()
-  const [range, setRange] = useState('7') // days
+  const [range, setRange] = useState('7') // 'today', '7', 'month', 'custom'
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [customStart, setCustomStart] = useState(format(subDays(new Date(), 6), 'yyyy-MM-dd'))
+  const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [showCustomPicker, setShowCustomPicker] = useState(false)
+
+  const getDateRange = () => {
+    const today = new Date()
+    switch (range) {
+      case 'today':
+        return { start: startOfDay(today), end: endOfDay(today) }
+      case '7':
+        return { start: startOfDay(subDays(today, 6)), end: endOfDay(today) }
+      case 'month':
+        return { start: startOfMonth(today), end: endOfMonth(today) }
+      case 'custom': {
+        const s = parse(customStart, 'yyyy-MM-dd', new Date())
+        const e = parse(customEnd, 'yyyy-MM-dd', new Date())
+        if (isValid(s) && isValid(e)) {
+          return { start: startOfDay(s), end: endOfDay(e) }
+        }
+        return { start: startOfDay(subDays(today, 6)), end: endOfDay(today) }
+      }
+      default:
+        return { start: startOfDay(subDays(today, 6)), end: endOfDay(today) }
+    }
+  }
 
   const sales = useMemo(() => {
     if (!user?.shopId) return []
-    const end = endOfDay(currentDate)
-    const start = startOfDay(subDays(end, Number(range) - 1))
+    const { start, end } = getDateRange()
     return saleService.getByDateRange(user.shopId, start, end)
-  }, [user, range, currentDate])
+  }, [user, range, currentDate, customStart, customEnd])
 
   const products = useMemo(() => {
     if (!user?.shopId) return []
@@ -25,15 +49,14 @@ export default function SalesReportPage() {
     const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)
     const totalOrders = sales.length
     const avgOrder = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0
-    const todaySales = sales.filter(s => isSameDay(parseISO(s.createdAt), currentDate))
+    const todaySales = sales.filter(s => isSameDay(parseISO(s.createdAt), new Date()))
     const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0)
     return { totalRevenue, totalOrders, avgOrder, todayRevenue, todayOrders: todaySales.length }
-  }, [sales, currentDate])
+  }, [sales])
 
   const dailyData = useMemo(() => {
     const data = {}
-    const end = endOfDay(currentDate)
-    const start = startOfDay(subDays(end, Number(range) - 1))
+    const { start, end } = getDateRange()
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       data[format(d, 'yyyy-MM-dd')] = { revenue: 0, orders: 0 }
     }
@@ -49,7 +72,7 @@ export default function SalesReportPage() {
       fullDate: date,
       ...val,
     }))
-  }, [sales, range, currentDate])
+  }, [sales, range, customStart, customEnd])
 
   const paymentStats = useMemo(() => {
     const cash = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0)
@@ -58,6 +81,12 @@ export default function SalesReportPage() {
   }, [sales])
 
   const maxRevenue = Math.max(...dailyData.map(d => d.revenue), 1)
+
+  const dateRangeLabel = useMemo(() => {
+    const { start, end } = getDateRange()
+    if (isSameDay(start, end)) return format(start, 'dd MMM yyyy')
+    return `${format(start, 'dd MMM')} - ${format(end, 'dd MMM yyyy')}`
+  }, [range, customStart, customEnd])
 
   return (
     <div className="h-full pb-20 md:pb-0">
@@ -71,13 +100,18 @@ export default function SalesReportPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex space-x-2 overflow-x-auto no-scrollbar">
             {[
+              { value: 'today', label: 'วันนี้' },
               { value: '7', label: '7 วัน' },
-              { value: '30', label: '30 วัน' },
+              { value: 'month', label: 'เดือนนี้' },
+              ...(user?.role === 'owner' ? [{ value: 'custom', label: 'กำหนดเอง' }] : []),
             ].map(r => (
               <button
                 key={r.value}
-                onClick={() => setRange(r.value)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                onClick={() => {
+                  setRange(r.value)
+                  if (r.value === 'custom') setShowCustomPicker(true)
+                }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                   range === r.value ? 'bg-primary-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -87,7 +121,7 @@ export default function SalesReportPage() {
           </div>
           <div className="flex items-center space-x-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
             <Calendar size={16} className="text-slate-400" />
-            <span className="text-sm text-slate-600">{format(subDays(currentDate, Number(range) - 1), 'dd MMM')} - {format(currentDate, 'dd MMM yyyy')}</span>
+            <span className="text-sm text-slate-600">{dateRangeLabel}</span>
           </div>
         </div>
 
@@ -202,6 +236,52 @@ export default function SalesReportPage() {
           </div>
         </div>
       </div>
+
+      {/* Custom Date Picker Modal */}
+      {showCustomPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">เลือกช่วงวันที่</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">วันที่เริ่มต้น</label>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={e => setCustomStart(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">วันที่สิ้นสุด</label>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={e => setCustomEnd(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-5">
+              <button
+                onClick={() => setShowCustomPicker(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setShowCustomPicker(false)
+                  setRange('custom')
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+              >
+                ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
