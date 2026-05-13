@@ -55,6 +55,7 @@ function seedData() {
       role: 'staff',
       shopId: 'shop-1',
       avatar: null,
+      canManageInventory: true,
       createdAt: new Date().toISOString(),
       isActive: true,
     }

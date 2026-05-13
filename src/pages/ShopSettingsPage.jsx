@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut } from 'lucide-react'
+import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopService, userService, authService, packageService } from '../services/mockData'
 
@@ -40,6 +40,13 @@ export default function ShopSettingsPage() {
     userService.remove(id)
     authService.logActivity(user.id, user.shopId, 'REMOVE_STAFF', `ลบพนักงาน ${name}`)
     setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
+  }
+
+  const toggleStaffPermission = (staffMember, field) => {
+    const updated = { ...staffMember, [field]: !staffMember[field] }
+    userService.update(staffMember.id, { [field]: updated[field] })
+    setStaff(prev => prev.map(s => s.id === staffMember.id ? updated : s))
+    authService.logActivity(user.id, user.shopId, 'UPDATE_STAFF_PERM', `เปลี่ยนสิทธิ์ ${field} ของ ${staffMember.name} เป็น ${updated[field] ? 'เปิด' : 'ปิด'}`)
   }
 
   return (
@@ -104,20 +111,33 @@ export default function ShopSettingsPage() {
               </div>
 
               {staff.map(s => (
-                <div key={s.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
-                  <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
-                    <User size={18} className="text-slate-500" />
+                <div key={s.id} className="p-3 bg-slate-50 rounded-xl space-y-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
+                      <User size={18} className="text-slate-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{s.email}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveStaff(s.id, s.name)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
-                    <p className="text-xs text-slate-400 truncate">{s.email}</p>
+                  <div className="flex items-center space-x-2 pl-13">
+                    <label className="flex items-center space-x-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={s.canManageInventory ?? true}
+                        onChange={() => toggleStaffPermission(s, 'canManageInventory')}
+                        className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-xs text-slate-600">จัดการสินค้า/สต็อก</span>
+                    </label>
                   </div>
-                  <button
-                    onClick={() => handleRemoveStaff(s.id, s.name)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
               ))}
             </div>

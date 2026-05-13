@@ -99,6 +99,9 @@ export default function InventoryPage() {
 
   const categories = [...new Set(shopProductService.getByShop(user.shopId).map(p => p.category))]
 
+  // Permission check: owner always can manage, staff needs canManageInventory flag
+  const canManage = user.role === 'owner' || (user.role === 'staff' && (user.canManageInventory ?? true))
+
   return (
     <div className="h-full">
       {/* Header */}
@@ -108,15 +111,17 @@ export default function InventoryPage() {
             <h1 className="text-lg md:text-xl font-bold text-slate-800">จัดการสินค้าและสต็อก</h1>
             <p className="text-sm text-slate-400">รับสินค้าเข้า ตรวจสอบ และจัดการสต็อก</p>
           </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => { setShowForm(true); setSelectedProduct(null); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '' }) }}
-              className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
-            >
-              <Plus size={18} />
-              <span>เพิ่มสินค้า</span>
-            </button>
-          </div>
+          {canManage && (
+            <div className="flex space-x-2">
+              <button
+                onClick={() => { setShowForm(true); setSelectedProduct(null); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '' }) }}
+                className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              >
+                <Plus size={18} />
+                <span>เพิ่มสินค้า</span>
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
@@ -206,31 +211,35 @@ export default function InventoryPage() {
                       </td>
                       <td className="px-4 py-3 text-center text-sm text-slate-500 hidden md:table-cell">{product.minStock}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end space-x-1">
-                          <button
-                            onClick={() => { setSelectedProduct(product); setShowStockIn(true); setStockInQty('') }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-                            title="รับสินค้าเข้า"
-                          >
-                            <ArrowUpDown size={16} />
-                          </button>
-                          <button
-                            onClick={() => openEdit(product)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-400 hover:text-primary-600"
-                            title="แก้ไข"
-                          >
-                            <Edit3 size={16} />
-                          </button>
-                          {!product.isStandard && (
+                        {canManage ? (
+                          <div className="flex items-center justify-end space-x-1">
                             <button
-                              onClick={() => handleDelete(product.id)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
-                              title="ลบ"
+                              onClick={() => { setSelectedProduct(product); setShowStockIn(true); setStockInQty('') }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
+                              title="รับสินค้าเข้า"
                             >
-                              <Trash2 size={16} />
+                              <ArrowUpDown size={16} />
                             </button>
-                          )}
-                        </div>
+                            <button
+                              onClick={() => openEdit(product)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-400 hover:text-primary-600"
+                              title="แก้ไข"
+                            >
+                              <Edit3 size={16} />
+                            </button>
+                            {!product.isStandard && (
+                              <button
+                                onClick={() => handleDelete(product.id)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
+                                title="ลบ"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300">-</span>
+                        )}
                       </td>
                     </tr>
                   )
