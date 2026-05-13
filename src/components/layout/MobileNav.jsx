@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { ShoppingCart, Package, BarChart3, Settings, Store } from 'lucide-react'
+import { ShoppingCart, Package, BarChart3, Settings, ClipboardList } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const shopNavItems = [
   { path: '/pos', label: 'ขาย', icon: ShoppingCart },
   { path: '/inventory', label: 'สต็อก', icon: Package },
   { path: '/reports', label: 'รายงาน', icon: BarChart3 },
+  { path: '/logs', label: 'บันทึก', icon: ClipboardList },
   { path: '/settings', label: 'ตั้งค่า', icon: Settings },
 ]
 
