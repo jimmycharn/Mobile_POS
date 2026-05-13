@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban } from 'lucide-react'
+import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, productService, authService } from '../services/mockData'
 
@@ -15,7 +15,7 @@ export default function InventoryPage() {
   const [stockInCost, setStockInCost] = useState('')
   const [stockOutQty, setStockOutQty] = useState('')
   const [stockOutReason, setStockOutReason] = useState('spoilage')
-  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '' })
+  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '' })
   const [filter, setFilter] = useState('all') // all, low, standard, custom
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function InventoryPage() {
 
   const handleSave = () => {
     if (selectedProduct) {
-      shopProductService.update(selectedProduct.id, {
+      const updates = {
         name: form.name,
         barcode: form.barcode,
         category: form.category,
@@ -45,7 +45,9 @@ export default function InventoryPage() {
         costPrice: Number(form.costPrice),
         salePrice: Number(form.salePrice),
         minStock: Number(form.minStock),
-      })
+      }
+      if (form.image) updates.image = form.image
+      shopProductService.update(selectedProduct.id, updates)
       authService.logActivity(user.id, user.shopId, 'EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
     } else {
       const newProduct = shopProductService.create({
@@ -60,12 +62,13 @@ export default function InventoryPage() {
         stock: Number(form.stock) || 0,
         minStock: Number(form.minStock) || 5,
         isStandard: false,
+        image: form.image || '',
       })
       authService.logActivity(user.id, user.shopId, 'ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
     }
     setShowForm(false)
     setSelectedProduct(null)
-    setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '' })
+    setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '' })
     refresh()
   }
 
@@ -86,6 +89,7 @@ export default function InventoryPage() {
       salePrice: p.salePrice,
       stock: p.stock,
       minStock: p.minStock,
+      image: p.image || '',
     })
     setShowForm(true)
   }
@@ -223,8 +227,12 @@ export default function InventoryPage() {
                     <tr key={product.id} className="hover:bg-slate-50/50">
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-3">
-                          <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
-                            <Package size={16} className="text-slate-400" />
+                          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                            {product.image ? (
+                              <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Package size={18} className="text-slate-400" />
+                            )}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-slate-800">{product.name}</p>
@@ -314,6 +322,40 @@ export default function InventoryPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">บาร์โค้ด</label>
                 <input value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">รูปสินค้า</label>
+                <div className="flex items-center space-x-3">
+                  {form.image && (
+                    <div className="relative shrink-0">
+                      <img src={form.image} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                      <button
+                        onClick={() => setForm({ ...form, image: '' })}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px]"
+                      >
+                        x
+                      </button>
+                    </div>
+                  )}
+                  <label className="flex-1 cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = ev => setForm({ ...form, image: ev.target.result })
+                        reader.readAsDataURL(file)
+                      }}
+                    />
+                    <div className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 hover:border-primary-400 hover:bg-primary-50 transition-colors">
+                      <CameraIcon size={18} className="text-slate-400" />
+                      <span className="text-sm text-slate-500">เลือกรูป</span>
+                    </div>
+                  </label>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
