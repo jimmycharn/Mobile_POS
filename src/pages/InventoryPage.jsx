@@ -310,6 +310,12 @@ export default function InventoryPage() {
                   </div>
                 </div>
               )}
+              {selectedProduct && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">สต็อกขั้นต่ำ</label>
+                  <input type="number" value={form.minStock} onChange={e => setForm({...form, minStock: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                </div>
+              )}
               <button onClick={handleSave} className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl text-sm">
                 <Save size={16} className="inline mr-2" />
                 {selectedProduct ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}
