@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode } from 'lucide-react'
+import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, productService, authService } from '../services/mockData'
 
@@ -9,8 +9,11 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [showStockIn, setShowStockIn] = useState(false)
+  const [showStockOut, setShowStockOut] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [stockInQty, setStockInQty] = useState('')
+  const [stockOutQty, setStockOutQty] = useState('')
+  const [stockOutReason, setStockOutReason] = useState('spoilage')
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '' })
   const [filter, setFilter] = useState('all') // all, low, standard, custom
 
@@ -94,6 +97,24 @@ export default function InventoryPage() {
     setShowStockIn(false)
     setSelectedProduct(null)
     setStockInQty('')
+    refresh()
+  }
+
+  const handleStockOut = () => {
+    if (!selectedProduct || !stockOutQty) return
+    const qty = Number(stockOutQty)
+    if (qty <= 0 || qty > selectedProduct.stock) {
+      alert(`จำนวนตัดสต็อกต้องไม่เกิน ${selectedProduct.stock} ${selectedProduct.unit}`)
+      return
+    }
+    const newStock = selectedProduct.stock - qty
+    shopProductService.update(selectedProduct.id, { stock: newStock })
+    const reasonLabels = { spoilage: 'เน่าเสีย', expiry: 'หมดอายุ', damage: 'เสียหาย', loss: 'สูญหาย' }
+    authService.logActivity(user.id, user.shopId, 'STOCK_OUT', `ตัดสต็อก ${selectedProduct.name} ${qty} ${selectedProduct.unit} (${reasonLabels[stockOutReason]}) (คงเหลือ ${newStock})`)
+    setShowStockOut(false)
+    setSelectedProduct(null)
+    setStockOutQty('')
+    setStockOutReason('spoilage')
     refresh()
   }
 
@@ -219,6 +240,13 @@ export default function InventoryPage() {
                               title="รับสินค้าเข้า"
                             >
                               <ArrowUpDown size={16} />
+                            </button>
+                            <button
+                              onClick={() => { setSelectedProduct(product); setShowStockOut(true); setStockOutQty(''); setStockOutReason('spoilage') }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
+                              title="ตัดสต็อกสูญเสีย"
+                            >
+                              <Ban size={16} />
                             </button>
                             <button
                               onClick={() => openEdit(product)}
@@ -356,6 +384,55 @@ export default function InventoryPage() {
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-200 text-white font-semibold py-3.5 rounded-xl transition-colors"
             >
               ยืนยันรับสินค้าเข้า
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Out Modal */}
+      {showStockOut && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-slate-800">ตัดสต็อกสูญเสีย</h2>
+              <button onClick={() => setShowStockOut(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="bg-slate-50 rounded-xl p-4 mb-5">
+              <p className="text-sm font-medium text-slate-800">{selectedProduct.name}</p>
+              <p className="text-xs text-slate-400 mt-0.5">สต็อกปัจจุบัน: {selectedProduct.stock} {selectedProduct.unit}</p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">เหตุผล</label>
+              <select
+                value={stockOutReason}
+                onChange={e => setStockOutReason(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+              >
+                <option value="spoilage">เน่าเสีย</option>
+                <option value="expiry">หมดอายุ</option>
+                <option value="damage">เสียหาย</option>
+                <option value="loss">สูญหาย</option>
+              </select>
+            </div>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">จำนวนที่ตัดสต็อก</label>
+              <input
+                type="number"
+                value={stockOutQty}
+                onChange={e => setStockOutQty(e.target.value)}
+                placeholder="ระบุจำนวน"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none text-lg font-semibold text-center"
+                autoFocus
+              />
+            </div>
+            <button
+              onClick={handleStockOut}
+              disabled={!stockOutQty || Number(stockOutQty) <= 0 || Number(stockOutQty) > selectedProduct.stock}
+              className="w-full bg-red-500 hover:bg-red-600 disabled:bg-slate-200 text-white font-semibold py-3.5 rounded-xl transition-colors"
+            >
+              ยืนยันตัดสต็อกสูญเสีย
             </button>
           </div>
         </div>
