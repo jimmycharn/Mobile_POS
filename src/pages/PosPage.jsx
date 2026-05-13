@@ -231,8 +231,21 @@ export default function PosPage() {
           <div className="flex items-center space-x-2 w-max px-4 pb-1">
             {/* Fixed Search icon */}
             <button
-              onClick={() => { setShowSearchInput(true); setActiveCategory('all') }}
-              className="flex-shrink-0 w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-600 shadow-sm"
+              onClick={() => {
+                if (showSearchInput) {
+                  setShowSearchInput(false)
+                  setSearch('')
+                  setActiveCategory('all')
+                } else {
+                  setShowSearchInput(true)
+                  setActiveCategory('all')
+                }
+              }}
+              className={`flex-shrink-0 w-10 h-10 rounded-xl border flex items-center justify-center shadow-sm transition-colors ${
+                showSearchInput
+                  ? 'bg-primary-600 border-primary-600 text-white'
+                  : 'bg-white border-slate-100 text-slate-600'
+              }`}
             >
               <Search size={20} />
             </button>
@@ -272,14 +285,6 @@ export default function PosPage() {
               ))
             )}
 
-            {showSearchInput && (
-              <button
-                onClick={() => { setShowSearchInput(false); setSearch(''); setActiveCategory('all') }}
-                className="flex-shrink-0 px-3 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600"
-              >
-                ยกเลิก
-              </button>
-            )}
           </div>
         </div>
 
