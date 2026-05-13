@@ -17,6 +17,7 @@ export default function PosPage() {
   const [shop, setShop] = useState(null)
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
+  const [showSearchInput, setShowSearchInput] = useState(false)
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
 
@@ -225,47 +226,60 @@ export default function PosPage() {
           </button>
         </div>
 
-        {/* Search + Category Tabs */}
-        <div className="shrink-0 px-4 -mt-3 z-10">
-          <div className="bg-white rounded-2xl shadow-md shadow-slate-200/50 p-3">
-            {/* Search */}
-            <div className="relative mb-3">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="ค้นหาสินค้า..."
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-primary-300 outline-none text-sm"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-7 h-7 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center transition-colors"
-                >
-                  <X size={16} className="text-slate-600" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Category Scroll - horizontal strip, only this row scrolls */}
+        {/* Category / Search strip */}
         <div className="shrink-0 mt-3 w-full overflow-x-auto overscroll-x-contain no-scrollbar">
-          <div className="flex space-x-2 w-max px-4 pb-1">
-            {categories.map(cat => (
+          <div className="flex items-center space-x-2 w-max px-4 pb-1">
+            {/* Fixed Search icon */}
+            <button
+              onClick={() => { setShowSearchInput(true); setActiveCategory('all') }}
+              className="flex-shrink-0 w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-600 shadow-sm"
+            >
+              <Search size={20} />
+            </button>
+
+            {showSearchInput ? (
+              <div className="relative flex-shrink-0 w-64">
+                <input
+                  autoFocus
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="ค้นหาสินค้า..."
+                  className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-white border border-primary-300 outline-none text-sm shadow-sm"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-6 h-6 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <X size={14} className="text-slate-600" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                    activeCategory === cat
+                      ? 'bg-primary-600 text-white shadow-sm shadow-primary-200'
+                      : 'bg-white border border-slate-100 text-slate-600'
+                  }`}
+                >
+                  {catLabel(cat)}
+                </button>
+              ))
+            )}
+
+            {showSearchInput && (
               <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                  activeCategory === cat
-                    ? 'bg-primary-600 text-white shadow-sm shadow-primary-200'
-                    : 'bg-white border border-slate-100 text-slate-600'
-                }`}
+                onClick={() => { setShowSearchInput(false); setSearch(''); setActiveCategory('all') }}
+                className="flex-shrink-0 px-3 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600"
               >
-                {catLabel(cat)}
+                ยกเลิก
               </button>
-            ))}
+            )}
           </div>
         </div>
 
