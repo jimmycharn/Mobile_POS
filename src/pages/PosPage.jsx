@@ -353,7 +353,7 @@ export default function PosPage() {
       {showCart && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCart(false)} />
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[92vh] mb-2 flex flex-col animate-slide-up">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[92vh] mb-16 flex flex-col animate-slide-up">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div>
                 <h2 className="font-bold text-slate-800 text-lg">ตะกร้าสินค้า</h2>
@@ -400,7 +400,7 @@ export default function PosPage() {
                 ))
               )}
             </div>
-            <div className="p-5 pb-8 border-t border-slate-100 safe-bottom space-y-4 bg-white">
+            <div className="p-5 pb-24 border-t border-slate-100 space-y-4 bg-white">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 text-sm">รวมทั้งหมด</span>
                 <span className="font-bold text-3xl text-slate-800">฿{cartTotal.toLocaleString()}</span>
