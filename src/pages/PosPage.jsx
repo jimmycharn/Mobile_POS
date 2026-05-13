@@ -111,9 +111,9 @@ export default function PosPage() {
   }
 
   return (
-    <div className="h-full flex flex-col md:flex-row bg-white">
+    <div className="h-full flex flex-col md:flex-row bg-white w-full max-w-full overflow-x-hidden">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-0 relative">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative w-full">
 
         {/* Top Banner - Shop Info (Mobile + Desktop unified style) */}
         <div className="bg-gradient-to-r from-primary-600 to-primary-500 text-white px-4 pt-4 pb-6 safe-top rounded-b-3xl shadow-sm">
@@ -175,14 +175,14 @@ export default function PosPage() {
           </div>
         </div>
 
-        {/* Category Scroll - full-width horizontal strip */}
-        <div className="mt-3 -mx-4 px-4 overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory">
-          <div className="flex space-x-2 w-max">
+        {/* Category Scroll - horizontal strip, only this row scrolls */}
+        <div className="mt-3 w-full overflow-x-auto overscroll-x-contain no-scrollbar">
+          <div className="flex space-x-2 w-max px-4 pb-1">
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`flex-shrink-0 snap-start px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
                   activeCategory === cat
                     ? 'bg-primary-600 text-white shadow-sm shadow-primary-200'
                     : 'bg-white border border-slate-100 text-slate-600'
