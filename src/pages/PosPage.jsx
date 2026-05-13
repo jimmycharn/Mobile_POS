@@ -172,13 +172,13 @@ export default function PosPage() {
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-primary-300 outline-none text-sm"
               />
             </div>
-            {/* Category Scroll */}
-            <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-1">
+            {/* Category Scroll - only this row scrolls horizontally */}
+            <div className="flex space-x-2 overflow-x-auto overscroll-x-contain no-scrollbar pb-1 snap-x snap-mandatory">
               {categories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                  className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all snap-start ${
                     activeCategory === cat
                       ? 'bg-primary-600 text-white shadow-sm shadow-primary-200'
                       : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
