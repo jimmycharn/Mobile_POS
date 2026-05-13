@@ -353,8 +353,9 @@ export default function PosPage() {
       {showCart && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCart(false)} />
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[92vh] mb-16 flex flex-col animate-slide-up">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-3xl h-[calc(100vh-4rem)] flex flex-col animate-slide-up">
+            {/* Fixed Header */}
+            <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-slate-100 bg-white rounded-t-3xl">
               <div>
                 <h2 className="font-bold text-slate-800 text-lg">ตะกร้าสินค้า</h2>
                 <p className="text-xs text-slate-400">{cartItems} รายการ</p>
@@ -368,7 +369,8 @@ export default function PosPage() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
               {cart.length === 0 ? (
                 <div className="text-center py-10">
                   <ShoppingCart size={48} className="text-slate-200 mx-auto mb-3" />
@@ -400,7 +402,8 @@ export default function PosPage() {
                 ))
               )}
             </div>
-            <div className="p-5 pb-24 border-t border-slate-100 space-y-4 bg-white">
+            {/* Fixed Footer */}
+            <div className="flex-shrink-0 p-5 border-t border-slate-100 space-y-4 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 text-sm">รวมทั้งหมด</span>
                 <span className="font-bold text-3xl text-slate-800">฿{cartTotal.toLocaleString()}</span>
