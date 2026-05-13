@@ -172,28 +172,31 @@ export default function PosPage() {
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-primary-300 outline-none text-sm"
               />
             </div>
-            {/* Category Scroll - only this row scrolls horizontally */}
-            <div className="flex space-x-2 overflow-x-auto overscroll-x-contain no-scrollbar pb-1 snap-x snap-mandatory">
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all snap-start ${
-                    activeCategory === cat
-                      ? 'bg-primary-600 text-white shadow-sm shadow-primary-200'
-                      : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  {catLabel(cat)}
-                </button>
-              ))}
-            </div>
+          </div>
+        </div>
+
+        {/* Category Scroll - full-width horizontal strip */}
+        <div className="mt-3 -mx-4 px-4 overflow-x-auto overscroll-x-contain no-scrollbar snap-x snap-mandatory">
+          <div className="flex space-x-2 w-max">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`flex-shrink-0 snap-start px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                  activeCategory === cat
+                    ? 'bg-primary-600 text-white shadow-sm shadow-primary-200'
+                    : 'bg-white border border-slate-100 text-slate-600'
+                }`}
+              >
+                {catLabel(cat)}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Products Grid */}
-        <div className="flex-1 overflow-y-auto p-4 no-scrollbar pb-24">
-          <h3 className="text-sm font-semibold text-slate-500 mb-3">
+        <div className="flex-1 overflow-y-auto px-3 pt-3 pb-24 no-scrollbar">
+          <h3 className="text-sm font-semibold text-slate-500 mb-2 px-1">
             {activeCategory === 'all' ? 'เมนูทั้งหมด' : catLabel(activeCategory)}
             <span className="font-normal text-slate-400 ml-1">({products.length})</span>
           </h3>
