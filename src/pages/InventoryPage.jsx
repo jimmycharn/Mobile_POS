@@ -12,6 +12,7 @@ export default function InventoryPage() {
   const [showStockOut, setShowStockOut] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [stockInQty, setStockInQty] = useState('')
+  const [stockInCost, setStockInCost] = useState('')
   const [stockOutQty, setStockOutQty] = useState('')
   const [stockOutReason, setStockOutReason] = useState('spoilage')
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '' })
@@ -91,12 +92,23 @@ export default function InventoryPage() {
 
   const handleStockIn = () => {
     if (!selectedProduct || !stockInQty) return
-    const newStock = selectedProduct.stock + Number(stockInQty)
-    shopProductService.update(selectedProduct.id, { stock: newStock })
-    authService.logActivity(user.id, user.shopId, 'STOCK_IN', `รับสินค้า ${selectedProduct.name} จำนวน ${stockInQty} ${selectedProduct.unit} (คงเหลือ ${newStock})`)
+    const inQty = Number(stockInQty)
+    const newStock = selectedProduct.stock + inQty
+    const updates = { stock: newStock }
+    if (stockInCost && Number(stockInCost) > 0) {
+      const inCost = Number(stockInCost)
+      const avgCost = ((selectedProduct.stock * selectedProduct.costPrice) + (inQty * inCost)) / newStock
+      updates.costPrice = Math.round(avgCost * 100) / 100
+    }
+    shopProductService.update(selectedProduct.id, updates)
+    const logDetail = stockInCost && Number(stockInCost) > 0
+      ? `รับสินค้า ${selectedProduct.name} จำนวน ${inQty} ${selectedProduct.unit} (ทุนล็อตใหม่ ${Number(stockInCost)} บ./หน่วย) (คงเหลือ ${newStock})`
+      : `รับสินค้า ${selectedProduct.name} จำนวน ${inQty} ${selectedProduct.unit} (คงเหลือ ${newStock})`
+    authService.logActivity(user.id, user.shopId, 'STOCK_IN', logDetail)
     setShowStockIn(false)
     setSelectedProduct(null)
     setStockInQty('')
+    setStockInCost('')
     refresh()
   }
 
@@ -235,7 +247,7 @@ export default function InventoryPage() {
                         {canManage ? (
                           <div className="flex items-center justify-end space-x-1">
                             <button
-                              onClick={() => { setSelectedProduct(product); setShowStockIn(true); setStockInQty('') }}
+                              onClick={() => { setSelectedProduct(product); setShowStockIn(true); setStockInQty(''); setStockInCost('') }}
                               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
                               title="รับสินค้าเข้า"
                             >
@@ -365,9 +377,9 @@ export default function InventoryPage() {
             </div>
             <div className="bg-slate-50 rounded-xl p-4 mb-5">
               <p className="text-sm font-medium text-slate-800">{selectedProduct.name}</p>
-              <p className="text-xs text-slate-400 mt-0.5">สต็อกปัจจุบัน: {selectedProduct.stock} {selectedProduct.unit}</p>
+              <p className="text-xs text-slate-400 mt-0.5">สต็อกปัจจุบัน: {selectedProduct.stock} {selectedProduct.unit} · ทุนเฉลี่ยปัจจุบัน: {selectedProduct.costPrice} บ./หน่วย</p>
             </div>
-            <div className="mb-5">
+            <div className="mb-4">
               <label className="block text-sm font-medium text-slate-700 mb-1.5">จำนวนที่รับเข้า</label>
               <input
                 type="number"
@@ -376,6 +388,16 @@ export default function InventoryPage() {
                 placeholder="ระบุจำนวน"
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none text-lg font-semibold text-center"
                 autoFocus
+              />
+            </div>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">ราคาทุนต่อหน่วยของล็อตนี้ (บาท)</label>
+              <input
+                type="number"
+                value={stockInCost}
+                onChange={e => setStockInCost(e.target.value)}
+                placeholder="ระบุราคาทุน (ไม่บังคับ)"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none text-lg font-semibold text-center"
               />
             </div>
             <button
