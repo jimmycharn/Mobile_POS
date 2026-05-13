@@ -6,7 +6,7 @@ const shopNavItems = [
   { path: '/pos', label: 'ขายหน้าร้าน', icon: ShoppingCart },
   { path: '/inventory', label: 'จัดการสต็อก', icon: Package },
   { path: '/reports', label: 'รายงานยอดขาย', icon: BarChart3 },
-  { path: '/logs', label: 'บันทึกกิจกรรม', icon: ClipboardList },
+  { path: '/logs', label: 'บันทึกกิจกรรม', icon: ClipboardList, ownerOnly: true },
   { path: '/settings', label: 'ตั้งค่าร้าน', icon: Settings },
 ]
 
@@ -24,7 +24,10 @@ export default function DesktopSidebar() {
 
   if (!user) return null
 
-  const navItems = user.role === 'superadmin' ? superAdminItems : shopNavItems
+  let navItems = user.role === 'superadmin' ? superAdminItems : shopNavItems
+  if (user.role === 'staff') {
+    navItems = navItems.filter(item => !item.ownerOnly)
+  }
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0">

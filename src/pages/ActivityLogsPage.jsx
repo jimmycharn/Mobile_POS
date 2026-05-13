@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ClipboardList, User, ArrowRightLeft, LogIn, LogOut, Package, Pencil, Trash2, AlertTriangle, Ban } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { logService } from '../services/mockData'
 import { format, parseISO } from 'date-fns'
@@ -18,13 +19,18 @@ const actionConfig = {
 
 export default function ActivityLogsPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [logs, setLogs] = useState([])
 
   useEffect(() => {
+    if (user && user.role !== 'owner') {
+      navigate('/pos')
+      return
+    }
     if (user?.shopId) {
       setLogs(logService.getByShop(user.shopId))
     }
-  }, [user])
+  }, [user, navigate])
 
   return (
     <div className="h-full pb-20 md:pb-0">

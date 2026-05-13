@@ -16,10 +16,14 @@ export default function MobileNav() {
 
   if (!user || user.role === 'superadmin') return null
 
+  const navItems = user.role === 'owner'
+    ? shopNavItems
+    : shopNavItems.filter(item => item.path !== '/logs')
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 safe-bottom z-50 md:hidden">
       <div className="flex items-center justify-around h-16">
-        {shopNavItems.map(item => {
+        {navItems.map(item => {
           const isActive = location.pathname === item.path
           const Icon = item.icon
           return (
