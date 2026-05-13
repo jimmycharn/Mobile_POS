@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Store, Users, ShoppingBag, DollarSign, TrendingUp } from 'lucide-react'
+import { Store, Users, ShoppingBag, DollarSign, TrendingUp, LogOut } from 'lucide-react'
 import { shopService, userService, saleService, logService, packageService } from '../../services/mockData'
+import { useAuth } from '../../context/AuthContext'
 import { format, parseISO, subDays, startOfDay } from 'date-fns'
 
 export default function SuperadminDashboard() {
+  const { logout } = useAuth()
   const [shops, setShops] = useState([])
   const [users, setUsers] = useState([])
   const [sales, setSales] = useState([])
@@ -39,9 +41,18 @@ export default function SuperadminDashboard() {
 
   return (
     <div className="h-full">
-      <div className="bg-white border-b border-slate-100 px-6 py-4">
-        <h1 className="text-xl font-bold text-slate-800">แดชบอร์ด Super Admin</h1>
-        <p className="text-sm text-slate-400">ภาพรวมระบบทั้งหมด</p>
+      <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">แดชบอร์ด Super Admin</h1>
+          <p className="text-sm text-slate-400">ภาพรวมระบบทั้งหมด</p>
+        </div>
+        <button
+          onClick={logout}
+          className="flex items-center space-x-2 px-4 py-2.5 rounded-xl border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+        >
+          <LogOut size={18} />
+          <span className="text-sm font-medium">ออกจากระบบ</span>
+        </button>
       </div>
 
       <div className="p-6 space-y-6">
