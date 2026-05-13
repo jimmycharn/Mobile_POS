@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, saleService, cartService, getStats, authService, shopService } from '../services/mockData'
@@ -15,6 +15,10 @@ export default function PosPage() {
   const [stats, setStats] = useState({ todayRevenue: 0, todayOrders: 0, totalProducts: 0 })
   const [activeCategory, setActiveCategory] = useState('all')
   const [shop, setShop] = useState(null)
+  const [showScanner, setShowScanner] = useState(false)
+  const [scanMsg, setScanMsg] = useState('')
+  const videoRef = useRef(null)
+  const scanCooldownRef = useRef(0)
 
   useEffect(() => {
     if (user?.shopId) {
@@ -28,6 +32,69 @@ export default function PosPage() {
   useEffect(() => {
     cartService.set(cart)
   }, [cart])
+
+  useEffect(() => {
+    if (!showScanner) return
+    let stream = null
+    let animId = null
+    const COOLDOWN = 1200
+
+    const start = async () => {
+      try {
+        const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+        if (!hasCamera) {
+          setScanMsg('เบราว์เซอร์ไม่รองรับกล้อง')
+          return
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+          if ('BarcodeDetector' in window) {
+            detectLoop()
+          } else {
+            setScanMsg('เบราว์เซอร์ไม่รองรับสแกนอัตโนมัติ กรุณาถ่ายรูปหรือกรอกบาร์โค้ด')
+          }
+        }
+      } catch (err) {
+        setScanMsg('ไม่สามารถเปิดกล้องได้ กรุณาอนุญาติการใช้กล้อง')
+      }
+    }
+
+    const detectLoop = async () => {
+      if (!showScanner || !videoRef.current) return
+      try {
+        const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39'] })
+        const barcodes = await detector.detect(videoRef.current)
+        if (barcodes.length > 0) {
+          const now = Date.now()
+          if (now - scanCooldownRef.current > COOLDOWN) {
+            scanCooldownRef.current = now
+            const code = barcodes[0].rawValue
+            const product = allProducts.find(p => p.barcode === code)
+            if (product) {
+              if (product.stock > 0) {
+                addToCart(product)
+                setScanMsg(`+ ${product.name}`)
+                if (navigator.vibrate) navigator.vibrate(150)
+              } else {
+                setScanMsg(`${product.name} หมดสต็อก`)
+              }
+            } else {
+              setScanMsg('ไม่พบสินค้าในระบบ')
+            }
+          }
+        }
+      } catch (e) {}
+      animId = requestAnimationFrame(detectLoop)
+    }
+
+    start()
+    return () => {
+      if (animId) cancelAnimationFrame(animId)
+      if (stream) stream.getTracks().forEach(t => t.stop())
+    }
+  }, [showScanner])
 
   const allProducts = useMemo(() => {
     if (!user?.shopId) return []
@@ -111,12 +178,12 @@ export default function PosPage() {
   }
 
   return (
-    <div className="h-full flex flex-col md:flex-row bg-white w-full max-w-full overflow-x-hidden md:overflow-hidden">
+    <div className="h-full flex flex-col md:flex-row bg-white w-full max-w-full overflow-hidden">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative w-full md:overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative w-full overflow-hidden">
 
         {/* Top Banner - Shop Info (Mobile + Desktop unified style) */}
-        <div className="bg-gradient-to-r from-primary-600 to-primary-500 text-white px-4 pt-4 pb-6 safe-top rounded-b-3xl shadow-sm">
+        <div className="shrink-0 bg-gradient-to-r from-primary-600 to-primary-500 text-white px-4 pt-4 pb-6 safe-top rounded-b-3xl shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
@@ -142,7 +209,7 @@ export default function PosPage() {
 
           {/* Scan Barcode Banner */}
           <button
-            onClick={() => { alert('สแกนบาร์โค้ด / QR Code (จำลอง)'); setSearch('88512345600' + Math.floor(Math.random() * 9) + 1) }}
+            onClick={() => { setShowScanner(true); setScanMsg('') }}
             className="w-full flex items-center justify-between bg-white/20 backdrop-blur rounded-xl px-4 py-3 active:bg-white/30 transition-colors"
           >
             <div className="flex items-center space-x-3">
@@ -159,7 +226,7 @@ export default function PosPage() {
         </div>
 
         {/* Search + Category Tabs */}
-        <div className="px-4 -mt-3 z-10">
+        <div className="shrink-0 px-4 -mt-3 z-10">
           <div className="bg-white rounded-2xl shadow-md shadow-slate-200/50 p-3">
             {/* Search */}
             <div className="relative mb-3">
@@ -169,14 +236,22 @@ export default function PosPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="ค้นหาสินค้า..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-primary-300 outline-none text-sm"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-100 focus:bg-white focus:border-primary-300 outline-none text-sm"
               />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center"
+                >
+                  <X size={14} className="text-slate-500" />
+                </button>
+              )}
             </div>
           </div>
         </div>
 
         {/* Category Scroll - horizontal strip, only this row scrolls */}
-        <div className="mt-3 w-full overflow-x-auto overscroll-x-contain no-scrollbar">
+        <div className="shrink-0 mt-3 w-full overflow-x-auto overscroll-x-contain no-scrollbar">
           <div className="flex space-x-2 w-max px-4 pb-1">
             {categories.map(cat => (
               <button
@@ -488,6 +563,70 @@ export default function PosPage() {
                 ยืนยันชำระเงิน
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scanner Modal */}
+      {showScanner && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black">
+          <div className="shrink-0 flex items-center justify-between p-4 bg-black/50">
+            <h3 className="text-white font-bold text-lg">สแกนบาร์โค้ด / QR Code</h3>
+            <button onClick={() => setShowScanner(false)} className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white">
+              <X size={22} />
+            </button>
+          </div>
+          <div className="flex-1 relative overflow-hidden">
+            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-64 h-48 border-2 border-white/60 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+            </div>
+            {scanMsg && (
+              <div className="absolute bottom-24 left-0 right-0 flex justify-center pointer-events-none">
+                <span className="bg-black/70 text-white px-5 py-2.5 rounded-full text-sm font-medium backdrop-blur">{scanMsg}</span>
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 p-5 bg-black/50 space-y-3">
+            {!('BarcodeDetector' in window) && (
+              <label className="block cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    setScanMsg('ถ่ายรูปแล้ว กรุณากรอกบาร์โค้ดด้านล่าง')
+                  }}
+                />
+                <div className="w-full py-3 rounded-xl bg-white/20 text-white text-center text-sm font-medium">ถ่ายรูปบาร์โค้ด</div>
+              </label>
+            )}
+            <div className="flex space-x-2">
+              <input
+                id="manual-barcode"
+                type="text"
+                placeholder="กรอกบาร์โค้ดเอง"
+                className="flex-1 px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/50 outline-none text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const code = e.target.value
+                    const product = allProducts.find(p => p.barcode === code)
+                    if (product && product.stock > 0) {
+                      addToCart(product)
+                      setScanMsg(`+ ${product.name}`)
+                      if (navigator.vibrate) navigator.vibrate(150)
+                    } else if (product) {
+                      setScanMsg(`${product.name} หมดสต็อก`)
+                    } else {
+                      setScanMsg('ไม่พบสินค้าในระบบ')
+                    }
+                    e.target.value = ''
+                  }
+                }}
+              />
+            </div>
+            <p className="text-white/50 text-xs text-center">วางบาร์โค้ดให้อยู่ในกรอบ สแกนต่อเนื่องได้จนกว่าจะกดปิด</p>
           </div>
         </div>
       )}
