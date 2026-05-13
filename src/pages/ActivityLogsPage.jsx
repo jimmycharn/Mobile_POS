@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ClipboardList, User, ArrowRightLeft, LogIn, LogOut, Package, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { ClipboardList, User, ArrowRightLeft, LogIn, LogOut, Package, Pencil, Trash2, AlertTriangle, Ban } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { logService } from '../services/mockData'
 import { format, parseISO } from 'date-fns'
@@ -9,6 +9,7 @@ const actionConfig = {
   LOGOUT: { label: 'ออกจากระบบ', icon: LogOut, color: 'bg-slate-50 text-slate-500' },
   SALE: { label: 'ขายสินค้า', icon: Package, color: 'bg-primary-50 text-primary-600' },
   STOCK_IN: { label: 'รับสินค้า', icon: ArrowRightLeft, color: 'bg-blue-50 text-blue-600' },
+  STOCK_OUT: { label: 'ตัดสต็อกสูญเสีย', icon: Ban, color: 'bg-red-50 text-red-600' },
   ADD_PRODUCT: { label: 'เพิ่มสินค้า', icon: Package, color: 'bg-purple-50 text-purple-600' },
   EDIT_PRODUCT: { label: 'แก้ไขสินค้า', icon: Pencil, color: 'bg-amber-50 text-amber-600' },
   ADD_STAFF: { label: 'เพิ่มพนักงาน', icon: User, color: 'bg-teal-50 text-teal-600' },
