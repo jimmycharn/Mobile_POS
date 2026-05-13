@@ -261,33 +261,32 @@ export default function PosPage() {
           )}
         </div>
 
-        {/* Bottom Cart Bar (Mobile) */}
-        <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 px-4 pb-2 safe-bottom">
-          <button
-            onClick={() => setShowCart(true)}
-            disabled={cart.length === 0}
-            className="w-full bg-primary-600 disabled:bg-slate-300 text-white rounded-2xl px-5 py-3.5 shadow-lg shadow-primary-200/50 flex items-center justify-between transition-all active:scale-[0.98]"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <ShoppingCart size={22} />
-                {cartItems > 0 && (
+        {/* Bottom Cart Bar (Mobile) - hidden when empty */}
+        {cartItems > 0 && (
+          <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 px-4 pb-2 safe-bottom">
+            <button
+              onClick={() => setShowCart(true)}
+              className="w-full bg-primary-600 text-white rounded-2xl px-5 py-3.5 shadow-lg shadow-primary-200/50 flex items-center justify-between transition-all active:scale-[0.98]"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <ShoppingCart size={22} />
                   <span className="absolute -top-2 -right-2 w-5 h-5 bg-amber-400 text-primary-900 text-[10px] font-bold rounded-full flex items-center justify-center">
                     {cartItems}
                   </span>
-                )}
+                </div>
+                <div className="text-left">
+                  <p className="text-xs text-primary-200">{cartItems} รายการ</p>
+                  <p className="text-lg font-bold leading-tight">฿{cartTotal.toLocaleString()}</p>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="text-xs text-primary-200">{cartItems} รายการ</p>
-                <p className="text-lg font-bold leading-tight">฿{cartTotal.toLocaleString()}</p>
+              <div className="flex items-center space-x-1 text-sm font-medium">
+                <span>ดูตะกร้า</span>
+                <ArrowRight size={16} />
               </div>
-            </div>
-            <div className="flex items-center space-x-1 text-sm font-medium">
-              <span>ดูตะกร้า</span>
-              <ArrowRight size={16} />
-            </div>
-          </button>
-        </div>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Desktop Cart Sidebar */}
