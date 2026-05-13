@@ -241,9 +241,9 @@ export default function PosPage() {
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-7 h-7 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center transition-colors"
                 >
-                  <X size={14} className="text-slate-500" />
+                  <X size={16} className="text-slate-600" />
                 </button>
               )}
             </div>
