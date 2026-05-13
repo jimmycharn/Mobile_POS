@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, productService, authService } from '../services/mockData'
 
@@ -17,6 +17,10 @@ export default function InventoryPage() {
   const [stockOutReason, setStockOutReason] = useState('spoilage')
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '' })
   const [filter, setFilter] = useState('all') // all, low, standard, custom
+  const [showScanner, setShowScanner] = useState(false)
+  const [scanMsg, setScanMsg] = useState('')
+  const videoRef = useRef(null)
+  const scanCooldownRef = useRef(0)
 
   useEffect(() => {
     if (user?.shopId) refresh()
@@ -34,6 +38,61 @@ export default function InventoryPage() {
   useEffect(() => {
     refresh()
   }, [search, filter])
+
+  useEffect(() => {
+    if (!showScanner) return
+    let stream = null
+    let animId = null
+    const COOLDOWN = 1200
+
+    const start = async () => {
+      try {
+        const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+        if (!hasCamera) {
+          setScanMsg('เบราว์เซอร์ไม่รองรับกล้อง')
+          return
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+          if ('BarcodeDetector' in window) {
+            detectLoop()
+          } else {
+            setScanMsg('เบราว์เซอร์ไม่รองรับสแกนอัตโนมัติ')
+          }
+        }
+      } catch (err) {
+        setScanMsg('ไม่สามารถเปิดกล้องได้ กรุณาอนุญาติการใช้กล้อง')
+      }
+    }
+
+    const detectLoop = async () => {
+      if (!showScanner || !videoRef.current) return
+      try {
+        const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39'] })
+        const barcodes = await detector.detect(videoRef.current)
+        if (barcodes.length > 0) {
+          const now = Date.now()
+          if (now - scanCooldownRef.current > COOLDOWN) {
+            scanCooldownRef.current = now
+            const code = barcodes[0].rawValue
+            setForm(prev => ({ ...prev, barcode: code }))
+            setScanMsg(`บาร์โค้ด: ${code}`)
+            if (navigator.vibrate) navigator.vibrate(150)
+            setTimeout(() => setShowScanner(false), 800)
+          }
+        }
+      } catch (e) {}
+      animId = requestAnimationFrame(detectLoop)
+    }
+
+    start()
+    return () => {
+      if (animId) cancelAnimationFrame(animId)
+      if (stream) stream.getTracks().forEach(t => t.stop())
+    }
+  }, [showScanner])
 
   const handleSave = () => {
     if (selectedProduct) {
@@ -321,7 +380,16 @@ export default function InventoryPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">บาร์โค้ด</label>
-                <input value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                <div className="relative">
+                  <input value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="w-full pr-12 pl-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                  <button
+                    type="button"
+                    onClick={() => { setShowScanner(true); setScanMsg('') }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary-50 hover:bg-primary-100 rounded-lg flex items-center justify-center text-primary-600 transition-colors"
+                  >
+                    <ScanBarcode size={18} />
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">รูปสินค้า</label>
@@ -449,6 +517,55 @@ export default function InventoryPage() {
             >
               ยืนยันรับสินค้าเข้า
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Barcode Scanner Modal */}
+      {showScanner && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black">
+          <div className="shrink-0 flex items-center justify-between p-4 bg-black/50">
+            <h3 className="text-white font-bold text-lg">สแกนบาร์โค้ด / QR Code</h3>
+            <button onClick={() => setShowScanner(false)} className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white">
+              <X size={22} />
+            </button>
+          </div>
+          <div className="flex-1 relative overflow-hidden">
+            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-64 h-48 border-2 border-white/60 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+            </div>
+            {scanMsg && (
+              <div className="absolute bottom-24 left-0 right-0 flex justify-center pointer-events-none">
+                <span className="bg-black/70 text-white px-5 py-2.5 rounded-full text-sm font-medium backdrop-blur">{scanMsg}</span>
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 p-5 bg-black/50 space-y-3">
+            {!('BarcodeDetector' in window) && (
+              <label className="block cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => { setScanMsg('ถ่ายรูปแล้ว กรุณากรอกบาร์โค้ดด้านล่าง') }}
+                />
+                <div className="w-full py-3 rounded-xl bg-white/20 text-white text-center text-sm font-medium">ถ่ายรูปบาร์โค้ด</div>
+              </label>
+            )}
+            <input
+              type="text"
+              placeholder="กรอกบาร์โค้ดเอง"
+              className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/50 outline-none text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setForm(prev => ({ ...prev, barcode: e.target.value }))
+                  setShowScanner(false)
+                }
+              }}
+            />
+            <p className="text-white/50 text-xs text-center">วางบาร์โค้ดให้อยู่ในกรอบแล้วรอสักครู่</p>
           </div>
         </div>
       )}
