@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopProductService, productService, authService } from '../services/mockData'
+import { shopProductService, productService, authService, branchService } from '../services/mockData'
 
 export default function InventoryPage() {
   const { user } = useAuth()
@@ -215,7 +215,7 @@ export default function InventoryPage() {
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-lg md:text-xl font-bold text-slate-800">จัดการสินค้าและสต็อก</h1>
+            <h1 className="text-lg md:text-xl font-bold text-slate-800">จัดการสินค้าและสต็อก ({branchService.getById(user.branchId)?.name || 'สาขาหลัก'})</h1>
             <p className="text-sm text-slate-400">รับสินค้าเข้า ตรวจสอบ และจัดการสต็อก</p>
           </div>
           {canManage && (
