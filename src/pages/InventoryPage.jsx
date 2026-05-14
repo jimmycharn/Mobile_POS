@@ -25,11 +25,11 @@ export default function InventoryPage() {
   const scanCooldownRef = useRef(0)
 
   useEffect(() => {
-    if (user?.shopId) refresh()
+    if (user?.branchId) refresh()
   }, [user])
 
   const refresh = () => {
-    let list = shopProductService.getByShop(user.shopId)
+    let list = shopProductService.getByBranch(user.branchId)
     if (search.trim()) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
     if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
     if (filter === 'standard') list = list.filter(p => p.isStandard)
@@ -115,6 +115,7 @@ export default function InventoryPage() {
     } else {
       const newProduct = shopProductService.create({
         shopId: user.shopId,
+        branchId: user.branchId,
         productId: null,
         name: form.name,
         barcode: form.barcode || 'SHOP' + Date.now(),
@@ -201,9 +202,9 @@ export default function InventoryPage() {
     refresh()
   }
 
-  const categories = [...new Set(shopProductService.getByShop(user.shopId).map(p => p.category))]
-  const colors = [...new Set(shopProductService.getByShop(user.shopId).map(p => p.color).filter(Boolean))]
-  const sizes = [...new Set(shopProductService.getByShop(user.shopId).map(p => p.size).filter(Boolean))]
+  const categories = [...new Set(shopProductService.getByBranch(user.branchId).map(p => p.category))]
+  const colors = [...new Set(shopProductService.getByBranch(user.branchId).map(p => p.color).filter(Boolean))]
+  const sizes = [...new Set(shopProductService.getByBranch(user.branchId).map(p => p.size).filter(Boolean))]
 
   // Permission check: owner always can manage, staff needs canManageInventory flag
   const canManage = user.role === 'owner' || (user.role === 'staff' && (user.canManageInventory ?? true))
@@ -634,7 +635,7 @@ export default function InventoryPage() {
                     <button
                       onClick={() => {
                         if (!confirm(`ลบหมวดหมู่ "${cat}"?\nสินค้า ${count} รายการจะถูกย้ายไปหมวดหมู่ "ทั่วไป"`)) return
-                        const all = shopProductService.getByShop(user.shopId)
+                        const all = shopProductService.getByBranch(user.branchId)
                         all.filter(p => p.category === cat).forEach(p => {
                           shopProductService.update(p.id, { category: 'ทั่วไป' })
                         })

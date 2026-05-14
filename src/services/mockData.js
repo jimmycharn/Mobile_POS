@@ -4,6 +4,7 @@
 const DB_KEYS = {
   USERS: 'pos_users',
   SHOPS: 'pos_shops',
+  BRANCHES: 'pos_branches',
   PRODUCTS: 'pos_products',
   SHOP_PRODUCTS: 'pos_shop_products',
   SALES: 'pos_sales',
@@ -55,6 +56,7 @@ function seedData() {
       name: 'นางสาวสมหญิง',
       role: 'staff',
       shopId: 'shop-1',
+      branchId: 'branch-1',
       avatar: null,
       canManageInventory: true,
       createdAt: new Date().toISOString(),
@@ -78,6 +80,20 @@ function seedData() {
     ]))
   }
 
+  if (!localStorage.getItem(DB_KEYS.BRANCHES)) {
+    localStorage.setItem(DB_KEYS.BRANCHES, JSON.stringify([
+      {
+        id: 'branch-1',
+        shopId: 'shop-1',
+        name: 'สาขาสุขุมวิท',
+        address: '123 ถนนสุขุมวิท กรุงเทพฯ',
+        phone: '081-234-5678',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      }
+    ]))
+  }
+
   if (!localStorage.getItem(DB_KEYS.PRODUCTS)) {
     localStorage.setItem(DB_KEYS.PRODUCTS, JSON.stringify([
       { id: 'prod-central-1', barcode: '885123456001', name: 'น้ำดื่ม 600ml', category: 'เครื่องดื่ม', unit: 'ขวด', isStandard: true, createdAt: new Date().toISOString() },
@@ -97,23 +113,23 @@ function seedData() {
 
   if (!localStorage.getItem(DB_KEYS.SHOP_PRODUCTS)) {
     localStorage.setItem(DB_KEYS.SHOP_PRODUCTS, JSON.stringify([
-      { id: 'sp-1', shopId: 'shop-1', productId: 'prod-central-1', name: 'น้ำดื่ม 600ml', barcode: '885123456001', category: 'เครื่องดื่ม', unit: 'ขวด', costPrice: 5, salePrice: 10, stock: 120, minStock: 20, isStandard: true },
-      { id: 'sp-2', shopId: 'shop-1', productId: 'prod-central-2', name: 'มาม่า รสต้มยำ', barcode: '885123456002', category: 'อาหารแห้ง', unit: 'ซอง', costPrice: 6, salePrice: 12, stock: 80, minStock: 30, isStandard: true },
-      { id: 'sp-3', shopId: 'shop-1', productId: 'prod-central-3', name: 'ขนมปังแซนวิช', barcode: '885123456003', category: 'ขนม/เบเกอรี่', unit: 'ชิ้น', costPrice: 15, salePrice: 28, stock: 25, minStock: 10, isStandard: true },
-      { id: 'sp-4', shopId: 'shop-1', productId: 'prod-central-4', name: 'โค้ก 1.25L', barcode: '885123456004', category: 'เครื่องดื่ม', unit: 'ขวด', costPrice: 18, salePrice: 32, stock: 45, minStock: 15, isStandard: true },
-      { id: 'sp-5', shopId: 'shop-1', productId: 'prod-central-5', name: 'ชาเขียว 500ml', barcode: '885123456005', category: 'เครื่องดื่ม', unit: 'ขวด', costPrice: 12, salePrice: 20, stock: 60, minStock: 20, isStandard: true },
-      { id: 'sp-6', shopId: 'shop-1', productId: 'prod-central-6', name: 'คุกกี้รสช็อก', barcode: '885123456006', category: 'ขนม/เบเกอรี่', unit: 'ห่อ', costPrice: 20, salePrice: 35, stock: 40, minStock: 15, isStandard: true },
-      { id: 'sp-7', shopId: 'shop-1', productId: 'prod-central-7', name: 'ทิชชู่กระดาษ', barcode: '885123456007', category: 'ของใช้ทั่วไป', unit: 'แพ็ค', costPrice: 25, salePrice: 45, stock: 30, minStock: 10, isStandard: true },
-      { id: 'sp-8', shopId: 'shop-1', productId: 'prod-central-8', name: 'ยาสีฟัน', barcode: '885123456008', category: 'ของใช้ส่วนตัว', unit: 'หลอด', costPrice: 30, salePrice: 55, stock: 18, minStock: 10, isStandard: true },
-      { id: 'sp-9', shopId: 'shop-1', productId: 'prod-central-9', name: 'แปรงสีฟัน', barcode: '885123456009', category: 'ของใช้ส่วนตัว', unit: 'ชิ้น', costPrice: 15, salePrice: 25, stock: 50, minStock: 15, isStandard: true },
-      { id: 'sp-10', shopId: 'shop-1', productId: 'prod-central-10', name: 'สบู่ก้อน', barcode: '885123456010', category: 'ของใช้ส่วนตัว', unit: 'ก้อน', costPrice: 8, salePrice: 15, stock: 12, minStock: 15, isStandard: true },
-      { id: 'sp-11', shopId: 'shop-1', productId: 'prod-central-11', name: 'น้ำมันพืช 1L', barcode: '885123456011', category: 'อาหารแห้ง', unit: 'ขวด', costPrice: 35, salePrice: 55, stock: 22, minStock: 10, isStandard: true },
-      { id: 'sp-12', shopId: 'shop-1', productId: 'prod-central-12', name: 'น้ำตาลทราย 1kg', barcode: '885123456012', category: 'อาหารแห้ง', unit: 'ถุง', costPrice: 28, salePrice: 42, stock: 35, minStock: 10, isStandard: true },
+      { id: 'sp-1', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-1', name: 'น้ำดื่ม 600ml', barcode: '885123456001', category: 'เครื่องดื่ม', unit: 'ขวด', costPrice: 5, salePrice: 10, stock: 120, minStock: 20, isStandard: true },
+      { id: 'sp-2', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-2', name: 'มาม่า รสต้มยำ', barcode: '885123456002', category: 'อาหารแห้ง', unit: 'ซอง', costPrice: 6, salePrice: 12, stock: 80, minStock: 30, isStandard: true },
+      { id: 'sp-3', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-3', name: 'ขนมปังแซนวิช', barcode: '885123456003', category: 'ขนม/เบเกอรี่', unit: 'ชิ้น', costPrice: 15, salePrice: 28, stock: 25, minStock: 10, isStandard: true },
+      { id: 'sp-4', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-4', name: 'โค้ก 1.25L', barcode: '885123456004', category: 'เครื่องดื่ม', unit: 'ขวด', costPrice: 18, salePrice: 32, stock: 45, minStock: 15, isStandard: true },
+      { id: 'sp-5', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-5', name: 'ชาเขียว 500ml', barcode: '885123456005', category: 'เครื่องดื่ม', unit: 'ขวด', costPrice: 12, salePrice: 20, stock: 60, minStock: 20, isStandard: true },
+      { id: 'sp-6', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-6', name: 'คุกกี้รสช็อก', barcode: '885123456006', category: 'ขนม/เบเกอรี่', unit: 'ห่อ', costPrice: 20, salePrice: 35, stock: 40, minStock: 15, isStandard: true },
+      { id: 'sp-7', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-7', name: 'ทิชชู่กระดาษ', barcode: '885123456007', category: 'ของใช้ทั่วไป', unit: 'แพ็ค', costPrice: 25, salePrice: 45, stock: 30, minStock: 10, isStandard: true },
+      { id: 'sp-8', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-8', name: 'ยาสีฟัน', barcode: '885123456008', category: 'ของใช้ส่วนตัว', unit: 'หลอด', costPrice: 30, salePrice: 55, stock: 18, minStock: 10, isStandard: true },
+      { id: 'sp-9', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-9', name: 'แปรงสีฟัน', barcode: '885123456009', category: 'ของใช้ส่วนตัว', unit: 'ชิ้น', costPrice: 15, salePrice: 25, stock: 50, minStock: 15, isStandard: true },
+      { id: 'sp-10', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-10', name: 'สบู่ก้อน', barcode: '885123456010', category: 'ของใช้ส่วนตัว', unit: 'ก้อน', costPrice: 8, salePrice: 15, stock: 12, minStock: 15, isStandard: true },
+      { id: 'sp-11', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-11', name: 'น้ำมันพืช 1L', barcode: '885123456011', category: 'อาหารแห้ง', unit: 'ขวด', costPrice: 35, salePrice: 55, stock: 22, minStock: 10, isStandard: true },
+      { id: 'sp-12', shopId: 'shop-1', branchId: 'branch-1', productId: 'prod-central-12', name: 'น้ำตาลทราย 1kg', barcode: '885123456012', category: 'อาหารแห้ง', unit: 'ถุง', costPrice: 28, salePrice: 42, stock: 35, minStock: 10, isStandard: true },
       // Shop-specific products with color/size variants
-      { id: 'sp-13', shopId: 'shop-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001R', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 25, minStock: 5, isStandard: false, color: 'แดง', size: 'M' },
-      { id: 'sp-14', shopId: 'shop-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001B', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 18, minStock: 5, isStandard: false, color: 'น้ำเงิน', size: 'L' },
-      { id: 'sp-15', shopId: 'shop-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001K', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 30, minStock: 5, isStandard: false, color: 'ดำ', size: 'XL' },
-      { id: 'sp-16', shopId: 'shop-1', productId: null, name: 'ข้าวเหนียวมะม่วง (เฉพาะร้าน)', barcode: 'SHOP0001', category: 'ขนมไทย', unit: 'จาน', costPrice: 40, salePrice: 80, stock: 8, minStock: 5, isStandard: false },
+      { id: 'sp-13', shopId: 'shop-1', branchId: 'branch-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001R', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 25, minStock: 5, isStandard: false, color: 'แดง', size: 'M' },
+      { id: 'sp-14', shopId: 'shop-1', branchId: 'branch-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001B', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 18, minStock: 5, isStandard: false, color: 'น้ำเงิน', size: 'L' },
+      { id: 'sp-15', shopId: 'shop-1', branchId: 'branch-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001K', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 30, minStock: 5, isStandard: false, color: 'ดำ', size: 'XL' },
+      { id: 'sp-16', shopId: 'shop-1', branchId: 'branch-1', productId: null, name: 'ข้าวเหนียวมะม่วง (เฉพาะร้าน)', barcode: 'SHOP0001', category: 'ขนมไทย', unit: 'จาน', costPrice: 40, salePrice: 80, stock: 8, minStock: 5, isStandard: false },
     ]))
   }
 
@@ -130,6 +146,7 @@ function seedData() {
         sales.push({
           id: `sale-${i}-${j}`,
           shopId: 'shop-1',
+          branchId: 'branch-1',
           items: items,
           total: total,
           paymentMethod: Math.random() > 0.5 ? 'cash' : 'transfer',
@@ -314,9 +331,21 @@ export const productService = {
   remove(id) { remove(DB_KEYS.PRODUCTS, id) },
 }
 
+// Branches
+export const branchService = {
+  getByShop(shopId) { return getAll(DB_KEYS.BRANCHES).filter(b => b.shopId === shopId && b.isActive) },
+  getById(id) { return getById(DB_KEYS.BRANCHES, id) },
+  create(branch) {
+    return insert(DB_KEYS.BRANCHES, { ...branch, id: 'branch-' + Date.now(), createdAt: new Date().toISOString(), isActive: true })
+  },
+  update(id, changes) { return update(DB_KEYS.BRANCHES, id, changes) },
+  remove(id) { remove(DB_KEYS.BRANCHES, id) },
+}
+
 // Shop Products (inventory with pricing)
 export const shopProductService = {
   getByShop(shopId) { return getAll(DB_KEYS.SHOP_PRODUCTS).filter(p => p.shopId === shopId) },
+  getByBranch(branchId) { return getAll(DB_KEYS.SHOP_PRODUCTS).filter(p => p.branchId === branchId) },
   getById(id) { return getById(DB_KEYS.SHOP_PRODUCTS, id) },
   create(sp) {
     return insert(DB_KEYS.SHOP_PRODUCTS, { ...sp, id: 'sp-' + Date.now() })
@@ -335,6 +364,9 @@ export const shopProductService = {
 export const saleService = {
   getByShop(shopId) {
     return getAll(DB_KEYS.SALES).filter(s => s.shopId === shopId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  },
+  getByBranch(branchId) {
+    return getAll(DB_KEYS.SALES).filter(s => s.branchId === branchId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   },
   getByDateRange(shopId, start, end) {
     return this.getByShop(shopId).filter(s => {
@@ -369,21 +401,28 @@ export const logService = {
   },
 }
 
-// Cart (multi-cart for parallel sales)
-const DEFAULT_CARTS = [{ id: 'cart-1', name: 'บิล 1', items: [] }]
+// Cart (multi-cart for parallel sales, keyed by branch)
+const DEFAULT_BRANCH_CARTS = { 'branch-1': [{ id: 'cart-1', name: 'บิล 1', items: [] }] }
+const DEFAULT_ACTIVE_CART_IDS = { 'branch-1': 'cart-1' }
 
 export const cartService = {
-  getCarts() {
-    return JSON.parse(sessionStorage.getItem(DB_KEYS.CARTS) || JSON.stringify(DEFAULT_CARTS))
+  getBranchCarts(branchId) {
+    const all = JSON.parse(sessionStorage.getItem(DB_KEYS.CARTS) || JSON.stringify(DEFAULT_BRANCH_CARTS))
+    return all[branchId] || [{ id: 'cart-1', name: 'บิล 1', items: [] }]
   },
-  setCarts(carts) {
-    sessionStorage.setItem(DB_KEYS.CARTS, JSON.stringify(carts))
+  setBranchCarts(branchId, carts) {
+    const all = JSON.parse(sessionStorage.getItem(DB_KEYS.CARTS) || JSON.stringify(DEFAULT_BRANCH_CARTS))
+    all[branchId] = carts
+    sessionStorage.setItem(DB_KEYS.CARTS, JSON.stringify(all))
   },
-  getActiveCartId() {
-    return sessionStorage.getItem(DB_KEYS.ACTIVE_CART) || 'cart-1'
+  getActiveCartId(branchId) {
+    const all = JSON.parse(sessionStorage.getItem(DB_KEYS.ACTIVE_CART) || JSON.stringify(DEFAULT_ACTIVE_CART_IDS))
+    return all[branchId] || 'cart-1'
   },
-  setActiveCartId(id) {
-    sessionStorage.setItem(DB_KEYS.ACTIVE_CART, id)
+  setActiveCartId(branchId, id) {
+    const all = JSON.parse(sessionStorage.getItem(DB_KEYS.ACTIVE_CART) || JSON.stringify(DEFAULT_ACTIVE_CART_IDS))
+    all[branchId] = id
+    sessionStorage.setItem(DB_KEYS.ACTIVE_CART, JSON.stringify(all))
   },
   clear() {
     sessionStorage.removeItem(DB_KEYS.CARTS)
@@ -391,9 +430,9 @@ export const cartService = {
   },
 }
 
-export function getStats(shopId) {
-  const sales = saleService.getByShop(shopId)
-  const products = shopProductService.getByShop(shopId)
+export function getStats(shopId, branchId = null) {
+  const sales = branchId ? saleService.getByBranch(branchId) : saleService.getByShop(shopId)
+  const products = branchId ? shopProductService.getByBranch(branchId) : shopProductService.getByShop(shopId)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todaySales = sales.filter(s => new Date(s.createdAt) >= today)

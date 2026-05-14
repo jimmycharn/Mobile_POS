@@ -35,15 +35,18 @@ export default function SalesReportPage() {
   }
 
   const sales = useMemo(() => {
-    if (!user?.shopId) return []
+    if (!user?.branchId) return []
     const { start, end } = getDateRange()
-    return saleService.getByDateRange(user.shopId, start, end)
-  }, [user, range, currentDate, customStart, customEnd])
+    return saleService.getByBranch(user.branchId).filter(s => {
+      const d = new Date(s.createdAt)
+      return d >= start && d <= end
+    })
+  }, [user?.branchId, range, currentDate, customStart, customEnd])
 
   const products = useMemo(() => {
-    if (!user?.shopId) return []
-    return shopProductService.getByShop(user.shopId)
-  }, [user])
+    if (!user?.branchId) return []
+    return shopProductService.getByBranch(user.branchId)
+  }, [user?.branchId])
 
   const stats = useMemo(() => {
     const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)

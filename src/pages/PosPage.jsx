@@ -44,22 +44,26 @@ export default function PosPage() {
 
   useEffect(() => {
     if (user?.shopId) {
-      setStats(getStats(user.shopId))
+      setStats(getStats(user.shopId, user.branchId))
       setShop(shopService.getById(user.shopId))
     }
-    const savedCarts = cartService.getCarts()
-    const savedActive = cartService.getActiveCartId()
+    const savedCarts = cartService.getBranchCarts(user?.branchId || 'branch-1')
+    const savedActive = cartService.getActiveCartId(user?.branchId || 'branch-1')
     setCarts(savedCarts.length ? savedCarts : [{ id: 'cart-1', name: 'บิล 1', items: [] }])
     setActiveCartId(savedActive || 'cart-1')
   }, [user])
 
   useEffect(() => {
-    cartService.setCarts(carts)
-  }, [carts])
+    if (user?.branchId) {
+      cartService.setBranchCarts(user.branchId, carts)
+    }
+  }, [carts, user?.branchId])
 
   useEffect(() => {
-    cartService.setActiveCartId(activeCartId)
-  }, [activeCartId])
+    if (user?.branchId) {
+      cartService.setActiveCartId(user.branchId, activeCartId)
+    }
+  }, [activeCartId, user?.branchId])
 
   useEffect(() => {
     if (!showScanner) return
@@ -127,9 +131,9 @@ export default function PosPage() {
   }, [showScanner])
 
   const allProducts = useMemo(() => {
-    if (!user?.shopId) return []
-    return shopProductService.getByShop(user.shopId)
-  }, [user])
+    if (!user?.branchId) return []
+    return shopProductService.getByBranch(user.branchId)
+  }, [user?.branchId])
 
   const categories = useMemo(() => {
     const cats = [...new Set(allProducts.map(p => p.category))]
@@ -236,6 +240,7 @@ export default function PosPage() {
 
     const sale = saleService.create({
       shopId: user.shopId,
+      branchId: user.branchId,
       items: cartItems,
       total: cartTotal,
       paymentMethod,
@@ -255,7 +260,7 @@ export default function PosPage() {
     setLastSale(sale)
     setShowPayment(false)
     setShowReceipt(true)
-    setStats(getStats(user.shopId))
+    setStats(getStats(user.shopId, user.branchId))
     // Close active cart after checkout
     const filtered = carts.filter(c => c.id !== activeCartId)
     if (filtered.length === 0) {
