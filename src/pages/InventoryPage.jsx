@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode } from 'lucide-react'
+import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, productService, authService } from '../services/mockData'
 
@@ -19,6 +19,8 @@ export default function InventoryPage() {
   const [filter, setFilter] = useState('all') // all, low, standard, custom
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
 
@@ -209,6 +211,13 @@ export default function InventoryPage() {
           </div>
           {canManage && (
             <div className="flex space-x-2">
+              <button
+                onClick={() => { setShowCategoryModal(true); setNewCategoryName('') }}
+                className="flex items-center space-x-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              >
+                <Tag size={18} />
+                <span>หมวดหมู่</span>
+              </button>
               <button
                 onClick={() => { setShowForm(true); setSelectedProduct(null); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '' }) }}
                 className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
@@ -566,6 +575,83 @@ export default function InventoryPage() {
               }}
             />
             <p className="text-white/50 text-xs text-center">วางบาร์โค้ดให้อยู่ในกรอบแล้วรอสักครู่</p>
+          </div>
+        </div>
+      )}
+
+      {/* Category Management Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col animate-scale-in">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-800">จัดการหมวดหมู่</h2>
+              <button onClick={() => setShowCategoryModal(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {categories.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">ยังไม่มีหมวดหมู่</p>
+              )}
+              {categories.map(cat => {
+                const count = products.filter(p => p.category === cat).length
+                return (
+                  <div key={cat} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center space-x-3">
+                      <Tag size={16} className="text-primary-500" />
+                      <span className="text-sm font-medium text-slate-800">{cat}</span>
+                      <span className="text-xs bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full">{count}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!confirm(`ลบหมวดหมู่ "${cat}"?\nสินค้า ${count} รายการจะถูกย้ายไปหมวดหมู่ "ทั่วไป"`)) return
+                        const all = shopProductService.getByShop(user.shopId)
+                        all.filter(p => p.category === cat).forEach(p => {
+                          shopProductService.update(p.id, { category: 'ทั่วไป' })
+                        })
+                        refresh()
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="p-5 border-t border-slate-100 space-y-3">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                  placeholder="ชื่อหมวดหมู่ใหม่..."
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newCategoryName.trim()) {
+                      setForm(prev => ({ ...prev, category: newCategoryName.trim() }))
+                      setNewCategoryName('')
+                      setShowCategoryModal(false)
+                      setShowForm(true)
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (!newCategoryName.trim()) return
+                    setForm(prev => ({ ...prev, category: newCategoryName.trim() }))
+                    setNewCategoryName('')
+                    setShowCategoryModal(false)
+                    setShowForm(true)
+                  }}
+                  disabled={!newCategoryName.trim()}
+                  className="px-4 py-2.5 rounded-xl bg-primary-600 disabled:bg-slate-200 text-white text-sm font-medium transition-colors"
+                >
+                  เพิ่ม
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 text-center">กด Enter หรือปุ่ม "เพิ่ม" เพื่อสร้างหมวดหมู่และไปเพิ่มสินค้า</p>
+            </div>
           </div>
         </div>
       )}
