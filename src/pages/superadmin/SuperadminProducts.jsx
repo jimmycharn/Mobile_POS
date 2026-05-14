@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Package, Search, Plus, Barcode, X, Save, Tag } from 'lucide-react'
+import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3 } from 'lucide-react'
 import { productService } from '../../services/mockData'
 
 export default function SuperadminProducts() {
   const [products, setProducts] = useState([])
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '' })
 
   useEffect(() => {
@@ -25,10 +26,21 @@ export default function SuperadminProducts() {
   }, [search])
 
   const handleSave = () => {
-    productService.create(form)
+    if (editingId) {
+      productService.update(editingId, form)
+      setEditingId(null)
+    } else {
+      productService.create(form)
+    }
     setShowForm(false)
     setForm({ name: '', barcode: '', category: '', unit: '' })
     refresh()
+  }
+
+  const handleEdit = (p) => {
+    setEditingId(p.id)
+    setForm({ name: p.name, barcode: p.barcode, category: p.category, unit: p.unit })
+    setShowForm(true)
   }
 
   const handleDelete = (id) => {
@@ -95,6 +107,9 @@ export default function SuperadminProducts() {
                     </td>
                     <td className="px-5 py-4 text-sm text-slate-500">{p.unit}</td>
                     <td className="px-5 py-4 text-right">
+                      <button onClick={() => handleEdit(p)} className="text-slate-300 hover:text-primary-500 mr-2">
+                        <Edit3 size={18} />
+                      </button>
                       <button onClick={() => handleDelete(p.id)} className="text-slate-300 hover:text-red-500">
                         <X size={18} />
                       </button>
@@ -116,7 +131,7 @@ export default function SuperadminProducts() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scale-in">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">เพิ่มสินค้ากลาง</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-4">{editingId ? 'แก้ไขสินค้ากลาง' : 'เพิ่มสินค้ากลาง'}</h3>
             <div className="space-y-3">
               <input placeholder="ชื่อสินค้า" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
               <input placeholder="บาร์โค้ด" value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
@@ -124,7 +139,7 @@ export default function SuperadminProducts() {
               <input placeholder="หน่วย (เช่น ขวด, ซอง)" value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
             </div>
             <div className="flex space-x-3 mt-5">
-              <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+              <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '' }) }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
               <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm">บันทึก</button>
             </div>
           </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight, Building2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import BranchSwitcher from '../components/BranchSwitcher'
-import { shopProductService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService } from '../services/mockData'
+import { shopProductService, productService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService } from '../services/mockData'
 import { generatePromptPayQrUrl, isPromptPayId } from '../utils/promptpay'
 
 export default function PosPage() {
@@ -22,6 +22,8 @@ export default function PosPage() {
   const [shop, setShop] = useState(null)
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
+  const [scannedGlobal, setScannedGlobal] = useState(null)
+  const [globalPrice, setGlobalPrice] = useState('')
   const [showSearchInput, setShowSearchInput] = useState(false)
   const [qrUrl, setQrUrl] = useState(null)
   const videoRef = useRef(null)
@@ -118,7 +120,16 @@ export default function PosPage() {
                 setScanMsg(`${product.name} หมดสต็อก`)
               }
             } else {
-              setScanMsg('ไม่พบสินค้าในระบบ')
+              const globalProd = productService.getAll().find(p => p.barcode === code)
+              if (globalProd) {
+                setScannedGlobal(globalProd)
+                setGlobalPrice('')
+                setScanMsg(`เจอในคลังกลาง: ${globalProd.name}`)
+                playBeep()
+                if (navigator.vibrate) navigator.vibrate(150)
+              } else {
+                setScanMsg('ไม่พบสินค้าในระบบ')
+              }
             }
           }
         }
@@ -904,7 +915,7 @@ export default function PosPage() {
         <div className="fixed inset-0 z-50 flex flex-col bg-black">
           <div className="shrink-0 flex items-center justify-between p-4 bg-black/50">
             <h3 className="text-white font-bold text-lg">สแกนบาร์โค้ด / QR Code</h3>
-            <button onClick={() => setShowScanner(false)} className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white">
+            <button onClick={() => { setShowScanner(false); setScannedGlobal(null); setGlobalPrice(''); setScanMsg('') }} className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white">
               <X size={22} />
             </button>
           </div>
@@ -953,13 +964,74 @@ export default function PosPage() {
                     } else if (product) {
                       setScanMsg(`${product.name} หมดสต็อก`)
                     } else {
-                      setScanMsg('ไม่พบสินค้าในระบบ')
+                      const globalProd = productService.getAll().find(p => p.barcode === code)
+                      if (globalProd) {
+                        setScannedGlobal(globalProd)
+                        setGlobalPrice('')
+                        setScanMsg(`เจอในคลังกลาง: ${globalProd.name}`)
+                        playBeep()
+                        if (navigator.vibrate) navigator.vibrate(150)
+                      } else {
+                        setScanMsg('ไม่พบสินค้าในระบบ')
+                      }
                     }
                     e.target.value = ''
                   }
                 }}
               />
             </div>
+
+            {/* Global Product Quick Add */}
+            {scannedGlobal && (
+              <div className="bg-white/10 rounded-xl p-4 space-y-3">
+                <div className="text-center">
+                  <p className="text-xs text-white/60">สินค้าจากคลังกลาง</p>
+                  <p className="text-white font-semibold">{scannedGlobal.name}</p>
+                  <p className="text-xs text-white/50">{scannedGlobal.barcode} · {scannedGlobal.category} · {scannedGlobal.unit}</p>
+                </div>
+                <div className="flex space-x-2">
+                  <input
+                    type="number"
+                    placeholder="ราคาขาย"
+                    value={globalPrice}
+                    onChange={e => setGlobalPrice(e.target.value)}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 text-white placeholder-white/50 outline-none text-sm"
+                  />
+                  <button
+                    onClick={() => {
+                      const price = parseFloat(globalPrice)
+                      if (!price || price <= 0) return
+                      const cartProduct = {
+                        id: 'global-' + scannedGlobal.barcode + '-' + Date.now(),
+                        name: scannedGlobal.name,
+                        barcode: scannedGlobal.barcode,
+                        category: scannedGlobal.category,
+                        unit: scannedGlobal.unit,
+                        salePrice: price,
+                        stock: 9999,
+                        isStandard: true,
+                      }
+                      addToCart(cartProduct)
+                      setScanMsg(`+ ${scannedGlobal.name} ฿${price}`)
+                      setScannedGlobal(null)
+                      setGlobalPrice('')
+                      playBeep()
+                      if (navigator.vibrate) navigator.vibrate(150)
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-medium"
+                  >
+                    เพิ่ม
+                  </button>
+                  <button
+                    onClick={() => { setScannedGlobal(null); setGlobalPrice('') }}
+                    className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-sm"
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              </div>
+            )}
+
             <p className="text-white/50 text-xs text-center">วางบาร์โค้ดให้อยู่ในกรอบ สแกนต่อเนื่องได้จนกว่าจะกดปิด</p>
           </div>
         </div>
