@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react'
-import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3 } from 'lucide-react'
+import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopService, userService, authService, packageService } from '../services/mockData'
+import { shopService, userService, authService, packageService, branchService } from '../services/mockData'
 
 export default function ShopSettingsPage() {
   const { user, logout } = useAuth()
   const [shop, setShop] = useState(null)
   const [staff, setStaff] = useState([])
   const [showAddStaff, setShowAddStaff] = useState(false)
-  const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '' })
+  const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', branchId: '' })
   const [pkg, setPkg] = useState(null)
+  const [branches, setBranches] = useState([])
+  const [showAddBranch, setShowAddBranch] = useState(false)
+  const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '' })
+
+  const refreshBranches = () => {
+    if (user?.shopId) setBranches(branchService.getByShop(user.shopId))
+  }
 
   useEffect(() => {
     if (user?.shopId) {
@@ -17,6 +24,7 @@ export default function ShopSettingsPage() {
       setShop(s)
       setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
       if (s) setPkg(packageService.getById(s.packageId))
+      refreshBranches()
     }
   }, [user])
 
@@ -25,13 +33,14 @@ export default function ShopSettingsPage() {
       ...newStaff,
       role: 'staff',
       shopId: user.shopId,
+      branchId: newStaff.branchId || branches[0]?.id,
       avatar: null,
     })
     if (!result.error) {
       authService.logActivity(user.id, user.shopId, 'ADD_STAFF', `เพิ่มพนักงาน ${newStaff.name}`)
       setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
       setShowAddStaff(false)
-      setNewStaff({ name: '', email: '', password: '' })
+      setNewStaff({ name: '', email: '', password: '', branchId: '' })
     }
   }
 
@@ -79,6 +88,51 @@ export default function ShopSettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Branch Management */}
+        {user?.role === 'owner' && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <MapPin size={20} className="text-primary-600" />
+                <h3 className="font-semibold text-slate-800">สาขา ({branches.length})</h3>
+              </div>
+              <button
+                onClick={() => setShowAddBranch(true)}
+                className="flex items-center space-x-1 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-xl text-sm font-medium"
+              >
+                <Plus size={16} />
+                <span>เพิ่ม</span>
+              </button>
+            </div>
+            <div className="space-y-2">
+              {branches.map(b => (
+                <div key={b.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
+                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                    <Store size={18} className="text-primary-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{b.name}</p>
+                    <p className="text-xs text-slate-400 truncate">{b.address || '-'}</p>
+                  </div>
+                  {branches.length > 1 && (
+                    <button
+                      onClick={() => {
+                        if (!confirm(`ลบ ${b.name}?`)) return
+                        branchService.remove(b.id)
+                        authService.logActivity(user.id, user.shopId, 'DELETE_BRANCH', `ลบสาขา ${b.name}`)
+                        refreshBranches()
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Staff Management */}
         {user?.role === 'owner' && (
@@ -169,10 +223,65 @@ export default function ShopSettingsPage() {
                   onChange={e => setNewStaff({...newStaff, password: e.target.value})}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
                 />
+                <select
+                  value={newStaff.branchId}
+                  onChange={e => setNewStaff({...newStaff, branchId: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                >
+                  <option value="">เลือกสาขา</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setShowAddStaff(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button onClick={handleAddStaff} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm">บันทึก</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Branch Modal */}
+        {showAddBranch && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">เพิ่มสาขา</h3>
+              <div className="space-y-3">
+                <input
+                  placeholder="ชื่อสาขา"
+                  value={newBranch.name}
+                  onChange={e => setNewBranch({...newBranch, name: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <input
+                  placeholder="ที่อยู่"
+                  value={newBranch.address}
+                  onChange={e => setNewBranch({...newBranch, address: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <input
+                  placeholder="เบอร์โทร"
+                  value={newBranch.phone}
+                  onChange={e => setNewBranch({...newBranch, phone: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+              </div>
+              <div className="flex space-x-3 mt-5">
+                <button onClick={() => setShowAddBranch(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+                <button
+                  onClick={() => {
+                    if (!newBranch.name.trim()) return
+                    branchService.create({ shopId: user.shopId, name: newBranch.name.trim(), address: newBranch.address, phone: newBranch.phone })
+                    authService.logActivity(user.id, user.shopId, 'CREATE_BRANCH', `เพิ่มสาขา ${newBranch.name}`)
+                    setNewBranch({ name: '', address: '', phone: '' })
+                    setShowAddBranch(false)
+                    refreshBranches()
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+                >
+                  บันทึก
+                </button>
               </div>
             </div>
           </div>
