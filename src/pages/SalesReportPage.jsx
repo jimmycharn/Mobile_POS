@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { saleService, shopProductService } from '../services/mockData'
+import { saleService, shopProductService, branchService } from '../services/mockData'
 import { startOfDay, endOfDay, subDays, format, parseISO, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
 
 export default function SalesReportPage() {
@@ -11,6 +11,11 @@ export default function SalesReportPage() {
   const [customStart, setCustomStart] = useState(format(subDays(new Date(), 6), 'yyyy-MM-dd'))
   const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [showCustomPicker, setShowCustomPicker] = useState(false)
+  const [selectedBranch, setSelectedBranch] = useState('all') // 'all' or branchId
+
+  const branches = user?.shopId ? branchService.getByShop(user.shopId) : []
+  const canFilterBranch = user && (user.role === 'owner' || user.role === 'superadmin') && branches.length > 1
+  const effectiveBranchId = canFilterBranch ? (selectedBranch === 'all' ? null : selectedBranch) : user?.branchId
 
   const getDateRange = () => {
     const today = new Date()
@@ -35,18 +40,23 @@ export default function SalesReportPage() {
   }
 
   const sales = useMemo(() => {
-    if (!user?.branchId) return []
+    if (!effectiveBranchId && !user?.shopId) return []
     const { start, end } = getDateRange()
-    return saleService.getByBranch(user.branchId).filter(s => {
+    const list = effectiveBranchId
+      ? saleService.getByBranch(effectiveBranchId)
+      : saleService.getByShop(user.shopId)
+    return list.filter(s => {
       const d = new Date(s.createdAt)
       return d >= start && d <= end
     })
-  }, [user?.branchId, range, currentDate, customStart, customEnd])
+  }, [effectiveBranchId, user?.shopId, range, currentDate, customStart, customEnd])
 
   const products = useMemo(() => {
-    if (!user?.branchId) return []
-    return shopProductService.getByBranch(user.branchId)
-  }, [user?.branchId])
+    if (!effectiveBranchId && !user?.shopId) return []
+    return effectiveBranchId
+      ? shopProductService.getByBranch(effectiveBranchId)
+      : shopProductService.getByShop(user.shopId)
+  }, [effectiveBranchId, user?.shopId])
 
   const stats = useMemo(() => {
     const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)
@@ -92,10 +102,26 @@ export default function SalesReportPage() {
   }, [range, customStart, customEnd])
 
   return (
-    <div className="h-full pb-20 md:pb-0">
+    <div className="h-full pb-20 md:pb-0 overflow-y-auto">
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4">
-        <h1 className="text-lg md:text-xl font-bold text-slate-800">รายงานยอดขาย</h1>
-        <p className="text-sm text-slate-400">สรุปผลประกอบการและแนวโน้มยอดขาย</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg md:text-xl font-bold text-slate-800">รายงานยอดขาย</h1>
+            <p className="text-sm text-slate-400">สรุปยอดขายและสถิติ</p>
+          </div>
+          {canFilterBranch && (
+            <select
+              value={selectedBranch}
+              onChange={e => setSelectedBranch(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+            >
+              <option value="all">ทุกสาขา</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       <div className="p-4 md:p-6 space-y-4">
