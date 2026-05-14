@@ -8,7 +8,7 @@ export default function BranchSwitcher({ variant = 'default' }) {
   const ref = useRef(null)
 
   // Staff cannot switch branches; owner/superadmin can
-  const canSwitch = user && (user.role === 'owner' || user.role === 'superadmin') && branches.length > 1
+  const canSwitch = user && (user.role === 'owner' || user.role === 'superadmin')
 
   const currentBranch = branches.find(b => b.id === user?.branchId)
 
