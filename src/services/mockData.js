@@ -13,6 +13,7 @@ const DB_KEYS = {
   PACKAGES: 'pos_packages',
   CARTS: 'pos_carts',
   ACTIVE_CART: 'pos_active_cart',
+  BANK_ACCOUNTS: 'pos_bank_accounts',
 }
 
 // Seed initial data if not exists
@@ -80,6 +81,33 @@ function seedData() {
     ]))
   }
 
+  if (!localStorage.getItem(DB_KEYS.BANK_ACCOUNTS)) {
+    localStorage.setItem(DB_KEYS.BANK_ACCOUNTS, JSON.stringify([
+      {
+        id: 'bank-1',
+        shopId: 'shop-1',
+        name: 'บัญชี PromptPay สมชาย',
+        bankName: 'PromptPay',
+        accountNo: '0812345678',
+        accountHolder: 'สมชาย ใจดี',
+        type: 'promptpay',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'bank-2',
+        shopId: 'shop-1',
+        name: 'บัญชีกสิกร',
+        bankName: 'กสิกรไทย',
+        accountNo: '123-4-56789-0',
+        accountHolder: 'สมชาย ใจดี',
+        type: 'bank',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      }
+    ]))
+  }
+
   if (!localStorage.getItem(DB_KEYS.BRANCHES)) {
     localStorage.setItem(DB_KEYS.BRANCHES, JSON.stringify([
       {
@@ -88,6 +116,7 @@ function seedData() {
         name: 'สาขาสุขุมวิท',
         address: '123 ถนนสุขุมวิท กรุงเทพฯ',
         phone: '081-234-5678',
+        bankAccountId: 'bank-1',
         isActive: true,
         createdAt: new Date().toISOString(),
       }
@@ -342,6 +371,17 @@ export const branchService = {
   },
   update(id, changes) { return update(DB_KEYS.BRANCHES, id, changes) },
   remove(id) { remove(DB_KEYS.BRANCHES, id) },
+}
+
+// Bank Accounts
+export const bankAccountService = {
+  getByShop(shopId) { return getAll(DB_KEYS.BANK_ACCOUNTS).filter(b => b.shopId === shopId && b.isActive) },
+  getById(id) { return getById(DB_KEYS.BANK_ACCOUNTS, id) },
+  create(account) {
+    return insert(DB_KEYS.BANK_ACCOUNTS, { ...account, id: 'bank-' + Date.now(), createdAt: new Date().toISOString(), isActive: true })
+  },
+  update(id, changes) { return update(DB_KEYS.BANK_ACCOUNTS, id, changes) },
+  remove(id) { remove(DB_KEYS.BANK_ACCOUNTS, id) },
 }
 
 // Shop Products (inventory with pricing)

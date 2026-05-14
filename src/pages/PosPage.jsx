@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import BranchSwitcher from '../components/BranchSwitcher'
-import { shopProductService, saleService, cartService, getStats, authService, shopService } from '../services/mockData'
+import { shopProductService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService } from '../services/mockData'
 import { generatePromptPayQrUrl, isPromptPayId } from '../utils/promptpay'
 
 export default function PosPage() {
@@ -238,17 +238,24 @@ export default function PosPage() {
     setActiveCartItems([])
   }
 
+  const branchBankAccount = useMemo(() => {
+    if (!user?.branchId) return null
+    const branch = branchService.getById(user.branchId)
+    if (!branch?.bankAccountId) return null
+    return bankAccountService.getById(branch.bankAccountId)
+  }, [user?.branchId])
+
   useEffect(() => {
     async function generateQr() {
-      if (paymentMethod === 'transfer' && shop?.phone && isPromptPayId(shop.phone)) {
-        const url = await generatePromptPayQrUrl(shop.phone, cartTotal)
+      if (paymentMethod === 'transfer' && branchBankAccount?.type === 'promptpay' && isPromptPayId(branchBankAccount.accountNo)) {
+        const url = await generatePromptPayQrUrl(branchBankAccount.accountNo, cartTotal)
         setQrUrl(url)
       } else {
         setQrUrl(null)
       }
     }
     generateQr()
-  }, [paymentMethod, cartTotal, shop?.phone])
+  }, [paymentMethod, cartTotal, branchBankAccount])
 
   const handleCheckout = () => {
     if (cart.length === 0) return
@@ -817,21 +824,45 @@ export default function PosPage() {
               </button>
             </div>
 
-            {/* PromptPay QR Code */}
-            {paymentMethod === 'transfer' && qrUrl && (
+            {/* Transfer Details */}
+            {paymentMethod === 'transfer' && branchBankAccount?.type === 'promptpay' && qrUrl && (
               <div className="mb-6 flex flex-col items-center">
                 <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-4">
                   <img src={qrUrl} alt="PromptPay QR" className="w-56 h-56" />
                 </div>
                 <p className="text-sm text-slate-500 mt-3 text-center">
                   สแกนด้วยแอปธนาคารเพื่อโอนเงิน<br />
-                  <span className="text-xs text-slate-400">{shop?.name || 'ร้านค้า'} · {shop?.phone || ''}</span>
+                  <span className="text-xs text-slate-400">{branchBankAccount.name} · {branchBankAccount.accountNo}</span>
                 </p>
               </div>
             )}
-            {paymentMethod === 'transfer' && !qrUrl && (
+            {paymentMethod === 'transfer' && branchBankAccount?.type === 'promptpay' && !qrUrl && (
               <div className="mb-6 text-center text-sm text-red-400">
                 ไม่สามารถสร้าง QR Code ได้ (ตรวจสอบเบอร์ PromptPay)
+              </div>
+            )}
+            {paymentMethod === 'transfer' && branchBankAccount?.type === 'bank' && (
+              <div className="mb-6 bg-slate-50 rounded-2xl p-5 space-y-3">
+                <p className="text-sm font-semibold text-slate-700 text-center">โอนเงินผ่านธนาคาร</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">ธนาคาร</span>
+                    <span className="font-medium text-slate-800">{branchBankAccount.bankName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">เลขบัญชี</span>
+                    <span className="font-medium text-slate-800 font-mono">{branchBankAccount.accountNo}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">ชื่อบัญชี</span>
+                    <span className="font-medium text-slate-800">{branchBankAccount.accountHolder}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {paymentMethod === 'transfer' && !branchBankAccount && (
+              <div className="mb-6 text-center text-sm text-amber-500 bg-amber-50 rounded-xl p-4">
+                สาขานี้ยังไม่มีบัญชีรับเงิน กรุณาติดต่อเจ้าของร้าน
               </div>
             )}
 

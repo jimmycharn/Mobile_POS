@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin } from 'lucide-react'
+import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopService, userService, authService, packageService, branchService } from '../services/mockData'
+import { shopService, userService, authService, packageService, branchService, bankAccountService } from '../services/mockData'
 
 export default function ShopSettingsPage() {
   const { user, logout } = useAuth()
@@ -14,9 +14,18 @@ export default function ShopSettingsPage() {
   const [showAddBranch, setShowAddBranch] = useState(false)
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '' })
   const [editingStaff, setEditingStaff] = useState(null)
+  const [bankAccounts, setBankAccounts] = useState([])
+  const [showAddBank, setShowAddBank] = useState(false)
+  const [editingBank, setEditingBank] = useState(null)
+  const [newBank, setNewBank] = useState({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' })
+  const [editingBranch, setEditingBranch] = useState(null)
 
   const refreshBranches = () => {
     if (user?.shopId) setBranches(branchService.getByShop(user.shopId))
+  }
+
+  const refreshBankAccounts = () => {
+    if (user?.shopId) setBankAccounts(bankAccountService.getByShop(user.shopId))
   }
 
   useEffect(() => {
@@ -26,6 +35,7 @@ export default function ShopSettingsPage() {
       setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
       if (s) setPkg(packageService.getById(s.packageId))
       refreshBranches()
+      refreshBankAccounts()
     }
   }, [user])
 
@@ -90,6 +100,63 @@ export default function ShopSettingsPage() {
           </div>
         </div>
 
+        {/* Bank Account Management */}
+        {user?.role === 'owner' && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <Landmark size={20} className="text-primary-600" />
+                <h3 className="font-semibold text-slate-800">บัญชีธนาคาร / PromptPay ({bankAccounts.length})</h3>
+              </div>
+              <button
+                onClick={() => { setShowAddBank(true); setNewBank({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' }) }}
+                className="flex items-center space-x-1 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-xl text-sm font-medium"
+              >
+                <Plus size={16} />
+                <span>เพิ่ม</span>
+              </button>
+            </div>
+            <div className="space-y-2">
+              {bankAccounts.map(acc => (
+                <div key={acc.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
+                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                    <CreditCard size={18} className="text-primary-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{acc.name}</p>
+                    <p className="text-xs text-slate-400 truncate">{acc.bankName} · {acc.accountNo} · {acc.accountHolder}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${acc.type === 'promptpay' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {acc.type === 'promptpay' ? 'PromptPay' : 'ธนาคาร'}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() => setEditingBank(acc)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-300 hover:text-primary-500"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!confirm(`ลบบัญชี ${acc.name}?`)) return
+                        bankAccountService.remove(acc.id)
+                        authService.logActivity(user.id, user.shopId, 'DELETE_BANK', `ลบบัญชี ${acc.name}`)
+                        refreshBankAccounts()
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {bankAccounts.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">ยังไม่มีบัญชีธนาคาร</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Branch Management */}
         {user?.role === 'owner' && (
           <div className="bg-white rounded-2xl border border-slate-100 p-5">
@@ -115,20 +182,31 @@ export default function ShopSettingsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800 truncate">{b.name}</p>
                     <p className="text-xs text-slate-400 truncate">{b.address || '-'}</p>
+                    <p className="text-xs text-slate-400 truncate">
+                      บัญชี: {bankAccounts.find(a => a.id === b.bankAccountId)?.name || 'ไม่ระบุ'}
+                    </p>
                   </div>
-                  {branches.length > 1 && (
+                  <div className="flex items-center space-x-1">
                     <button
-                      onClick={() => {
-                        if (!confirm(`ลบ ${b.name}?`)) return
-                        branchService.remove(b.id)
-                        authService.logActivity(user.id, user.shopId, 'DELETE_BRANCH', `ลบสาขา ${b.name}`)
-                        refreshBranches()
-                      }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                      onClick={() => setEditingBranch(b)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-300 hover:text-primary-500"
                     >
-                      <Trash2 size={16} />
+                      <Edit3 size={16} />
                     </button>
-                  )}
+                    {branches.length > 1 && (
+                      <button
+                        onClick={() => {
+                          if (!confirm(`ลบ ${b.name}?`)) return
+                          branchService.remove(b.id)
+                          authService.logActivity(user.id, user.shopId, 'DELETE_BRANCH', `ลบสาขา ${b.name}`)
+                          refreshBranches()
+                        }}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -349,6 +427,197 @@ export default function ShopSettingsPage() {
                     authService.logActivity(user.id, user.shopId, 'CREATE_BRANCH', `เพิ่มสาขา ${newBranch.name}`)
                     setNewBranch({ name: '', address: '', phone: '' })
                     setShowAddBranch(false)
+                    refreshBranches()
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+                >
+                  บันทึก
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Bank Modal */}
+        {showAddBank && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">เพิ่มบัญชีธนาคาร / PromptPay</h3>
+              <div className="space-y-3">
+                <input
+                  placeholder="ชื่อบัญชี (สำหรับแสดง)"
+                  value={newBank.name}
+                  onChange={e => setNewBank({...newBank, name: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <select
+                  value={newBank.type}
+                  onChange={e => setNewBank({...newBank, type: e.target.value, bankName: e.target.value === 'promptpay' ? 'PromptPay' : newBank.bankName})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                >
+                  <option value="bank">ธนาคาร</option>
+                  <option value="promptpay">PromptPay</option>
+                </select>
+                <input
+                  placeholder={newBank.type === 'promptpay' ? 'เบอร์โทร / บัตรประชาชน / Tax ID' : 'เลขบัญชี'}
+                  value={newBank.accountNo}
+                  onChange={e => setNewBank({...newBank, accountNo: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                {newBank.type === 'bank' && (
+                  <input
+                    placeholder="ชื่อธนาคาร"
+                    value={newBank.bankName}
+                    onChange={e => setNewBank({...newBank, bankName: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                  />
+                )}
+                <input
+                  placeholder="ชื่อเจ้าของบัญชี"
+                  value={newBank.accountHolder}
+                  onChange={e => setNewBank({...newBank, accountHolder: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+              </div>
+              <div className="flex space-x-3 mt-5">
+                <button onClick={() => setShowAddBank(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+                <button
+                  onClick={() => {
+                    if (!newBank.name.trim() || !newBank.accountNo.trim() || !newBank.accountHolder.trim()) return
+                    bankAccountService.create({
+                      shopId: user.shopId,
+                      name: newBank.name.trim(),
+                      bankName: newBank.bankName || (newBank.type === 'promptpay' ? 'PromptPay' : ''),
+                      accountNo: newBank.accountNo.trim(),
+                      accountHolder: newBank.accountHolder.trim(),
+                      type: newBank.type,
+                    })
+                    authService.logActivity(user.id, user.shopId, 'ADD_BANK', `เพิ่มบัญชี ${newBank.name}`)
+                    setNewBank({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' })
+                    setShowAddBank(false)
+                    refreshBankAccounts()
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+                >
+                  บันทึก
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Bank Modal */}
+        {editingBank && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">แก้ไขบัญชี</h3>
+              <div className="space-y-3">
+                <input
+                  placeholder="ชื่อบัญชี"
+                  value={editingBank.name}
+                  onChange={e => setEditingBank({...editingBank, name: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <select
+                  value={editingBank.type}
+                  onChange={e => setEditingBank({...editingBank, type: e.target.value, bankName: e.target.value === 'promptpay' ? 'PromptPay' : editingBank.bankName})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                >
+                  <option value="bank">ธนาคาร</option>
+                  <option value="promptpay">PromptPay</option>
+                </select>
+                <input
+                  placeholder={editingBank.type === 'promptpay' ? 'เบอร์โทร / บัตรประชาชน / Tax ID' : 'เลขบัญชี'}
+                  value={editingBank.accountNo}
+                  onChange={e => setEditingBank({...editingBank, accountNo: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                {editingBank.type === 'bank' && (
+                  <input
+                    placeholder="ชื่อธนาคาร"
+                    value={editingBank.bankName}
+                    onChange={e => setEditingBank({...editingBank, bankName: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                  />
+                )}
+                <input
+                  placeholder="ชื่อเจ้าของบัญชี"
+                  value={editingBank.accountHolder}
+                  onChange={e => setEditingBank({...editingBank, accountHolder: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+              </div>
+              <div className="flex space-x-3 mt-5">
+                <button onClick={() => setEditingBank(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+                <button
+                  onClick={() => {
+                    bankAccountService.update(editingBank.id, {
+                      name: editingBank.name,
+                      bankName: editingBank.bankName,
+                      accountNo: editingBank.accountNo,
+                      accountHolder: editingBank.accountHolder,
+                      type: editingBank.type,
+                    })
+                    authService.logActivity(user.id, user.shopId, 'EDIT_BANK', `แก้ไขบัญชี ${editingBank.name}`)
+                    setEditingBank(null)
+                    refreshBankAccounts()
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+                >
+                  บันทึก
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Branch Modal */}
+        {editingBranch && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">แก้ไขสาขา</h3>
+              <div className="space-y-3">
+                <input
+                  placeholder="ชื่อสาขา"
+                  value={editingBranch.name}
+                  onChange={e => setEditingBranch({...editingBranch, name: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <input
+                  placeholder="ที่อยู่"
+                  value={editingBranch.address || ''}
+                  onChange={e => setEditingBranch({...editingBranch, address: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <input
+                  placeholder="เบอร์โทร"
+                  value={editingBranch.phone || ''}
+                  onChange={e => setEditingBranch({...editingBranch, phone: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <select
+                  value={editingBranch.bankAccountId || ''}
+                  onChange={e => setEditingBranch({...editingBranch, bankAccountId: e.target.value || null})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                >
+                  <option value="">เลือกบัญชีรับเงิน</option>
+                  {bankAccounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.type === 'promptpay' ? 'PromptPay' : a.bankName})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex space-x-3 mt-5">
+                <button onClick={() => setEditingBranch(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+                <button
+                  onClick={() => {
+                    branchService.update(editingBranch.id, {
+                      name: editingBranch.name,
+                      address: editingBranch.address,
+                      phone: editingBranch.phone,
+                      bankAccountId: editingBranch.bankAccountId || null,
+                    })
+                    authService.logActivity(user.id, user.shopId, 'EDIT_BRANCH', `แก้ไขสาขา ${editingBranch.name}`)
+                    setEditingBranch(null)
                     refreshBranches()
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
