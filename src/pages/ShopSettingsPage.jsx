@@ -13,6 +13,7 @@ export default function ShopSettingsPage() {
   const [branches, setBranches] = useState([])
   const [showAddBranch, setShowAddBranch] = useState(false)
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '' })
+  const [editingStaff, setEditingStaff] = useState(null)
 
   const refreshBranches = () => {
     if (user?.shopId) setBranches(branchService.getByShop(user.shopId))
@@ -174,14 +175,26 @@ export default function ShopSettingsPage() {
                       <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
                       <p className="text-xs text-slate-400 truncate">{s.email}</p>
                     </div>
-                    <button
-                      onClick={() => handleRemoveStaff(s.id, s.name)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => setEditingStaff(s)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-300 hover:text-primary-500"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveStaff(s.id, s.name)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2 pl-13">
+                    <span className="text-xs text-slate-400">
+                      สาขา: {branches.find(b => b.id === s.branchId)?.name || '-'}
+                    </span>
+                    <span className="text-slate-300">·</span>
                     <label className="flex items-center space-x-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -237,6 +250,66 @@ export default function ShopSettingsPage() {
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setShowAddStaff(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button onClick={handleAddStaff} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm">บันทึก</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Staff Modal */}
+        {editingStaff && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">แก้ไขพนักงาน</h3>
+              <div className="space-y-3">
+                <input
+                  placeholder="ชื่อพนักงาน"
+                  value={editingStaff.name}
+                  onChange={e => setEditingStaff({...editingStaff, name: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <input
+                  placeholder="อีเมล"
+                  value={editingStaff.email}
+                  onChange={e => setEditingStaff({...editingStaff, email: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <input
+                  placeholder="รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)"
+                  type="password"
+                  value={editingStaff._newPassword || ''}
+                  onChange={e => setEditingStaff({...editingStaff, _newPassword: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <select
+                  value={editingStaff.branchId || ''}
+                  onChange={e => setEditingStaff({...editingStaff, branchId: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                >
+                  <option value="">เลือกสาขา</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex space-x-3 mt-5">
+                <button onClick={() => setEditingStaff(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+                <button
+                  onClick={() => {
+                    const updates = {
+                      name: editingStaff.name,
+                      email: editingStaff.email,
+                      branchId: editingStaff.branchId,
+                    }
+                    if (editingStaff._newPassword) updates.password = editingStaff._newPassword
+                    userService.update(editingStaff.id, updates)
+                    authService.logActivity(user.id, user.shopId, 'EDIT_STAFF', `แก้ไขพนักงาน ${editingStaff.name}`)
+                    setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
+                    setEditingStaff(null)
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+                >
+                  บันทึก
+                </button>
               </div>
             </div>
           </div>
