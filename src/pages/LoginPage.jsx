@@ -105,13 +105,6 @@ export default function LoginPage() {
               </Link>
             </p>
           </div>
-
-          <div className="mt-4 p-3 bg-slate-50 rounded-xl text-xs text-slate-400 space-y-1">
-            <p className="font-medium text-slate-500">บัญชีทดลอง:</p>
-            <p>Superadmin: superadmin@pos.com / admin123</p>
-            <p>เจ้าของร้าน: owner@shop.com / owner123</p>
-            <p>พนักงาน: staff@shop.com / staff123</p>
-          </div>
         </div>
       </div>
     </div>
