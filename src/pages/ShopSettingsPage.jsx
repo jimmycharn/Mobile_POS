@@ -60,7 +60,7 @@ export default function ShopSettingsPage() {
   }
 
   return (
-    <div className="h-full pb-20 md:pb-0">
+    <div className="min-h-full pb-24 md:pb-0">
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4">
         <h1 className="text-lg md:text-xl font-bold text-slate-800">ตั้งค่าร้านค้า</h1>
         <p className="text-sm text-slate-400">ข้อมูลร้านค้าและการจัดการพนักงาน</p>
@@ -373,7 +373,7 @@ export default function ShopSettingsPage() {
         {/* Logout */}
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 py-3.5 rounded-xl font-medium transition-colors mb-20"
+          className="w-full flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 py-3.5 rounded-xl font-medium transition-colors"
         >
           <LogOut size={18} />
           <span>ออกจากระบบ</span>
