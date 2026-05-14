@@ -373,7 +373,7 @@ export default function ShopSettingsPage() {
         {/* Logout */}
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 py-3.5 rounded-xl font-medium transition-colors"
+          className="w-full flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 py-3.5 rounded-xl font-medium transition-colors mb-8"
         >
           <LogOut size={18} />
           <span>ออกจากระบบ</span>
