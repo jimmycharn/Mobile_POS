@@ -212,20 +212,19 @@ export default function PosPage() {
     if (target && target.items.length > 0) {
       if (!confirm(`ปิด ${target.name}? สินค้าในบิลนี้จะถูกลบ`)) return
     }
-    setCarts(prev => {
-      const filtered = prev.filter(c => c.id !== id)
-      if (filtered.length === 0) {
-        const emptyCart = { id: 'cart-1', name: 'บิล 1', items: [] }
-        setActiveCartId(emptyCart.id)
-        return [emptyCart]
-      }
-      if (activeCartId === id) {
-        const idx = prev.findIndex(c => c.id === id)
-        const nextActive = filtered[Math.min(idx, filtered.length - 1)]
-        setActiveCartId(nextActive.id)
-      }
-      return filtered
-    })
+    const filtered = carts.filter(c => c.id !== id)
+    if (filtered.length === 0) {
+      const emptyCart = { id: 'cart-1', name: 'บิล 1', items: [] }
+      setCarts([emptyCart])
+      setActiveCartId(emptyCart.id)
+      return
+    }
+    if (activeCartId === id) {
+      const idx = carts.findIndex(c => c.id === id)
+      const nextActive = filtered[Math.min(idx, filtered.length - 1)]
+      setActiveCartId(nextActive.id)
+    }
+    setCarts(filtered)
   }
 
   const clearActiveCart = () => {
@@ -258,18 +257,17 @@ export default function PosPage() {
     setShowReceipt(true)
     setStats(getStats(user.shopId))
     // Close active cart after checkout
-    setCarts(prev => {
-      const filtered = prev.filter(c => c.id !== activeCartId)
-      if (filtered.length === 0) {
-        const emptyCart = { id: 'cart-1', name: 'บิล 1', items: [] }
-        setActiveCartId(emptyCart.id)
-        return [emptyCart]
-      }
-      const idx = prev.findIndex(c => c.id === activeCartId)
+    const filtered = carts.filter(c => c.id !== activeCartId)
+    if (filtered.length === 0) {
+      const emptyCart = { id: 'cart-1', name: 'บิล 1', items: [] }
+      setCarts([emptyCart])
+      setActiveCartId(emptyCart.id)
+    } else {
+      const idx = carts.findIndex(c => c.id === activeCartId)
       const nextActive = filtered[Math.min(idx, filtered.length - 1)]
+      setCarts(filtered)
       setActiveCartId(nextActive.id)
-      return filtered
-    })
+    }
   }
 
   const catLabel = (cat) => {
@@ -515,8 +513,8 @@ export default function PosPage() {
           )}
         </div>
 
-        {/* Bottom Cart Bar (Mobile) - hidden when empty */}
-        {cartItems > 0 && (
+        {/* Bottom Cart Bar (Mobile) - show when any cart has items */}
+        {carts.some(c => c.items.length > 0) && (
           <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 px-4 pb-2 safe-bottom">
             <button
               onClick={() => setShowCart(true)}
