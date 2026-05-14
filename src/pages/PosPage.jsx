@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight } from 'lucide-react'
+import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight, Building2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import BranchSwitcher from '../components/BranchSwitcher'
 import { shopProductService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService } from '../services/mockData'
@@ -808,20 +808,45 @@ export default function PosPage() {
                 </div>
               </button>
 
-              <button
-                onClick={() => setPaymentMethod('transfer')}
-                className={`w-full flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all ${
-                  paymentMethod === 'transfer' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50'
-                }`}
-              >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400'}`}>
-                  <QrCode size={24} />
+              {branchBankAccount?.type === 'promptpay' && (
+                <button
+                  onClick={() => setPaymentMethod('transfer')}
+                  className={`w-full flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all ${
+                    paymentMethod === 'transfer' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400'}`}>
+                    <QrCode size={24} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-slate-800">PromptPay / QR Code</p>
+                    <p className="text-xs text-slate-400">สแกน QR โอนเงิน</p>
+                  </div>
+                </button>
+              )}
+
+              {branchBankAccount?.type === 'bank' && (
+                <button
+                  onClick={() => setPaymentMethod('transfer')}
+                  className={`w-full flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all ${
+                    paymentMethod === 'transfer' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' ? 'bg-blue-500 text-white' : 'bg-white text-slate-400'}`}>
+                    <Building2 size={24} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-slate-800">โอนผ่านธนาคาร</p>
+                    <p className="text-xs text-slate-400">{branchBankAccount.bankName}</p>
+                  </div>
+                </button>
+              )}
+
+              {!branchBankAccount && (
+                <div className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-center text-sm text-slate-400">
+                  สาขานี้ยังไม่มีบัญชีรับเงิน
                 </div>
-                <div className="text-left">
-                  <p className="font-semibold text-slate-800">PromptPay / QR Code</p>
-                  <p className="text-xs text-slate-400">โอนเงินผ่าน QR Code</p>
-                </div>
-              </button>
+              )}
             </div>
 
             {/* Transfer Details */}
@@ -842,27 +867,17 @@ export default function PosPage() {
               </div>
             )}
             {paymentMethod === 'transfer' && branchBankAccount?.type === 'bank' && (
-              <div className="mb-6 bg-slate-50 rounded-2xl p-5 space-y-3">
-                <p className="text-sm font-semibold text-slate-700 text-center">โอนเงินผ่านธนาคาร</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">ธนาคาร</span>
-                    <span className="font-medium text-slate-800">{branchBankAccount.bankName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">เลขบัญชี</span>
-                    <span className="font-medium text-slate-800 font-mono">{branchBankAccount.accountNo}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">ชื่อบัญชี</span>
-                    <span className="font-medium text-slate-800">{branchBankAccount.accountHolder}</span>
-                  </div>
+              <div className="mb-6 bg-blue-50 rounded-2xl p-5 space-y-3">
+                <p className="text-sm font-semibold text-blue-800 text-center">โอนเงินผ่านธนาคาร</p>
+                <div className="text-center space-y-1">
+                  <p className="text-xs text-slate-500">{branchBankAccount.bankName}</p>
+                  <p className="text-3xl font-bold text-slate-800 font-mono tracking-wider">{branchBankAccount.accountNo}</p>
+                  <p className="text-sm text-slate-600">{branchBankAccount.accountHolder}</p>
                 </div>
-              </div>
-            )}
-            {paymentMethod === 'transfer' && !branchBankAccount && (
-              <div className="mb-6 text-center text-sm text-amber-500 bg-amber-50 rounded-xl p-4">
-                สาขานี้ยังไม่มีบัญชีรับเงิน กรุณาติดต่อเจ้าของร้าน
+                <div className="flex justify-between text-xs text-slate-400 border-t border-blue-100 pt-3">
+                  <span>ชื่อบัญชี</span>
+                  <span>{branchBankAccount.accountHolder}</span>
+                </div>
               </div>
             )}
 
