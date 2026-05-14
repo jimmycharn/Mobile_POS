@@ -786,7 +786,7 @@ export default function PosPage() {
       {/* Payment Modal */}
       {showPayment && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/50">
-          <div className="bg-white rounded-t-3xl md:rounded-2xl w-full max-w-sm p-6 pb-20 md:pb-6 animate-slide-up">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl w-full max-w-sm p-6 pb-20 md:pb-6 animate-slide-up max-h-[85vh] overflow-y-auto">
             <div className="text-center mb-6">
               <p className="text-sm text-slate-400">ยอดรวมที่ต้องชำระ</p>
               <p className="text-4xl font-bold text-primary-600 mt-2">฿{cartTotal.toLocaleString()}</p>
