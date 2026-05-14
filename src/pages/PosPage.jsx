@@ -6,7 +6,8 @@ import { shopProductService, saleService, cartService, getStats, authService, sh
 export default function PosPage() {
   const { user } = useAuth()
   const [search, setSearch] = useState('')
-  const [cart, setCart] = useState([])
+  const [carts, setCarts] = useState([])
+  const [activeCartId, setActiveCartId] = useState('')
   const [showCart, setShowCart] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
   const [showReceipt, setShowReceipt] = useState(false)
@@ -46,13 +47,19 @@ export default function PosPage() {
       setStats(getStats(user.shopId))
       setShop(shopService.getById(user.shopId))
     }
-    const savedCart = cartService.get()
-    if (savedCart) setCart(savedCart)
+    const savedCarts = cartService.getCarts()
+    const savedActive = cartService.getActiveCartId()
+    setCarts(savedCarts.length ? savedCarts : [{ id: 'cart-1', name: 'บิล 1', items: [] }])
+    setActiveCartId(savedActive || 'cart-1')
   }, [user])
 
   useEffect(() => {
-    cartService.set(cart)
-  }, [cart])
+    cartService.setCarts(carts)
+  }, [carts])
+
+  useEffect(() => {
+    cartService.setActiveCartId(activeCartId)
+  }, [activeCartId])
 
   useEffect(() => {
     if (!showScanner) return
@@ -155,9 +162,18 @@ export default function PosPage() {
     return list
   }, [allProducts, search, activeCategory, activeColor, activeSize])
 
+  const activeCart = useMemo(() => carts.find(c => c.id === activeCartId) || { items: [] }, [carts, activeCartId])
+  const cart = activeCart.items
+  const cartTotal = cart.reduce((sum, item) => sum + item.salePrice * item.qty, 0)
+  const cartItems = cart.reduce((sum, item) => sum + item.qty, 0)
+
+  const setActiveCartItems = (updater) => {
+    setCarts(prev => prev.map(c => c.id === activeCartId ? { ...c, items: typeof updater === 'function' ? updater(c.items) : updater } : c))
+  }
+
   const addToCart = (product) => {
     if (product.stock <= 0) return
-    setCart(prev => {
+    setActiveCartItems(prev => {
       const existing = prev.find(item => item.id === product.id)
       if (existing) {
         if (existing.qty >= product.stock) return prev
@@ -168,7 +184,7 @@ export default function PosPage() {
   }
 
   const updateQty = (id, delta) => {
-    setCart(prev => prev.map(item => {
+    setActiveCartItems(prev => prev.map(item => {
       if (item.id !== id) return item
       const newQty = Math.max(1, Math.min(item.qty + delta, item.stock))
       return { ...item, qty: newQty }
@@ -176,11 +192,45 @@ export default function PosPage() {
   }
 
   const removeFromCart = (id) => {
-    setCart(prev => prev.filter(item => item.id !== id))
+    setActiveCartItems(prev => prev.filter(item => item.id !== id))
   }
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.salePrice * item.qty, 0)
-  const cartItems = cart.reduce((sum, item) => sum + item.qty, 0)
+  const createNewCart = () => {
+    const newId = 'cart-' + Date.now()
+    const newName = 'บิล ' + (carts.length + 1)
+    const newCart = { id: newId, name: newName, items: [] }
+    setCarts(prev => [...prev, newCart])
+    setActiveCartId(newId)
+  }
+
+  const switchCart = (id) => {
+    setActiveCartId(id)
+  }
+
+  const closeCart = (id) => {
+    const target = carts.find(c => c.id === id)
+    if (target && target.items.length > 0) {
+      if (!confirm(`ปิด ${target.name}? สินค้าในบิลนี้จะถูกลบ`)) return
+    }
+    setCarts(prev => {
+      const filtered = prev.filter(c => c.id !== id)
+      if (filtered.length === 0) {
+        const emptyCart = { id: 'cart-1', name: 'บิล 1', items: [] }
+        setActiveCartId(emptyCart.id)
+        return [emptyCart]
+      }
+      if (activeCartId === id) {
+        const idx = prev.findIndex(c => c.id === id)
+        const nextActive = filtered[Math.min(idx, filtered.length - 1)]
+        setActiveCartId(nextActive.id)
+      }
+      return filtered
+    })
+  }
+
+  const clearActiveCart = () => {
+    setActiveCartItems([])
+  }
 
   const handleCheckout = () => {
     if (cart.length === 0) return
@@ -204,10 +254,22 @@ export default function PosPage() {
     authService.logActivity(user.id, user.shopId, 'SALE', `ขายสินค้า ${cartItems} รายการ ยอดรวม ฿${cartTotal.toLocaleString()}`)
 
     setLastSale(sale)
-    setCart([])
     setShowPayment(false)
     setShowReceipt(true)
     setStats(getStats(user.shopId))
+    // Close active cart after checkout
+    setCarts(prev => {
+      const filtered = prev.filter(c => c.id !== activeCartId)
+      if (filtered.length === 0) {
+        const emptyCart = { id: 'cart-1', name: 'บิล 1', items: [] }
+        setActiveCartId(emptyCart.id)
+        return [emptyCart]
+      }
+      const idx = prev.findIndex(c => c.id === activeCartId)
+      const nextActive = filtered[Math.min(idx, filtered.length - 1)]
+      setActiveCartId(nextActive.id)
+      return filtered
+    })
   }
 
   const catLabel = (cat) => {
@@ -483,13 +545,42 @@ export default function PosPage() {
 
       {/* Desktop Cart Sidebar */}
       <div className="hidden md:flex flex-col w-[380px] bg-white border-l border-slate-100 h-full overflow-hidden">
+        {/* Cart Tabs */}
+        <div className="shrink-0 px-4 pt-4 pb-2 border-b border-slate-100">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {carts.map(c => {
+              const itemCount = c.items.reduce((sum, i) => sum + i.qty, 0)
+              const isActive = c.id === activeCartId
+              return (
+                <div key={c.id} className={`relative flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer select-none ${isActive ? 'bg-primary-600 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
+                  <button onClick={() => switchCart(c.id)} className="flex items-center gap-1.5">
+                    {c.name}
+                    {itemCount > 0 && (
+                      <span className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                        {itemCount}
+                      </span>
+                    )}
+                  </button>
+                  {carts.length > 1 && (
+                    <button onClick={(e) => { e.stopPropagation(); closeCart(c.id) }} className={`ml-0.5 w-4 h-4 rounded-full flex items-center justify-center ${isActive ? 'hover:bg-white/20' : 'hover:bg-slate-200'}`}>
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+            <button onClick={createNewCart} className="flex-shrink-0 w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors">
+              <Plus size={16} />
+            </button>
+          </div>
+        </div>
         <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
           <h2 className="font-bold text-slate-800 flex items-center space-x-2">
             <ShoppingCart size={20} className="text-primary-600" />
             <span>รายการ ({cartItems})</span>
           </h2>
           {cart.length > 0 && (
-            <button onClick={() => setCart([])} className="text-xs text-red-400 hover:text-red-600">ล้าง</button>
+            <button onClick={clearActiveCart} className="text-xs text-red-400 hover:text-red-600">ล้าง</button>
           )}
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
@@ -558,17 +649,46 @@ export default function PosPage() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCart(false)} />
           <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-3xl h-[calc(100vh-4rem)] flex flex-col animate-slide-up">
             {/* Fixed Header */}
-            <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-slate-100 bg-white rounded-t-3xl">
-              <div>
-                <h2 className="font-bold text-slate-800 text-lg">ตะกร้าสินค้า</h2>
-                <p className="text-xs text-slate-400">{cartItems} รายการ</p>
+            <div className="flex-shrink-0 flex flex-col p-5 border-b border-slate-100 bg-white rounded-t-3xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold text-slate-800 text-lg">ตะกร้าสินค้า</h2>
+                  <p className="text-xs text-slate-400">{cartItems} รายการ</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  {cart.length > 0 && (
+                    <button onClick={clearActiveCart} className="text-sm text-red-400">ล้าง</button>
+                  )}
+                  <button onClick={() => setShowCart(false)} className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center">
+                    <X size={18} className="text-slate-500" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
-                {cart.length > 0 && (
-                  <button onClick={() => setCart([])} className="text-sm text-red-400">ล้าง</button>
-                )}
-                <button onClick={() => setShowCart(false)} className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center">
-                  <X size={18} className="text-slate-500" />
+              {/* Cart Tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                {carts.map(c => {
+                  const itemCount = c.items.reduce((sum, i) => sum + i.qty, 0)
+                  const isActive = c.id === activeCartId
+                  return (
+                    <div key={c.id} className={`relative flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer select-none ${isActive ? 'bg-primary-600 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
+                      <button onClick={() => switchCart(c.id)} className="flex items-center gap-1.5">
+                        {c.name}
+                        {itemCount > 0 && (
+                          <span className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                            {itemCount}
+                          </span>
+                        )}
+                      </button>
+                      {carts.length > 1 && (
+                        <button onClick={(e) => { e.stopPropagation(); closeCart(c.id) }} className={`ml-0.5 w-4 h-4 rounded-full flex items-center justify-center ${isActive ? 'hover:bg-white/20' : 'hover:bg-slate-200'}`}>
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+                <button onClick={createNewCart} className="flex-shrink-0 w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors">
+                  <Plus size={16} />
                 </button>
               </div>
             </div>

@@ -10,7 +10,8 @@ const DB_KEYS = {
   INVENTORY: 'pos_inventory',
   ACTIVITY_LOGS: 'pos_activity_logs',
   PACKAGES: 'pos_packages',
-  CART: 'pos_cart',
+  CARTS: 'pos_carts',
+  ACTIVE_CART: 'pos_active_cart',
 }
 
 // Seed initial data if not exists
@@ -368,16 +369,25 @@ export const logService = {
   },
 }
 
-// Cart
+// Cart (multi-cart for parallel sales)
+const DEFAULT_CARTS = [{ id: 'cart-1', name: 'บิล 1', items: [] }]
+
 export const cartService = {
-  get() {
-    return JSON.parse(sessionStorage.getItem(DB_KEYS.CART) || '[]')
+  getCarts() {
+    return JSON.parse(sessionStorage.getItem(DB_KEYS.CARTS) || JSON.stringify(DEFAULT_CARTS))
   },
-  set(cart) {
-    sessionStorage.setItem(DB_KEYS.CART, JSON.stringify(cart))
+  setCarts(carts) {
+    sessionStorage.setItem(DB_KEYS.CARTS, JSON.stringify(carts))
+  },
+  getActiveCartId() {
+    return sessionStorage.getItem(DB_KEYS.ACTIVE_CART) || 'cart-1'
+  },
+  setActiveCartId(id) {
+    sessionStorage.setItem(DB_KEYS.ACTIVE_CART, id)
   },
   clear() {
-    sessionStorage.removeItem(DB_KEYS.CART)
+    sessionStorage.removeItem(DB_KEYS.CARTS)
+    sessionStorage.removeItem(DB_KEYS.ACTIVE_CART)
   },
 }
 
