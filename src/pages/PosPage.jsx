@@ -21,6 +21,24 @@ export default function PosPage() {
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
 
+  const playBeep = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(1800, ctx.currentTime)
+      gain.gain.setValueAtTime(0.4, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.18)
+    } catch (e) {}
+  }
+
   useEffect(() => {
     if (user?.shopId) {
       setStats(getStats(user.shopId))
@@ -77,6 +95,7 @@ export default function PosPage() {
               if (product.stock > 0) {
                 addToCart(product)
                 setScanMsg(`+ ${product.name}`)
+                playBeep()
                 if (navigator.vibrate) navigator.vibrate(150)
               } else {
                 setScanMsg(`${product.name} หมดสต็อก`)
@@ -634,6 +653,7 @@ export default function PosPage() {
                     if (product && product.stock > 0) {
                       addToCart(product)
                       setScanMsg(`+ ${product.name}`)
+                      playBeep()
                       if (navigator.vibrate) navigator.vibrate(150)
                     } else if (product) {
                       setScanMsg(`${product.name} หมดสต็อก`)
