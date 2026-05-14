@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { ClipboardList, User, ArrowRightLeft, LogIn, LogOut, Package, Pencil, Trash2, AlertTriangle, Ban } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { logService } from '../services/mockData'
+import { logService, branchService } from '../services/mockData'
 import { format, parseISO } from 'date-fns'
 
 const actionConfig = {
@@ -21,6 +21,10 @@ export default function ActivityLogsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [logs, setLogs] = useState([])
+  const [selectedBranch, setSelectedBranch] = useState('all')
+
+  const branches = user?.shopId ? branchService.getByShop(user.shopId) : []
+  const canFilterBranch = user && (user.role === 'owner' || user.role === 'superadmin') && branches.length > 1
 
   useEffect(() => {
     if (user && user.role !== 'owner') {
@@ -28,15 +32,35 @@ export default function ActivityLogsPage() {
       return
     }
     if (user?.shopId) {
-      setLogs(logService.getByShop(user.shopId))
+      if (canFilterBranch && selectedBranch !== 'all') {
+        setLogs(logService.getByBranch(selectedBranch))
+      } else {
+        setLogs(logService.getByShop(user.shopId))
+      }
     }
-  }, [user, navigate])
+  }, [user, navigate, selectedBranch, canFilterBranch])
 
   return (
     <div className="h-full pb-20 md:pb-0">
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4">
-        <h1 className="text-lg md:text-xl font-bold text-slate-800">บันทึกกิจกรรม</h1>
-        <p className="text-sm text-slate-400">ประวัติการใช้งานของพนักงานในร้าน</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg md:text-xl font-bold text-slate-800">บันทึกกิจกรรม</h1>
+            <p className="text-sm text-slate-400">ประวัติการใช้งานของพนักงานในร้าน</p>
+          </div>
+          {canFilterBranch && (
+            <select
+              value={selectedBranch}
+              onChange={e => setSelectedBranch(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+            >
+              <option value="all">ทุกสาขา</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       <div className="p-4 md:p-6">

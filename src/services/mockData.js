@@ -160,10 +160,10 @@ function seedData() {
 
   if (!localStorage.getItem(DB_KEYS.ACTIVITY_LOGS)) {
     localStorage.setItem(DB_KEYS.ACTIVITY_LOGS, JSON.stringify([
-      { id: 'log-1', userId: 'user-owner-1', shopId: 'shop-1', action: 'LOGIN', detail: 'เข้าสู่ระบบ', createdAt: new Date(Date.now() - 3600000).toISOString() },
-      { id: 'log-2', userId: 'user-staff-1', shopId: 'shop-1', action: 'SALE', detail: 'ขายสินค้า รายการ 3 ชิ้น', createdAt: new Date(Date.now() - 7200000).toISOString() },
-      { id: 'log-3', userId: 'user-staff-1', shopId: 'shop-1', action: 'STOCK_IN', detail: 'รับสินค้า น้ำดื่ม 600ml จำนวน 50 ขวด', createdAt: new Date(Date.now() - 10800000).toISOString() },
-      { id: 'log-4', userId: 'user-owner-1', shopId: 'shop-1', action: 'EDIT_PRODUCT', detail: 'แก้ไขราคา น้ำดื่ม 600ml เป็น 12 บาท', createdAt: new Date(Date.now() - 86400000).toISOString() },
+      { id: 'log-1', userId: 'user-owner-1', shopId: 'shop-1', branchId: null, action: 'LOGIN', detail: 'เข้าสู่ระบบ', createdAt: new Date(Date.now() - 3600000).toISOString() },
+      { id: 'log-2', userId: 'user-staff-1', shopId: 'shop-1', branchId: 'branch-1', action: 'SALE', detail: 'ขายสินค้า รายการ 3 ชิ้น', createdAt: new Date(Date.now() - 7200000).toISOString() },
+      { id: 'log-3', userId: 'user-staff-1', shopId: 'shop-1', branchId: 'branch-1', action: 'STOCK_IN', detail: 'รับสินค้า น้ำดื่ม 600ml จำนวน 50 ขวด', createdAt: new Date(Date.now() - 10800000).toISOString() },
+      { id: 'log-4', userId: 'user-owner-1', shopId: 'shop-1', branchId: null, action: 'EDIT_PRODUCT', detail: 'แก้ไขราคา น้ำดื่ม 600ml เป็น 12 บาท', createdAt: new Date(Date.now() - 86400000).toISOString() },
     ]))
   }
 }
@@ -269,10 +269,12 @@ export const authService = {
   },
 
   logActivity(userId, shopId, action, detail) {
+    const session = JSON.parse(sessionStorage.getItem('pos_session') || 'null')
     insert(DB_KEYS.ACTIVITY_LOGS, {
       id: 'log-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
       userId,
       shopId,
+      branchId: session?.branchId || null,
       action,
       detail,
       createdAt: new Date().toISOString(),
@@ -386,6 +388,14 @@ export const logService = {
     const users = getAll(DB_KEYS.USERS)
     return logs.map(l => {
       const user = users.find(u => u.id === l.userId)
+      return { ...l, userName: user ? user.name : 'ไม่ทราบ', branchId: l.branchId || user?.branchId || null }
+    }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  },
+  getByBranch(branchId) {
+    const logs = getAll(DB_KEYS.ACTIVITY_LOGS).filter(l => l.branchId === branchId)
+    const users = getAll(DB_KEYS.USERS)
+    return logs.map(l => {
+      const user = users.find(u => u.id === l.userId)
       return { ...l, userName: user ? user.name : 'ไม่ทราบ' }
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   },
@@ -396,7 +406,7 @@ export const logService = {
     return logs.map(l => {
       const user = users.find(u => u.id === l.userId)
       const shop = shops.find(s => s.id === l.shopId)
-      return { ...l, userName: user ? user.name : 'ไม่ทราบ', shopName: shop ? shop.name : 'Superadmin' }
+      return { ...l, userName: user ? user.name : 'ไม่ทราบ', shopName: shop ? shop.name : 'Superadmin', branchId: l.branchId || user?.branchId || null }
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   },
 }
