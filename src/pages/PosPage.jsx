@@ -871,7 +871,7 @@ export default function PosPage() {
                 <p className="text-sm font-semibold text-blue-800 text-center">โอนเงินผ่านธนาคาร</p>
                 <div className="text-center space-y-1">
                   <p className="text-xs text-slate-500">{branchBankAccount.bankName}</p>
-                  <p className="text-3xl font-bold text-slate-800 font-mono tracking-wider">{branchBankAccount.accountNo}</p>
+                  <p className="text-xl md:text-2xl font-bold text-slate-800 font-mono tracking-wider whitespace-nowrap">{branchBankAccount.accountNo}</p>
                   <p className="text-sm text-slate-600">{branchBankAccount.accountHolder}</p>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400 border-t border-blue-100 pt-3">
