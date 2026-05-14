@@ -108,8 +108,11 @@ function seedData() {
       { id: 'sp-10', shopId: 'shop-1', productId: 'prod-central-10', name: 'สบู่ก้อน', barcode: '885123456010', category: 'ของใช้ส่วนตัว', unit: 'ก้อน', costPrice: 8, salePrice: 15, stock: 12, minStock: 15, isStandard: true },
       { id: 'sp-11', shopId: 'shop-1', productId: 'prod-central-11', name: 'น้ำมันพืช 1L', barcode: '885123456011', category: 'อาหารแห้ง', unit: 'ขวด', costPrice: 35, salePrice: 55, stock: 22, minStock: 10, isStandard: true },
       { id: 'sp-12', shopId: 'shop-1', productId: 'prod-central-12', name: 'น้ำตาลทราย 1kg', barcode: '885123456012', category: 'อาหารแห้ง', unit: 'ถุง', costPrice: 28, salePrice: 42, stock: 35, minStock: 10, isStandard: true },
-      // Shop-specific product
-      { id: 'sp-13', shopId: 'shop-1', productId: null, name: 'ข้าวเหนียวมะม่วง (เฉพาะร้าน)', barcode: 'SHOP0001', category: 'ขนมไทย', unit: 'จาน', costPrice: 40, salePrice: 80, stock: 8, minStock: 5, isStandard: false },
+      // Shop-specific products with color/size variants
+      { id: 'sp-13', shopId: 'shop-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001R', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 25, minStock: 5, isStandard: false, color: 'แดง', size: 'M' },
+      { id: 'sp-14', shopId: 'shop-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001B', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 18, minStock: 5, isStandard: false, color: 'น้ำเงิน', size: 'L' },
+      { id: 'sp-15', shopId: 'shop-1', productId: null, name: 'เสื้อยืดคอกลม', barcode: 'SHIRT001K', category: 'เสื้อผ้า', unit: 'ตัว', costPrice: 150, salePrice: 290, stock: 30, minStock: 5, isStandard: false, color: 'ดำ', size: 'XL' },
+      { id: 'sp-16', shopId: 'shop-1', productId: null, name: 'ข้าวเหนียวมะม่วง (เฉพาะร้าน)', barcode: 'SHOP0001', category: 'ขนมไทย', unit: 'จาน', costPrice: 40, salePrice: 80, stock: 8, minStock: 5, isStandard: false },
     ]))
   }
 

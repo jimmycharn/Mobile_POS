@@ -14,6 +14,8 @@ export default function PosPage() {
   const [lastSale, setLastSale] = useState(null)
   const [stats, setStats] = useState({ todayRevenue: 0, todayOrders: 0, totalProducts: 0 })
   const [activeCategory, setActiveCategory] = useState('all')
+  const [activeColor, setActiveColor] = useState('')
+  const [activeSize, setActiveSize] = useState('')
   const [shop, setShop] = useState(null)
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
@@ -94,7 +96,8 @@ export default function PosPage() {
             if (product) {
               if (product.stock > 0) {
                 addToCart(product)
-                setScanMsg(`+ ${product.name}`)
+                const variantLabel = [product.color, product.size].filter(Boolean).join(', ')
+                setScanMsg(`+ ${product.name}${variantLabel ? ` (${variantLabel})` : ''}`)
                 playBeep()
                 if (navigator.vibrate) navigator.vibrate(150)
               } else {
@@ -126,16 +129,31 @@ export default function PosPage() {
     return ['all', ...cats]
   }, [allProducts])
 
+  const colors = useMemo(() => [...new Set(allProducts.map(p => p.color).filter(Boolean))], [allProducts])
+  const sizes = useMemo(() => [...new Set(allProducts.map(p => p.size).filter(Boolean))], [allProducts])
+
   const products = useMemo(() => {
     let list = allProducts
     if (search.trim()) {
-      list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
+      const q = search.toLowerCase()
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.barcode.includes(search) ||
+        (p.color && p.color.toLowerCase().includes(q)) ||
+        (p.size && p.size.toLowerCase().includes(q))
+      )
     }
     if (activeCategory !== 'all') {
       list = list.filter(p => p.category === activeCategory)
     }
+    if (activeColor) {
+      list = list.filter(p => p.color === activeColor)
+    }
+    if (activeSize) {
+      list = list.filter(p => p.size === activeSize)
+    }
     return list
-  }, [allProducts, search, activeCategory])
+  }, [allProducts, search, activeCategory, activeColor, activeSize])
 
   const addToCart = (product) => {
     if (product.stock <= 0) return
@@ -289,19 +307,21 @@ export default function PosPage() {
                 )}
               </div>
             ) : (
-              categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                    activeCategory === cat
-                      ? 'bg-primary-600 text-white shadow-sm shadow-primary-200'
-                      : 'bg-white border border-slate-100 text-slate-600'
-                  }`}
-                >
-                  {catLabel(cat)}
-                </button>
-              ))
+              <>
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => { setActiveCategory(cat); setActiveColor(''); setActiveSize('') }}
+                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                      activeCategory === cat
+                        ? 'bg-primary-600 text-white shadow-sm shadow-primary-200'
+                        : 'bg-white border border-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {catLabel(cat)}
+                  </button>
+                ))}
+              </>
             )}
 
           </div>
@@ -309,8 +329,58 @@ export default function PosPage() {
 
         {/* Products Grid */}
         <div className="flex-1 overflow-y-auto px-3 pt-3 pb-24 md:pb-4 no-scrollbar">
+          {/* Color / Size Filters — shown when not searching and data exists */}
+          {!showSearchInput && (colors.length > 0 || sizes.length > 0) && (
+            <div className="flex items-center gap-2 mb-2 px-1 flex-wrap">
+              {colors.length > 0 && (
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                  <span className="text-xs text-slate-400 shrink-0">สี:</span>
+                  <button
+                    onClick={() => setActiveColor('')}
+                    className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${activeColor === '' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  >
+                    ทั้งหมด
+                  </button>
+                  {colors.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setActiveColor(c)}
+                      className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${activeColor === c ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {sizes.length > 0 && (
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                  <span className="text-xs text-slate-400 shrink-0">ขนาด:</span>
+                  <button
+                    onClick={() => setActiveSize('')}
+                    className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${activeSize === '' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  >
+                    ทั้งหมด
+                  </button>
+                  {sizes.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setActiveSize(s)}
+                      className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${activeSize === s ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <h3 className="text-sm font-semibold text-slate-500 mb-2 px-1">
             {activeCategory === 'all' ? 'เมนูทั้งหมด' : catLabel(activeCategory)}
+            {(activeColor || activeSize) && (
+              <span className="font-normal text-slate-400 ml-1">
+                {activeColor && `สี ${activeColor}`}{activeColor && activeSize && ' · '}{activeSize && `ขนาด ${activeSize}`}
+              </span>
+            )}
             <span className="font-normal text-slate-400 ml-1">({products.length})</span>
           </h3>
           <div className="grid grid-cols-2 gap-3">
@@ -352,6 +422,11 @@ export default function PosPage() {
                   {/* Product Info */}
                   <div className="p-3">
                     <p className="text-sm font-medium text-slate-800 line-clamp-1">{product.name}</p>
+                    {(product.color || product.size) && (
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {product.color && `สี: ${product.color}`}{product.color && product.size && ' · '}{product.size && `ขนาด: ${product.size}`}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-base font-bold text-primary-600">฿{product.salePrice.toLocaleString()}</span>
                       <span className="text-xs text-slate-400">{product.stock} {product.unit}</span>
@@ -436,7 +511,14 @@ export default function PosPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
-                  <p className="text-xs text-slate-400">฿{item.salePrice.toLocaleString()} / {item.unit}</p>
+                  <p className="text-xs text-slate-400">
+                    ฿{item.salePrice.toLocaleString()} / {item.unit}
+                    {(item.color || item.size) && (
+                      <span className="ml-1">
+                        {item.color && ` · ${item.color}`}{item.color && item.size && ' · '}{item.size && `${item.size}`}
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <button onClick={() => updateQty(item.id, -1)} className="w-7 h-7 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
@@ -509,7 +591,14 @@ export default function PosPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
-                      <p className="text-xs text-slate-400">฿{item.salePrice.toLocaleString()} / {item.unit}</p>
+                      <p className="text-xs text-slate-400">
+                        ฿{item.salePrice.toLocaleString()} / {item.unit}
+                        {(item.color || item.size) && (
+                          <span className="ml-1">
+                            {item.color && ` · ${item.color}`}{item.color && item.size && ' · '}{item.size && `${item.size}`}
+                          </span>
+                        )}
+                      </p>
                     </div>
                     <div className="flex items-center space-x-1.5">
                       <button onClick={() => updateQty(item.id, -1)} className="w-8 h-8 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
@@ -652,7 +741,8 @@ export default function PosPage() {
                     const product = allProducts.find(p => p.barcode === code)
                     if (product && product.stock > 0) {
                       addToCart(product)
-                      setScanMsg(`+ ${product.name}`)
+                      const variantLabel = [product.color, product.size].filter(Boolean).join(', ')
+                      setScanMsg(`+ ${product.name}${variantLabel ? ` (${variantLabel})` : ''}`)
                       playBeep()
                       if (navigator.vibrate) navigator.vibrate(150)
                     } else if (product) {

@@ -15,7 +15,7 @@ export default function InventoryPage() {
   const [stockInCost, setStockInCost] = useState('')
   const [stockOutQty, setStockOutQty] = useState('')
   const [stockOutReason, setStockOutReason] = useState('spoilage')
-  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '' })
+  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '', color: '', size: '' })
   const [filter, setFilter] = useState('all') // all, low, standard, custom
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
@@ -106,6 +106,8 @@ export default function InventoryPage() {
         costPrice: Number(form.costPrice),
         salePrice: Number(form.salePrice),
         minStock: Number(form.minStock),
+        color: form.color || '',
+        size: form.size || '',
       }
       if (form.image) updates.image = form.image
       shopProductService.update(selectedProduct.id, updates)
@@ -124,12 +126,14 @@ export default function InventoryPage() {
         minStock: Number(form.minStock) || 5,
         isStandard: false,
         image: form.image || '',
+        color: form.color || '',
+        size: form.size || '',
       })
       authService.logActivity(user.id, user.shopId, 'ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
     }
     setShowForm(false)
     setSelectedProduct(null)
-    setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '' })
+    setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '', color: '', size: '' })
     refresh()
   }
 
@@ -151,6 +155,8 @@ export default function InventoryPage() {
       stock: p.stock,
       minStock: p.minStock,
       image: p.image || '',
+      color: p.color || '',
+      size: p.size || '',
     })
     setShowForm(true)
   }
@@ -196,6 +202,8 @@ export default function InventoryPage() {
   }
 
   const categories = [...new Set(shopProductService.getByShop(user.shopId).map(p => p.category))]
+  const colors = [...new Set(shopProductService.getByShop(user.shopId).map(p => p.color).filter(Boolean))]
+  const sizes = [...new Set(shopProductService.getByShop(user.shopId).map(p => p.size).filter(Boolean))]
 
   // Permission check: owner always can manage, staff needs canManageInventory flag
   const canManage = user.role === 'owner' || (user.role === 'staff' && (user.canManageInventory ?? true))
@@ -304,7 +312,12 @@ export default function InventoryPage() {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-slate-800">{product.name}</p>
-                            <p className="text-xs text-slate-400">{product.category} · {product.isStandard ? 'มาตรฐาน' : 'เฉพาะร้าน'}</p>
+                            <p className="text-xs text-slate-400">
+                              {product.category}
+                              {product.color && ` · สี: ${product.color}`}
+                              {product.size && ` · ขนาด: ${product.size}`}
+                              {' · '}{product.isStandard ? 'มาตรฐาน' : 'เฉพาะร้าน'}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -445,6 +458,22 @@ export default function InventoryPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">หน่วย</label>
                   <input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">สี</label>
+                  <input value={form.color} onChange={e => setForm({...form, color: e.target.value})} list="colors" placeholder="เช่น แดง, น้ำเงิน" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                  <datalist id="colors">
+                    {colors.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">ขนาด</label>
+                  <input value={form.size} onChange={e => setForm({...form, size: e.target.value})} list="sizes" placeholder="เช่น S, M, 1.5" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                  <datalist id="sizes">
+                    {sizes.map(s => <option key={s} value={s} />)}
+                  </datalist>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
