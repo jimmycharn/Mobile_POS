@@ -251,7 +251,7 @@ export default function PosPage() {
             </button>
 
             {showSearchInput ? (
-              <div className="relative flex-shrink-0 w-64">
+              <div className="relative flex-shrink-0 w-full max-w-[calc(100vw-5.5rem)]">
                 <input
                   autoFocus
                   type="text"
