@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Store } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
-export default function BranchSwitcher() {
+export default function BranchSwitcher({ variant = 'default' }) {
   const { user, branches, switchBranch } = useAuth()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -24,19 +24,27 @@ export default function BranchSwitcher() {
 
   if (!user?.shopId) return null
 
+  const isLight = variant === 'light'
+
   return (
     <div ref={ref} className="relative">
       {canSwitch ? (
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 text-sm font-medium hover:bg-primary-100 transition-colors"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            isLight
+              ? 'bg-white/20 text-white hover:bg-white/30'
+              : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+          }`}
         >
           <Store size={14} />
           <span className="max-w-[120px] truncate">{currentBranch?.name || 'เลือกสาขา'}</span>
           <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       ) : (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium">
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${
+          isLight ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+        }`}>
           <Store size={14} />
           <span className="max-w-[120px] truncate">{currentBranch?.name || user.branchId || 'สาขาหลัก'}</span>
         </div>

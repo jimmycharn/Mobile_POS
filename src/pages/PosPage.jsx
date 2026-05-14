@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import BranchSwitcher from '../components/BranchSwitcher'
 import { shopProductService, saleService, cartService, getStats, authService, shopService } from '../services/mockData'
 
 export default function PosPage() {
@@ -294,7 +295,10 @@ export default function PosPage() {
               </div>
               <div>
                 <h1 className="text-lg font-bold">{shop?.name || 'ร้านค้า'}</h1>
-                <p className="text-xs text-primary-100">ยอดขายวันนี้: ฿{stats.todayRevenue.toLocaleString()}</p>
+                <div className="mt-1 md:hidden">
+                  <BranchSwitcher variant="light" />
+                </div>
+                <p className="hidden md:block text-xs text-primary-100">ยอดขายวันนี้: ฿{stats.todayRevenue.toLocaleString()}</p>
               </div>
             </div>
             <button
