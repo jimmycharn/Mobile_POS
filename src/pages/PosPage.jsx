@@ -3,6 +3,7 @@ import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receip
 import { useAuth } from '../context/AuthContext'
 import BranchSwitcher from '../components/BranchSwitcher'
 import { shopProductService, saleService, cartService, getStats, authService, shopService } from '../services/mockData'
+import { generatePromptPayQrUrl, isPromptPayId } from '../utils/promptpay'
 
 export default function PosPage() {
   const { user } = useAuth()
@@ -22,6 +23,7 @@ export default function PosPage() {
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
   const [showSearchInput, setShowSearchInput] = useState(false)
+  const [qrUrl, setQrUrl] = useState(null)
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
 
@@ -235,6 +237,18 @@ export default function PosPage() {
   const clearActiveCart = () => {
     setActiveCartItems([])
   }
+
+  useEffect(() => {
+    async function generateQr() {
+      if (paymentMethod === 'transfer' && shop?.phone && isPromptPayId(shop.phone)) {
+        const url = await generatePromptPayQrUrl(shop.phone, cartTotal)
+        setQrUrl(url)
+      } else {
+        setQrUrl(null)
+      }
+    }
+    generateQr()
+  }, [paymentMethod, cartTotal, shop?.phone])
 
   const handleCheckout = () => {
     if (cart.length === 0) return
@@ -802,6 +816,24 @@ export default function PosPage() {
                 </div>
               </button>
             </div>
+
+            {/* PromptPay QR Code */}
+            {paymentMethod === 'transfer' && qrUrl && (
+              <div className="mb-6 flex flex-col items-center">
+                <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-4">
+                  <img src={qrUrl} alt="PromptPay QR" className="w-56 h-56" />
+                </div>
+                <p className="text-sm text-slate-500 mt-3 text-center">
+                  สแกนด้วยแอปธนาคารเพื่อโอนเงิน<br />
+                  <span className="text-xs text-slate-400">{shop?.name || 'ร้านค้า'} · {shop?.phone || ''}</span>
+                </p>
+              </div>
+            )}
+            {paymentMethod === 'transfer' && !qrUrl && (
+              <div className="mb-6 text-center text-sm text-red-400">
+                ไม่สามารถสร้าง QR Code ได้ (ตรวจสอบเบอร์ PromptPay)
+              </div>
+            )}
 
             <div className="flex space-x-3">
               <button
