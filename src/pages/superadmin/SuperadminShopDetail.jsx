@@ -90,7 +90,7 @@ export default function SuperadminShopDetail() {
                   <Building2 size={13} />
                   <span>
                     {selectedBranchId === 'all'
-                      ? 'ภาพรวมทุกสาขา'
+                      ? 'ทุกสาขา'
                       : branches.find(b => b.id === selectedBranchId)?.name || 'เลือกสาขา'}
                   </span>
                   <ChevronDown size={13} className={`transition-transform ${branchOpen ? 'rotate-180' : ''}`} />
@@ -101,7 +101,7 @@ export default function SuperadminShopDetail() {
                       onClick={() => { setSelectedBranchId('all'); setBranchOpen(false) }}
                       className={`w-full text-left px-4 py-2 text-xs transition-colors ${selectedBranchId === 'all' ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
                     >
-                      ภาพรวมทุกสาขา
+                      ทุกสาขา
                     </button>
                     {branches.map(branch => (
                       <button
@@ -124,8 +124,8 @@ export default function SuperadminShopDetail() {
         {/* Shop Info Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border border-slate-100 p-4">
-            <p className="text-slate-400 text-xs mb-1">สาขา</p>
-            <p className="font-bold text-slate-800">{branches.length}</p>
+            <p className="text-slate-400 text-xs mb-1">{selectedBranchId === 'all' ? 'สาขา' : branches.find(b => b.id === selectedBranchId)?.name}</p>
+            <p className="font-bold text-slate-800">{selectedBranchId === 'all' ? branches.length : 'สาขานี้'}</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-100 p-4">
             <p className="text-slate-400 text-xs mb-1">สถานะ</p>
