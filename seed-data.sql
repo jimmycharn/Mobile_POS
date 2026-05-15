@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS _seed_uuids (
 
 -- ⚠️ แก้ไข UUID ตรงนี้ให้ตรงกับที่ได้จาก Supabase Dashboard
 INSERT INTO _seed_uuids (role, user_id) VALUES
-  ('superadmin', '11111111-1111-1111-1111-111111111111'),
-  ('owner',      '22222222-2222-2222-2222-222222222222'),
-  ('staff',      '33333333-3333-3333-3333-333333333333')
+  ('superadmin', 'e946f86c-b0dc-46a6-bca6-5a60a669cab2'),
+  ('owner',      '2a4da3f2-4099-4d64-96f4-3e01ffbcbac'),
+  ('staff',      'a735979a-3c4e-487c-9df3-b5e1c7bffb2f')
 ON CONFLICT (role) DO UPDATE SET user_id = EXCLUDED.user_id;
 
 -- ============================================================
