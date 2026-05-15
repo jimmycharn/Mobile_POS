@@ -393,23 +393,29 @@ export default function PosPage() {
       <div className="flex-1 flex flex-col min-h-0 min-w-0 relative w-full overflow-hidden">
 
         {/* Top Banner - Shop Info (Mobile + Desktop unified style) */}
-        <div className="shrink-0 bg-gradient-to-r from-primary-600 to-primary-500 text-white px-4 pt-4 pb-6 safe-top rounded-b-3xl shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-                <Store size={24} className="text-white" />
+        <div className="shrink-0 bg-gradient-to-r from-primary-600 to-primary-500 text-white px-4 pt-4 pb-3 safe-top shadow-sm">
+          <div className="flex items-center justify-between">
+            {/* Scan button */}
+            <button
+              onClick={() => { setShowScanner(true); setScanMsg('') }}
+              className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center active:bg-white/30 transition-colors"
+            >
+              <ScanBarcode size={24} />
+            </button>
+
+            {/* Center: Shop name + branch */}
+            <div className="flex-1 text-center px-2">
+              <h1 className="text-lg font-bold truncate">{shop?.name || 'ร้านค้า'}</h1>
+              <div className="md:hidden">
+                <BranchSwitcher variant="light" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold">{shop?.name || 'ร้านค้า'}</h1>
-                <div className="mt-1 md:hidden">
-                  <BranchSwitcher variant="light" />
-                </div>
-                <p className="hidden md:block text-xs text-primary-100">ยอดขายวันนี้: ฿{stats.todayRevenue.toLocaleString()}</p>
-              </div>
+              <p className="hidden md:block text-xs text-primary-100">ยอดขายวันนี้: ฿{stats.todayRevenue.toLocaleString()}</p>
             </div>
+
+            {/* Cart button */}
             <button
               onClick={() => setShowCart(true)}
-              className="relative w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center md:hidden"
+              className="relative w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center md:hidden"
             >
               <ShoppingCart size={20} />
               {cartItems > 0 && (
@@ -419,23 +425,6 @@ export default function PosPage() {
               )}
             </button>
           </div>
-
-          {/* Scan Barcode Banner */}
-          <button
-            onClick={() => { setShowScanner(true); setScanMsg('') }}
-            className="w-full flex items-center justify-between bg-white/20 backdrop-blur rounded-xl px-4 py-3 active:bg-white/30 transition-colors"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/30 rounded-lg flex items-center justify-center">
-                <ScanBarcode size={22} />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold">สแกนบาร์โค้ด / QR Code</p>
-                <p className="text-xs text-primary-100">กดเพื่อสแกนสินค้า</p>
-              </div>
-            </div>
-            <QrCode size={24} className="text-white/70" />
-          </button>
         </div>
 
         {/* Category / Search strip */}
