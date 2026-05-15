@@ -229,22 +229,24 @@ export const shopProductService = {
   async create(sp) {
     const payload = toSnake(sp)
     console.log('[DEBUG shopProductService.create] payload:', payload)
-    const { data, error } = await supabase.from('shop_products').insert(payload).select().single()
+    const { data, error } = await supabase.from('shop_products').insert(payload).select()
     if (error) {
       console.error('[DEBUG shopProductService.create] error:', error.message, error.details)
       throw new Error(error.message)
     }
-    return toCamel(data)
+    const result = Array.isArray(data) ? data[0] : data
+    return toCamel(result)
   },
   async update(id, changes) {
     const payload = toSnake(changes)
     console.log('[DEBUG shopProductService.update] id:', id, 'payload:', payload)
-    const { data, error } = await supabase.from('shop_products').update(payload).eq('id', id).select().single()
+    const { data, error } = await supabase.from('shop_products').update(payload).eq('id', id).select()
     if (error) {
       console.error('[DEBUG shopProductService.update] error:', error.message, error.details)
       throw new Error(error.message)
     }
-    return toCamel(data)
+    const result = Array.isArray(data) ? data[0] : data
+    return toCamel(result)
   },
   async remove(id) {
     await supabase.from('shop_products').delete().eq('id', id)
