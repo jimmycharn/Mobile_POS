@@ -50,25 +50,14 @@ export const storageService = {
 // ============================================================
 export const authService = {
   async login(email, password) {
-    console.log('[DEBUG] login called with:', email)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      console.error('[DEBUG] signInWithPassword error:', error.message)
-      return { error: error.message }
-    }
-    console.log('[DEBUG] auth success, user id:', data.user.id)
+    if (error) return { error: error.message }
 
-    // Simple profile query without complex joins
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
       .single()
-
-    if (profileError) {
-      console.error('[DEBUG] profile fetch error:', profileError.message)
-    }
-    console.log('[DEBUG] profile fetched:', profile)
 
     if (!profile) return { error: 'Profile not found in database' }
 
@@ -85,7 +74,6 @@ export const authService = {
     }
 
     sessionStorage.setItem('pos_session', JSON.stringify(user))
-    console.log('[DEBUG] login success, user:', user)
     return { user }
   },
 
@@ -246,28 +234,14 @@ export const shopProductService = {
     return toCamel(data)
   },
   async create(sp) {
-    const payload = toSnake(sp)
-    console.log('[DEBUG shopProductService.create] payload:', payload)
-    const { data, error } = await supabase.from('shop_products').insert(payload).select()
-    if (error) {
-      console.error('[DEBUG shopProductService.create] error:', error.message, error.details)
-      throw new Error(error.message)
-    }
-    const result = Array.isArray(data) ? data[0] : data
-    return toCamel(result)
+    const { data, error } = await supabase.from('shop_products').insert(toSnake(sp)).select()
+    if (error) throw new Error(error.message)
+    return toCamel(Array.isArray(data) ? data[0] : data)
   },
   async update(id, changes) {
-    const payload = toSnake(changes)
-    console.log('[DEBUG update] payload JSON:', JSON.stringify(payload))
-    console.log('[DEBUG update] has image_url:', 'image_url' in payload, 'value:', payload.image_url)
-    const { data, error } = await supabase.from('shop_products').update(payload).eq('id', id).select()
-    if (error) {
-      console.error('[DEBUG update] error:', error.message, error.details)
-      throw new Error(error.message)
-    }
-    console.log('[DEBUG update] returned rows:', data?.length, 'data:', JSON.stringify(data))
-    const result = Array.isArray(data) ? data[0] : data
-    return toCamel(result)
+    const { data, error } = await supabase.from('shop_products').update(toSnake(changes)).eq('id', id).select()
+    if (error) throw new Error(error.message)
+    return toCamel(Array.isArray(data) ? data[0] : data)
   },
   async remove(id) {
     await supabase.from('shop_products').delete().eq('id', id)

@@ -37,8 +37,6 @@ export default function InventoryPage() {
 
   const refresh = async () => {
     let list = await shopProductService.getByBranch(user.branchId)
-    console.log('[DEBUG refresh] list raw sample:', list[0])
-    console.log('[DEBUG refresh] imageUrl values:', list.map(p => ({ name: p.name, imageUrl: p.imageUrl, image_url: p.image_url })))
     if (search.trim()) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
     if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
     if (filter === 'standard') list = list.filter(p => p.isStandard)
@@ -110,7 +108,6 @@ export default function InventoryPage() {
 
   const handleSave = async () => {
     try {
-      console.log('[DEBUG handleSave] form.imageUrl length:', form.imageUrl ? form.imageUrl.length : 0)
       if (selectedProduct) {
         const updates = {
           name: form.name,
@@ -124,7 +121,6 @@ export default function InventoryPage() {
           size: form.size || '',
         }
         if (form.imageUrl) updates.imageUrl = form.imageUrl
-        console.log('[DEBUG handleSave] updating product:', selectedProduct.id, updates)
         await shopProductService.update(selectedProduct.id, updates)
         await authService.logActivity('EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
       } else {
@@ -145,7 +141,6 @@ export default function InventoryPage() {
           color: form.color || '',
           size: form.size || '',
         }
-        console.log('[DEBUG handleSave] creating product:', payload)
         await shopProductService.create(payload)
         await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
       }
@@ -154,7 +149,7 @@ export default function InventoryPage() {
       setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
       await refresh()
     } catch (err) {
-      console.error('[DEBUG handleSave] error:', err.message)
+      console.error('handleSave error:', err)
       alert('เกิดข้อผิดพลาด: ' + err.message)
     }
   }

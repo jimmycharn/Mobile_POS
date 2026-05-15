@@ -210,8 +210,16 @@ DROP POLICY IF EXISTS "Shop products read policy" ON shop_products;
 CREATE POLICY "Shop products read policy" ON shop_products
   FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 DROP POLICY IF EXISTS "Shop products write policy" ON shop_products;
-CREATE POLICY "Shop products write policy" ON shop_products
-  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Shop products insert policy" ON shop_products;
+CREATE POLICY "Shop products insert policy" ON shop_products
+  FOR INSERT WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Shop products update policy" ON shop_products;
+CREATE POLICY "Shop products update policy" ON shop_products
+  FOR UPDATE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin')
+  WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Shop products delete policy" ON shop_products;
+CREATE POLICY "Shop products delete policy" ON shop_products
+  FOR DELETE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
 -- Sales
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
