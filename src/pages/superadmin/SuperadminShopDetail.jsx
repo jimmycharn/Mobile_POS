@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban } from 'lucide-react'
+import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2 } from 'lucide-react'
 import { logService, shopService, branchService, packageService } from '../../services/supabaseApi'
 import { format, parseISO } from 'date-fns'
 
@@ -28,6 +28,8 @@ export default function SuperadminShopDetail() {
   const [shop, setShop] = useState(null)
   const [logs, setLogs] = useState([])
   const [branches, setBranches] = useState([])
+  const [selectedBranchId, setSelectedBranchId] = useState('all')
+  const [branchOpen, setBranchOpen] = useState(false)
   const [pkgName, setPkgName] = useState('-')
 
   useEffect(() => {
@@ -45,6 +47,21 @@ export default function SuperadminShopDetail() {
     }
     load()
   }, [shopId])
+
+  // Reload logs when branch selection changes
+  useEffect(() => {
+    if (!shopId) return
+    const loadLogs = async () => {
+      if (selectedBranchId === 'all') {
+        const logData = await logService.getByShop(shopId)
+        setLogs(logData)
+      } else {
+        const logData = await logService.getByBranch(selectedBranchId)
+        setLogs(logData)
+      }
+    }
+    loadLogs()
+  }, [selectedBranchId, shopId])
 
   return (
     <div className="h-full pb-20 md:pb-0 overflow-y-auto">
@@ -64,6 +81,40 @@ export default function SuperadminShopDetail() {
             <div>
               <h1 className="text-lg md:text-xl font-bold text-slate-800">{shop?.name || 'ร้านค้า'}</h1>
               <p className="text-sm text-slate-400">{[shop?.email, shop?.phone].filter(Boolean).join(' · ') || '-'}</p>
+              {/* Branch Selector */}
+              <div className="relative mt-2">
+                <button
+                  onClick={() => setBranchOpen(!branchOpen)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors"
+                >
+                  <Building2 size={13} />
+                  <span>
+                    {selectedBranchId === 'all'
+                      ? 'ภาพรวมทุกสาขา'
+                      : branches.find(b => b.id === selectedBranchId)?.name || 'เลือกสาขา'}
+                  </span>
+                  <ChevronDown size={13} className={`transition-transform ${branchOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {branchOpen && (
+                  <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50 animate-scale-in">
+                    <button
+                      onClick={() => { setSelectedBranchId('all'); setBranchOpen(false) }}
+                      className={`w-full text-left px-4 py-2 text-xs transition-colors ${selectedBranchId === 'all' ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
+                    >
+                      ภาพรวมทุกสาขา
+                    </button>
+                    {branches.map(branch => (
+                      <button
+                        key={branch.id}
+                        onClick={() => { setSelectedBranchId(branch.id); setBranchOpen(false) }}
+                        className={`w-full text-left px-4 py-2 text-xs transition-colors ${selectedBranchId === branch.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        {branch.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
