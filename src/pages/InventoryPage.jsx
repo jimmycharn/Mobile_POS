@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopProductService, productService, authService, branchService } from '../services/supabaseApi'
+import { shopProductService, productService, authService, branchService, storageService } from '../services/supabaseApi'
 
 export default function InventoryPage() {
   const { user } = useAuth()
@@ -450,12 +450,18 @@ export default function InventoryPage() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={e => {
+                      onChange={async e => {
                         const file = e.target.files[0]
                         if (!file) return
-                        const reader = new FileReader()
-                        reader.onload = ev => setForm({ ...form, imageUrl: ev.target.result })
-                        reader.readAsDataURL(file)
+                        try {
+                          setForm(prev => ({ ...prev, imageUrl: 'uploading...' }))
+                          const url = await storageService.uploadProductImage(file, user.shopId)
+                          setForm(prev => ({ ...prev, imageUrl: url }))
+                        } catch (err) {
+                          console.error('upload error:', err)
+                          alert('อัปโหลดรูปไม่สำเร็จ: ' + err.message)
+                          setForm(prev => ({ ...prev, imageUrl: '' }))
+                        }
                       }}
                     />
                     <div className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 hover:border-primary-400 hover:bg-primary-50 transition-colors">

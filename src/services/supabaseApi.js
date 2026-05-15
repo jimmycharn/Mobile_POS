@@ -27,6 +27,25 @@ const toCamel = (obj) => {
 }
 
 // ============================================================
+// Storage (รูปภาพสินค้า)
+// ============================================================
+export const storageService = {
+  async uploadProductImage(file, shopId) {
+    const ext = file.name.split('.').pop() || 'jpg'
+    const fileName = `${shopId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, file, { cacheControl: '3600', upsert: false })
+    if (error) {
+      console.error('[storageService.uploadProductImage] error:', error.message)
+      throw new Error(error.message)
+    }
+    const { data: pub } = supabase.storage.from('product-images').getPublicUrl(data.path)
+    return pub.publicUrl
+  },
+}
+
+// ============================================================
 // Auth
 // ============================================================
 export const authService = {
