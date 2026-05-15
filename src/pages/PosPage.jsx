@@ -31,6 +31,7 @@ export default function PosPage() {
   const [qrUrl, setQrUrl] = useState(null)
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
+  const loadedBranchId = useRef(null)
 
   const playBeep = () => {
     try {
@@ -51,31 +52,36 @@ export default function PosPage() {
   }
 
   useEffect(() => {
+    let cancelled = false
     const init = async () => {
       if (user?.shopId) {
         const stats = await getStats(user.shopId, user.branchId)
         const shopData = await shopService.getById(user.shopId)
+        if (cancelled) return
         setStats(stats)
         setShop(shopData)
       }
       if (user?.branchId) {
+        loadedBranchId.current = user.branchId
         const savedCarts = cartService.getBranchCarts(user.branchId)
         const savedActive = cartService.getActiveCartId(user.branchId)
+        if (cancelled) return
         setCarts(savedCarts.length ? savedCarts : [{ id: 'cart-1', name: 'บิล 1', items: [] }])
         setActiveCartId(savedActive || 'cart-1')
       }
     }
     init()
+    return () => { cancelled = true }
   }, [user])
 
   useEffect(() => {
-    if (user?.branchId) {
+    if (loadedBranchId.current === user?.branchId && user?.branchId) {
       cartService.setBranchCarts(user.branchId, carts)
     }
   }, [carts, user?.branchId])
 
   useEffect(() => {
-    if (user?.branchId) {
+    if (loadedBranchId.current === user?.branchId && user?.branchId) {
       cartService.setActiveCartId(user.branchId, activeCartId)
     }
   }, [activeCartId, user?.branchId])
