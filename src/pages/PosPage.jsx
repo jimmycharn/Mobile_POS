@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight, Building2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import BranchSwitcher from '../components/BranchSwitcher'
-import { shopProductService, productService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService } from '../services/mockData'
+import { shopProductService, productService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService } from '../services/supabaseApi'
 import { generatePromptPayQrUrl, isPromptPayId } from '../utils/promptpay'
 
 export default function PosPage() {
@@ -20,6 +20,8 @@ export default function PosPage() {
   const [activeColor, setActiveColor] = useState('')
   const [activeSize, setActiveSize] = useState('')
   const [shop, setShop] = useState(null)
+  const [allProducts, setAllProducts] = useState([])
+  const [branchBankAccount, setBranchBankAccount] = useState(null)
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
   const [scannedGlobal, setScannedGlobal] = useState(null)
@@ -48,14 +50,19 @@ export default function PosPage() {
   }
 
   useEffect(() => {
-    if (user?.shopId) {
-      setStats(getStats(user.shopId, user.branchId))
-      setShop(shopService.getById(user.shopId))
+    const init = async () => {
+      if (user?.shopId) {
+        const stats = await getStats(user.shopId, user.branchId)
+        const shopData = await shopService.getById(user.shopId)
+        setStats(stats)
+        setShop(shopData)
+      }
+      const savedCarts = cartService.getBranchCarts(user?.branchId || 'branch-1')
+      const savedActive = cartService.getActiveCartId(user?.branchId || 'branch-1')
+      setCarts(savedCarts.length ? savedCarts : [{ id: 'cart-1', name: 'บิล 1', items: [] }])
+      setActiveCartId(savedActive || 'cart-1')
     }
-    const savedCarts = cartService.getBranchCarts(user?.branchId || 'branch-1')
-    const savedActive = cartService.getActiveCartId(user?.branchId || 'branch-1')
-    setCarts(savedCarts.length ? savedCarts : [{ id: 'cart-1', name: 'บิล 1', items: [] }])
-    setActiveCartId(savedActive || 'cart-1')
+    init()
   }, [user])
 
   useEffect(() => {
@@ -144,9 +151,13 @@ export default function PosPage() {
     }
   }, [showScanner])
 
-  const allProducts = useMemo(() => {
-    if (!user?.branchId) return []
-    return shopProductService.getByBranch(user.branchId)
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.branchId) { setAllProducts([]); return }
+      const data = await shopProductService.getByBranch(user.branchId)
+      setAllProducts(data || [])
+    }
+    load()
   }, [user?.branchId])
 
   const categories = useMemo(() => {
@@ -249,11 +260,15 @@ export default function PosPage() {
     setActiveCartItems([])
   }
 
-  const branchBankAccount = useMemo(() => {
-    if (!user?.branchId) return null
-    const branch = branchService.getById(user.branchId)
-    if (!branch?.bankAccountId) return null
-    return bankAccountService.getById(branch.bankAccountId)
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.branchId) { setBranchBankAccount(null); return }
+      const branch = await branchService.getById(user.branchId)
+      if (!branch?.bank_account_id) { setBranchBankAccount(null); return }
+      const account = await bankAccountService.getById(branch.bank_account_id)
+      setBranchBankAccount(account)
+    }
+    load()
   }, [user?.branchId])
 
   useEffect(() => {
@@ -268,32 +283,32 @@ export default function PosPage() {
     generateQr()
   }, [paymentMethod, cartTotal, branchBankAccount])
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return
 
-    const sale = saleService.create({
-      shopId: user.shopId,
-      branchId: user.branchId,
+    const sale = await saleService.create({
+      shop_id: user.shopId,
+      branch_id: user.branchId,
       items: cartItems,
       total: cartTotal,
-      paymentMethod,
-      createdBy: user.id,
-      cartDetails: cart.map(c => ({ id: c.id, name: c.name, qty: c.qty, price: c.salePrice })),
+      payment_method: paymentMethod,
+      staff_id: user.id,
     })
 
-    cart.forEach(item => {
-      const sp = shopProductService.getById(item.id)
+    for (const item of cart) {
+      const sp = await shopProductService.getById(item.id)
       if (sp) {
-        shopProductService.update(item.id, { stock: sp.stock - item.qty })
+        await shopProductService.update(item.id, { stock: sp.stock - item.qty })
       }
-    })
+    }
 
-    authService.logActivity(user.id, user.shopId, 'SALE', `ขายสินค้า ${cartItems} รายการ ยอดรวม ฿${cartTotal.toLocaleString()}`)
+    await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดรวม ฿${cartTotal.toLocaleString()}`)
 
     setLastSale(sale)
     setShowPayment(false)
     setShowReceipt(true)
-    setStats(getStats(user.shopId, user.branchId))
+    const newStats = await getStats(user.shopId, user.branchId)
+    setStats(newStats)
     // Close active cart after checkout
     const filtered = carts.filter(c => c.id !== activeCartId)
     if (filtered.length === 0) {

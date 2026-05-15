@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ClipboardList, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle } from 'lucide-react'
-import { logService } from '../../services/mockData'
+import { logService } from '../../services/supabaseApi'
 import { format, parseISO } from 'date-fns'
 
 const actionConfig = {

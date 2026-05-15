@@ -1,0 +1,220 @@
+-- ============================================================
+-- Mobile POS - Supabase Schema
+-- Run this in Supabase SQL Editor
+-- ============================================================
+
+-- Enable RLS on all tables
+ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+
+-- Profiles table (extends auth.users)
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  email TEXT NOT NULL,
+  name TEXT,
+  role TEXT NOT NULL CHECK (role IN ('superadmin', 'owner', 'staff')),
+  shop_id UUID REFERENCES shops(id) ON DELETE SET NULL,
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
+  avatar TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Shops table
+CREATE TABLE IF NOT EXISTS shops (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  owner_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  phone TEXT,
+  address TEXT,
+  package_id UUID REFERENCES packages(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Packages table
+CREATE TABLE IF NOT EXISTS packages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  price INTEGER DEFAULT 0,
+  max_users INTEGER DEFAULT 2,
+  max_products INTEGER DEFAULT 50,
+  features TEXT[] DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Branches table
+CREATE TABLE IF NOT EXISTS branches (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  shop_id UUID REFERENCES shops(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  address TEXT,
+  bank_account_id UUID,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Bank accounts table
+CREATE TABLE IF NOT EXISTS bank_accounts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  bank_name TEXT,
+  account_no TEXT,
+  type TEXT CHECK (type IN ('promptpay', 'bank')) DEFAULT 'bank',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Add FK from branches to bank_accounts after both tables exist
+ALTER TABLE branches
+  DROP CONSTRAINT IF EXISTS fk_branch_bank_account;
+ALTER TABLE branches
+  ADD CONSTRAINT fk_branch_bank_account
+  FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id) ON DELETE SET NULL;
+
+-- Global products (central warehouse)
+CREATE TABLE IF NOT EXISTS products (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  barcode TEXT UNIQUE,
+  name TEXT NOT NULL,
+  category TEXT,
+  unit TEXT,
+  description TEXT,
+  image_url TEXT,
+  is_standard BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Shop products (inventory with pricing per branch)
+CREATE TABLE IF NOT EXISTS shop_products (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  barcode TEXT,
+  category TEXT,
+  unit TEXT,
+  cost_price NUMERIC(12,2) DEFAULT 0,
+  sale_price NUMERIC(12,2) DEFAULT 0,
+  stock INTEGER DEFAULT 0,
+  min_stock INTEGER DEFAULT 0,
+  color TEXT,
+  size TEXT,
+  is_standard BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Sales / transactions
+CREATE TABLE IF NOT EXISTS sales (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
+  items JSONB NOT NULL DEFAULT '[]',
+  total NUMERIC(12,2) DEFAULT 0,
+  payment_method TEXT,
+  received NUMERIC(12,2) DEFAULT 0,
+  change NUMERIC(12,2) DEFAULT 0,
+  staff_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Activity logs
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  details TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- ============================================================
+-- Row Level Security Policies
+-- ============================================================
+
+-- Profiles: users can read their own profile, superadmin reads all
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
+CREATE POLICY "Users can read own profile" ON profiles
+  FOR SELECT USING (auth.uid() = id OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin');
+
+-- Shops: owner sees own shop, staff sees their shop, superadmin sees all
+ALTER TABLE shops ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Shops read policy" ON shops;
+CREATE POLICY "Shops read policy" ON shops
+  FOR SELECT USING (
+    owner_id = auth.uid()
+    OR id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
+    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
+  );
+
+-- Branches: same as shops
+ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Branches read policy" ON branches;
+CREATE POLICY "Branches read policy" ON branches
+  FOR SELECT USING (
+    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
+    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
+  );
+
+-- Products (global): everyone can read, superadmin can write
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Products read all" ON products;
+CREATE POLICY "Products read all" ON products FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Products superadmin write" ON products;
+CREATE POLICY "Products superadmin write" ON products
+  FOR ALL USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin');
+
+-- Shop products: scoped to user's shop/branch
+ALTER TABLE shop_products ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Shop products read policy" ON shop_products;
+CREATE POLICY "Shop products read policy" ON shop_products
+  FOR SELECT USING (
+    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
+    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
+  );
+
+-- Sales: scoped to user's shop/branch
+ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Sales read policy" ON sales;
+CREATE POLICY "Sales read policy" ON sales
+  FOR SELECT USING (
+    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
+    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
+  );
+
+-- Activity logs
+ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Logs read policy" ON activity_logs;
+CREATE POLICY "Logs read policy" ON activity_logs
+  FOR SELECT USING (
+    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
+    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
+  );
+
+-- Packages: everyone read, superadmin write
+ALTER TABLE packages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Packages read all" ON packages;
+CREATE POLICY "Packages read all" ON packages FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Packages superadmin write" ON packages;
+CREATE POLICY "Packages superadmin write" ON packages
+  FOR ALL USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin');
+
+-- Bank accounts
+ALTER TABLE bank_accounts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Bank accounts read policy" ON bank_accounts;
+CREATE POLICY "Bank accounts read policy" ON bank_accounts
+  FOR SELECT USING (
+    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
+    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
+  );
+
+-- ============================================================
+-- Seed data: packages (for new installs)
+-- ============================================================
+INSERT INTO packages (name, price, max_users, max_products, features)
+VALUES
+  ('Starter', 0, 2, 50, ARRAY['POS ขายหน้าร้าน', 'จัดการสต็อกพื้นฐาน', 'รายงานยอดขาย']),
+  ('Basic', 299, 5, 200, ARRAY['ทุกอย่างใน Starter', 'จัดการพนักงาน', 'รายงานขั้นสูง', 'ซัพพอร์ตอีเมล']),
+  ('Pro', 599, 15, 1000, ARRAY['ทุกอย่างใน Basic', 'API เชื่อมต่อ', 'ซัพพอร์ตโทรศัพท์', 'ระบบสาขา']),
+  ('Enterprise', 1299, 999, 9999, ARRAY['ทุกอย่างใน Pro', 'Dedicated Support', 'Custom Integration', 'On-premise Option'])
+ON CONFLICT DO NOTHING;

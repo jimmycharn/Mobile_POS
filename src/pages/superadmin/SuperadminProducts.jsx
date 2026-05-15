@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3 } from 'lucide-react'
-import { productService } from '../../services/mockData'
+import { productService } from '../../services/supabaseApi'
 
 export default function SuperadminProducts() {
   const [products, setProducts] = useState([])

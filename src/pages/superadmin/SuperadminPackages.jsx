@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Shield, Check, Users, Package } from 'lucide-react'
-import { packageService } from '../../services/mockData'
+import { packageService } from '../../services/supabaseApi'
 
 export default function SuperadminPackages() {
   const [packages, setPackages] = useState([])

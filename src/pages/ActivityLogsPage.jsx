@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { ClipboardList, User, ArrowRightLeft, LogIn, LogOut, Package, Pencil, Trash2, AlertTriangle, Ban } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { logService, branchService } from '../services/mockData'
+import { logService, branchService } from '../services/supabaseApi'
 import { format, parseISO } from 'date-fns'
 
 const actionConfig = {

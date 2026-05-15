@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopService, userService, authService, packageService, branchService, bankAccountService } from '../services/mockData'
+import { shopService, userService, authService, packageService, branchService, bankAccountService } from '../services/supabaseApi'
 
 export default function ShopSettingsPage() {
   const { user, logout } = useAuth()

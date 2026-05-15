@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopProductService, productService, authService, branchService } from '../services/mockData'
+import { shopProductService, productService, authService, branchService } from '../services/supabaseApi'
 
 export default function InventoryPage() {
   const { user } = useAuth()

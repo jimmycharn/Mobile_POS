@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { saleService, shopProductService, branchService } from '../services/mockData'
+import { saleService, shopProductService, branchService } from '../services/supabaseApi'
 import { startOfDay, endOfDay, subDays, format, parseISO, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
 
 export default function SalesReportPage() {

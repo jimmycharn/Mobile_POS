@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Store, Users, ShoppingBag, DollarSign, TrendingUp, LogOut } from 'lucide-react'
-import { shopService, userService, saleService, logService, packageService } from '../../services/mockData'
+import { shopService, userService, saleService, logService, packageService } from '../../services/supabaseApi'
 import { useAuth } from '../../context/AuthContext'
 import { format, parseISO, subDays, startOfDay } from 'date-fns'
 

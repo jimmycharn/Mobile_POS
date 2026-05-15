@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Store, Eye, EyeOff, AlertCircle, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { packageService } from '../services/mockData'
+import { packageService } from '../services/supabaseApi'
 
 export default function SignupPage() {
   const [form, setForm] = useState({

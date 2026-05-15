@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Store, Search, Mail, Phone, Package, Users } from 'lucide-react'
-import { shopService, userService, packageService } from '../../services/mockData'
+import { shopService, userService, packageService } from '../../services/supabaseApi'
 
 export default function SuperadminShops() {
   const [shops, setShops] = useState([])
