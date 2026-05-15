@@ -43,6 +43,15 @@ export default function PosPage() {
     allProductsRef.current = allProducts
   }, [allProducts])
 
+  // Hide mobile nav when payment modal is open
+  useEffect(() => {
+    if (showPayment) {
+      document.body.classList.add('payment-modal-open')
+    } else {
+      document.body.classList.remove('payment-modal-open')
+    }
+  }, [showPayment])
+
   const playBeep = () => {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext
