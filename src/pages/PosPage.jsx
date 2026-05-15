@@ -1094,7 +1094,7 @@ export default function PosPage() {
             </div>
 
             {/* Fixed Actions Footer */}
-            <div className="shrink-0 p-6 pt-4 pb-20 md:pb-6 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <div className="shrink-0 p-6 pt-4 pb-6 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
               <div className="flex space-x-3">
                 <button
                   onClick={() => setShowPayment(false)}
