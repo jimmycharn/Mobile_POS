@@ -28,20 +28,25 @@ export default function SignupPage() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    const result = signup(form.email, form.password, form.name, form.shopName, form.phone, form.packageId)
-    setLoading(false)
+    try {
+      const result = await signup(form.email, form.password, form.name, form.shopName, form.phone, form.packageId)
 
-    if (result.error) {
-      setError(result.error)
-      return
+      if (result?.error) {
+        setError(result.error)
+        return
+      }
+
+      navigate('/pos')
+    } catch (err) {
+      setError(err.message || 'เกิดข้อผิดพลาดในการสมัครใช้งาน')
+    } finally {
+      setLoading(false)
     }
-
-    navigate('/pos')
   }
 
   return (

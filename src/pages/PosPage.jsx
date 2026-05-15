@@ -21,7 +21,8 @@ export default function PosPage() {
   const [activeSize, setActiveSize] = useState('')
   const [shop, setShop] = useState(null)
   const [allProducts, setAllProducts] = useState([])
-  const [branchBankAccount, setBranchBankAccount] = useState(null)
+  const [shopBankAccounts, setShopBankAccounts] = useState([])
+  const [selectedBankAccount, setSelectedBankAccount] = useState(null)
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
   const [scannedGlobal, setScannedGlobal] = useState(null)
@@ -57,10 +58,12 @@ export default function PosPage() {
         setStats(stats)
         setShop(shopData)
       }
-      const savedCarts = cartService.getBranchCarts(user?.branchId || 'branch-1')
-      const savedActive = cartService.getActiveCartId(user?.branchId || 'branch-1')
-      setCarts(savedCarts.length ? savedCarts : [{ id: 'cart-1', name: 'บิล 1', items: [] }])
-      setActiveCartId(savedActive || 'cart-1')
+      if (user?.branchId) {
+        const savedCarts = cartService.getBranchCarts(user.branchId)
+        const savedActive = cartService.getActiveCartId(user.branchId)
+        setCarts(savedCarts.length ? savedCarts : [{ id: 'cart-1', name: 'บิล 1', items: [] }])
+        setActiveCartId(savedActive || 'cart-1')
+      }
     }
     init()
   }, [user])
@@ -262,26 +265,29 @@ export default function PosPage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!user?.branchId) { setBranchBankAccount(null); return }
-      const branch = await branchService.getById(user.branchId)
-      if (!branch?.bank_account_id) { setBranchBankAccount(null); return }
-      const account = await bankAccountService.getById(branch.bank_account_id)
-      setBranchBankAccount(account)
+      if (!user?.shopId) { setShopBankAccounts([]); setSelectedBankAccount(null); return }
+      const accounts = await bankAccountService.getByShop(user.shopId)
+      setShopBankAccounts(accounts)
+      // Auto-select first account or keep current selection if still valid
+      setSelectedBankAccount(prev => {
+        if (prev && accounts.find(a => a.id === prev.id)) return prev
+        return accounts[0] || null
+      })
     }
     load()
-  }, [user?.branchId])
+  }, [user?.shopId])
 
   useEffect(() => {
     async function generateQr() {
-      if (paymentMethod === 'transfer' && branchBankAccount?.type === 'promptpay' && isPromptPayId(branchBankAccount.accountNo)) {
-        const url = await generatePromptPayQrUrl(branchBankAccount.accountNo, cartTotal)
+      if (paymentMethod === 'transfer' && selectedBankAccount?.type === 'promptpay' && isPromptPayId(selectedBankAccount.accountNo)) {
+        const url = await generatePromptPayQrUrl(selectedBankAccount.accountNo, cartTotal)
         setQrUrl(url)
       } else {
         setQrUrl(null)
       }
     }
     generateQr()
-  }, [paymentMethod, cartTotal, branchBankAccount])
+  }, [paymentMethod, cartTotal, selectedBankAccount])
 
   const handleCheckout = async () => {
     if (cart.length === 0) return
@@ -499,7 +505,7 @@ export default function PosPage() {
             )}
             <span className="font-normal text-slate-400 ml-1">({products.length})</span>
           </h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {products.map(product => {
               const inCart = cart.find(c => c.id === product.id)
               const isLowStock = product.stock <= product.minStock
@@ -834,75 +840,59 @@ export default function PosPage() {
                 </div>
               </button>
 
-              {branchBankAccount?.type === 'promptpay' && (
+              {shopBankAccounts.map(acc => (
                 <button
-                  onClick={() => setPaymentMethod('transfer')}
+                  key={acc.id}
+                  onClick={() => { setPaymentMethod('transfer'); setSelectedBankAccount(acc); }}
                   className={`w-full flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all ${
-                    paymentMethod === 'transfer' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50'
+                    paymentMethod === 'transfer' && selectedBankAccount?.id === acc.id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50'
                   }`}
                 >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400'}`}>
-                    <QrCode size={24} />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' && selectedBankAccount?.id === acc.id ? (acc.type === 'promptpay' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white') : 'bg-white text-slate-400'}`}>
+                    {acc.type === 'promptpay' ? <QrCode size={24} /> : <Building2 size={24} />}
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-slate-800">PromptPay / QR Code</p>
-                    <p className="text-xs text-slate-400">สแกน QR โอนเงิน</p>
+                    <p className="font-semibold text-slate-800">{acc.type === 'promptpay' ? 'PromptPay / QR Code' : 'โอนผ่านธนาคาร'}</p>
+                    <p className="text-xs text-slate-400">{acc.type === 'promptpay' ? 'สแกน QR โอนเงิน' : acc.bankName}</p>
                   </div>
                 </button>
-              )}
+              ))}
 
-              {branchBankAccount?.type === 'bank' && (
-                <button
-                  onClick={() => setPaymentMethod('transfer')}
-                  className={`w-full flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all ${
-                    paymentMethod === 'transfer' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50'
-                  }`}
-                >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' ? 'bg-blue-500 text-white' : 'bg-white text-slate-400'}`}>
-                    <Building2 size={24} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-semibold text-slate-800">โอนผ่านธนาคาร</p>
-                    <p className="text-xs text-slate-400">{branchBankAccount.bankName}</p>
-                  </div>
-                </button>
-              )}
-
-              {!branchBankAccount && (
+              {shopBankAccounts.length === 0 && (
                 <div className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-center text-sm text-slate-400">
-                  สาขานี้ยังไม่มีบัญชีรับเงิน
+                  ยังไม่มีบัญชีรับเงิน
                 </div>
               )}
             </div>
 
             {/* Transfer Details */}
-            {paymentMethod === 'transfer' && branchBankAccount?.type === 'promptpay' && qrUrl && (
+            {paymentMethod === 'transfer' && selectedBankAccount?.type === 'promptpay' && qrUrl && (
               <div className="mb-6 flex flex-col items-center">
                 <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-4">
                   <img src={qrUrl} alt="PromptPay QR" className="w-56 h-56" />
                 </div>
                 <p className="text-sm text-slate-500 mt-3 text-center">
                   สแกนด้วยแอปธนาคารเพื่อโอนเงิน<br />
-                  <span className="text-xs text-slate-400">{branchBankAccount.name} · {branchBankAccount.accountNo}</span>
+                  <span className="text-xs text-slate-400">{selectedBankAccount.name} · {selectedBankAccount.accountNo}</span>
                 </p>
               </div>
             )}
-            {paymentMethod === 'transfer' && branchBankAccount?.type === 'promptpay' && !qrUrl && (
+            {paymentMethod === 'transfer' && selectedBankAccount?.type === 'promptpay' && !qrUrl && (
               <div className="mb-6 text-center text-sm text-red-400">
                 ไม่สามารถสร้าง QR Code ได้ (ตรวจสอบเบอร์ PromptPay)
               </div>
             )}
-            {paymentMethod === 'transfer' && branchBankAccount?.type === 'bank' && (
+            {paymentMethod === 'transfer' && selectedBankAccount?.type === 'bank' && (
               <div className="mb-6 bg-blue-50 rounded-2xl p-5 space-y-3">
                 <p className="text-sm font-semibold text-blue-800 text-center">โอนเงินผ่านธนาคาร</p>
                 <div className="text-center space-y-1">
-                  <p className="text-xs text-slate-500">{branchBankAccount.bankName}</p>
-                  <p className="text-xl md:text-2xl font-bold text-slate-800 font-mono tracking-wider whitespace-nowrap">{branchBankAccount.accountNo}</p>
-                  <p className="text-sm text-slate-600">{branchBankAccount.accountHolder}</p>
+                  <p className="text-xs text-slate-500">{selectedBankAccount.bankName}</p>
+                  <p className="text-xl md:text-2xl font-bold text-slate-800 font-mono tracking-wider whitespace-nowrap">{selectedBankAccount.accountNo}</p>
+                  <p className="text-sm text-slate-600">{selectedBankAccount.accountHolder}</p>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400 border-t border-blue-100 pt-3">
                   <span>ชื่อบัญชี</span>
-                  <span>{branchBankAccount.accountHolder}</span>
+                  <span>{selectedBankAccount.accountHolder}</span>
                 </div>
               </div>
             )}

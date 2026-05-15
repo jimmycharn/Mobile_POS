@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard } from 'lucide-react'
+import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard, PenLine } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopService, userService, authService, packageService, branchService, bankAccountService } from '../services/supabaseApi'
 
@@ -19,6 +19,9 @@ export default function ShopSettingsPage() {
   const [editingBank, setEditingBank] = useState(null)
   const [newBank, setNewBank] = useState({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' })
   const [editingBranch, setEditingBranch] = useState(null)
+  const [editingShop, setEditingShop] = useState(false)
+  const [shopForm, setShopForm] = useState({ name: '', phone: '', packageId: '' })
+  const [allPackages, setAllPackages] = useState([])
 
   const refreshBranches = async () => {
     if (user?.shopId) setBranches(await branchService.getByShop(user.shopId))
@@ -41,38 +44,49 @@ export default function ShopSettingsPage() {
       }
     }
     load()
+    packageService.getAll().then(setAllPackages)
   }, [user])
 
   const handleAddStaff = async () => {
-    const result = await userService.create({
-      ...newStaff,
-      role: 'staff',
-      shopId: user.shopId,
-      branchId: newStaff.branchId || branches[0]?.id,
-      avatar: null,
-    })
-    if (!result.error) {
+    try {
+      const result = await userService.create({
+        ...newStaff,
+        role: 'staff',
+        shopId: user.shopId,
+        branchId: newStaff.branchId || branches[0]?.id,
+        avatar: null,
+      })
       await authService.logActivity('ADD_STAFF', `เพิ่มพนักงาน ${newStaff.name}`)
       const staffList = await userService.getByShop(user.shopId)
       setStaff(staffList.filter(u => u.id !== user.id))
       setShowAddStaff(false)
       setNewStaff({ name: '', email: '', password: '', branchId: '' })
+    } catch (err) {
+      alert('เพิ่มพนักงานไม่สำเร็จ: ' + err.message)
     }
   }
 
   const handleRemoveStaff = async (id, name) => {
     if (!confirm(`ลบพนักงาน ${name}?`)) return
-    await userService.remove(id)
-    await authService.logActivity('REMOVE_STAFF', `ลบพนักงาน ${name}`)
-    const staffList = await userService.getByShop(user.shopId)
-    setStaff(staffList.filter(u => u.id !== user.id))
+    try {
+      await userService.remove(id)
+      await authService.logActivity('REMOVE_STAFF', `ลบพนักงาน ${name}`)
+      const staffList = await userService.getByShop(user.shopId)
+      setStaff(staffList.filter(u => u.id !== user.id))
+    } catch (err) {
+      alert('ลบพนักงานไม่สำเร็จ: ' + err.message)
+    }
   }
 
   const toggleStaffPermission = async (staffMember, field) => {
-    const updated = { ...staffMember, [field]: !staffMember[field] }
-    await userService.update(staffMember.id, { [field]: updated[field] })
-    setStaff(prev => prev.map(s => s.id === staffMember.id ? updated : s))
-    await authService.logActivity('UPDATE_STAFF_PERM', `เปลี่ยนสิทธิ์ ${field} ของ ${staffMember.name} เป็น ${updated[field] ? 'เปิด' : 'ปิด'}`)
+    try {
+      const updated = { ...staffMember, [field]: !staffMember[field] }
+      await userService.update(staffMember.id, { [field]: updated[field] })
+      setStaff(prev => prev.map(s => s.id === staffMember.id ? updated : s))
+      await authService.logActivity('UPDATE_STAFF_PERM', `เปลี่ยนสิทธิ์ ${field} ของ ${staffMember.name} เป็น ${updated[field] ? 'เปิด' : 'ปิด'}`)
+    } catch (err) {
+      alert('อัปเดตสิทธิ์ไม่สำเร็จ: ' + err.message)
+    }
   }
 
   return (
@@ -85,14 +99,29 @@ export default function ShopSettingsPage() {
       <div className="p-4 md:p-6 space-y-4">
         {/* Shop Info */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5">
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center">
-              <Store size={28} className="text-primary-600" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center">
+                <Store size={28} className="text-primary-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-800">{shop?.name || 'ร้านค้า'}</h2>
+                <p className="text-sm text-slate-400">{shop?.email}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-bold text-slate-800">{shop?.name || 'ร้านค้า'}</h2>
-              <p className="text-sm text-slate-400">{shop?.email}</p>
-            </div>
+            <button
+              onClick={() => {
+                setShopForm({
+                  name: shop?.name || '',
+                  phone: shop?.phone || '',
+                  packageId: shop?.packageId || '',
+                })
+                setEditingShop(true)
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-300 hover:text-primary-500"
+            >
+              <PenLine size={16} />
+            </button>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="bg-slate-50 rounded-xl p-3">
@@ -105,6 +134,67 @@ export default function ShopSettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Edit Shop Modal */}
+        {editingShop && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">แก้ไขข้อมูลร้าน</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">ชื่อร้าน</label>
+                  <input
+                    value={shopForm.name}
+                    onChange={e => setShopForm({ ...shopForm, name: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">เบอร์โทร</label>
+                  <input
+                    value={shopForm.phone}
+                    onChange={e => setShopForm({ ...shopForm, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">แพ็คเกจ</label>
+                  <select
+                    value={shopForm.packageId}
+                    onChange={e => setShopForm({ ...shopForm, packageId: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                  >
+                    <option value="">เลือกแพ็คเกจ</option>
+                    {allPackages.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-5">
+                <button onClick={() => setEditingShop(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+                <button
+                  onClick={async () => {
+                    if (!shopForm.name.trim()) return
+                    await shopService.update(user.shopId, {
+                      name: shopForm.name.trim(),
+                      phone: shopForm.phone,
+                      packageId: shopForm.packageId || null,
+                    })
+                    await authService.logActivity('EDIT_SHOP', `แก้ไขข้อมูลร้าน ${shopForm.name}`)
+                    const s = await shopService.getById(user.shopId)
+                    setShop(s)
+                    if (s) setPkg(await packageService.getById(s.packageId))
+                    setEditingShop(false)
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+                >
+                  บันทึก
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Bank Account Management */}
         {user?.role === 'owner' && (
@@ -145,9 +235,13 @@ export default function ShopSettingsPage() {
                     <button
                       onClick={async () => {
                         if (!confirm(`ลบบัญชี ${acc.name}?`)) return
-                        await bankAccountService.remove(acc.id)
-                        await authService.logActivity('DELETE_BANK', `ลบบัญชี ${acc.name}`)
-                        await refreshBankAccounts()
+                        try {
+                          await bankAccountService.remove(acc.id)
+                          await authService.logActivity('DELETE_BANK', `ลบบัญชี ${acc.name}`)
+                          await refreshBankAccounts()
+                        } catch (err) {
+                          alert('ลบบัญชีไม่สำเร็จ: ' + err.message)
+                        }
                       }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
                     >
@@ -203,9 +297,13 @@ export default function ShopSettingsPage() {
                       <button
                         onClick={async () => {
                           if (!confirm(`ลบ ${b.name}?`)) return
-                          await branchService.remove(b.id)
-                          await authService.logActivity('DELETE_BRANCH', `ลบสาขา ${b.name}`)
-                          await refreshBranches()
+                          try {
+                            await branchService.remove(b.id)
+                            await authService.logActivity('DELETE_BRANCH', `ลบสาขา ${b.name}`)
+                            await refreshBranches()
+                          } catch (err) {
+                            alert('ลบสาขาไม่สำเร็จ: ' + err.message)
+                          }
                         }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
                       >
@@ -379,17 +477,21 @@ export default function ShopSettingsPage() {
                 <button onClick={() => setEditingStaff(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button
                   onClick={async () => {
-                    const updates = {
-                      name: editingStaff.name,
-                      email: editingStaff.email,
-                      branchId: editingStaff.branchId,
+                    try {
+                      const updates = {
+                        name: editingStaff.name,
+                        email: editingStaff.email,
+                        branchId: editingStaff.branchId,
+                      }
+                      if (editingStaff._newPassword) updates.password = editingStaff._newPassword
+                      await userService.update(editingStaff.id, updates)
+                      await authService.logActivity('EDIT_STAFF', `แก้ไขพนักงาน ${editingStaff.name}`)
+                      const staffList = await userService.getByShop(user.shopId)
+                      setStaff(staffList.filter(u => u.id !== user.id))
+                      setEditingStaff(null)
+                    } catch (err) {
+                      alert('แก้ไขพนักงานไม่สำเร็จ: ' + err.message)
                     }
-                    if (editingStaff._newPassword) updates.password = editingStaff._newPassword
-                    await userService.update(editingStaff.id, updates)
-                    await authService.logActivity('EDIT_STAFF', `แก้ไขพนักงาน ${editingStaff.name}`)
-                    const staffList = await userService.getByShop(user.shopId)
-                    setStaff(staffList.filter(u => u.id !== user.id))
-                    setEditingStaff(null)
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
@@ -430,11 +532,15 @@ export default function ShopSettingsPage() {
                 <button
                   onClick={async () => {
                     if (!newBranch.name.trim()) return
-                    await branchService.create({ shopId: user.shopId, name: newBranch.name.trim(), address: newBranch.address, phone: newBranch.phone })
-                    await authService.logActivity('CREATE_BRANCH', `เพิ่มสาขา ${newBranch.name}`)
-                    setNewBranch({ name: '', address: '', phone: '' })
-                    setShowAddBranch(false)
-                    await refreshBranches()
+                    try {
+                      await branchService.create({ shopId: user.shopId, name: newBranch.name.trim(), address: newBranch.address, phone: newBranch.phone })
+                      await authService.logActivity('CREATE_BRANCH', `เพิ่มสาขา ${newBranch.name}`)
+                      setNewBranch({ name: '', address: '', phone: '' })
+                      setShowAddBranch(false)
+                      await refreshBranches()
+                    } catch (err) {
+                      alert('เพิ่มสาขาไม่สำเร็จ: ' + err.message)
+                    }
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
@@ -491,18 +597,22 @@ export default function ShopSettingsPage() {
                 <button
                   onClick={async () => {
                     if (!newBank.name.trim() || !newBank.accountNo.trim() || !newBank.accountHolder.trim()) return
-                    await bankAccountService.create({
-                      shopId: user.shopId,
-                      name: newBank.name.trim(),
-                      bankName: newBank.bankName || (newBank.type === 'promptpay' ? 'PromptPay' : ''),
-                      accountNo: newBank.accountNo.trim(),
-                      accountHolder: newBank.accountHolder.trim(),
-                      type: newBank.type,
-                    })
-                    await authService.logActivity('ADD_BANK', `เพิ่มบัญชี ${newBank.name}`)
-                    setNewBank({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' })
-                    setShowAddBank(false)
-                    await refreshBankAccounts()
+                    try {
+                      await bankAccountService.create({
+                        shopId: user.shopId,
+                        name: newBank.name.trim(),
+                        bankName: newBank.bankName || (newBank.type === 'promptpay' ? 'PromptPay' : ''),
+                        accountNo: newBank.accountNo.trim(),
+                        accountHolder: newBank.accountHolder.trim(),
+                        type: newBank.type,
+                      })
+                      await authService.logActivity('ADD_BANK', `เพิ่มบัญชี ${newBank.name}`)
+                      setNewBank({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' })
+                      setShowAddBank(false)
+                      await refreshBankAccounts()
+                    } catch (err) {
+                      alert('เพิ่มบัญชีไม่สำเร็จ: ' + err.message)
+                    }
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
@@ -558,16 +668,20 @@ export default function ShopSettingsPage() {
                 <button onClick={() => setEditingBank(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button
                   onClick={async () => {
-                    await bankAccountService.update(editingBank.id, {
-                      name: editingBank.name,
-                      bankName: editingBank.bankName,
-                      accountNo: editingBank.accountNo,
-                      accountHolder: editingBank.accountHolder,
-                      type: editingBank.type,
-                    })
-                    await authService.logActivity('EDIT_BANK', `แก้ไขบัญชี ${editingBank.name}`)
-                    setEditingBank(null)
-                    await refreshBankAccounts()
+                    try {
+                      await bankAccountService.update(editingBank.id, {
+                        name: editingBank.name,
+                        bankName: editingBank.bankName,
+                        accountNo: editingBank.accountNo,
+                        accountHolder: editingBank.accountHolder,
+                        type: editingBank.type,
+                      })
+                      await authService.logActivity('EDIT_BANK', `แก้ไขบัญชี ${editingBank.name}`)
+                      setEditingBank(null)
+                      await refreshBankAccounts()
+                    } catch (err) {
+                      alert('แก้ไขบัญชีไม่สำเร็จ: ' + err.message)
+                    }
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
@@ -617,15 +731,19 @@ export default function ShopSettingsPage() {
                 <button onClick={() => setEditingBranch(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button
                   onClick={async () => {
-                    await branchService.update(editingBranch.id, {
-                      name: editingBranch.name,
-                      address: editingBranch.address,
-                      phone: editingBranch.phone,
-                      bankAccountId: editingBranch.bankAccountId || null,
-                    })
-                    await authService.logActivity('EDIT_BRANCH', `แก้ไขสาขา ${editingBranch.name}`)
-                    setEditingBranch(null)
-                    await refreshBranches()
+                    try {
+                      await branchService.update(editingBranch.id, {
+                        name: editingBranch.name,
+                        address: editingBranch.address,
+                        phone: editingBranch.phone,
+                        bankAccountId: editingBranch.bankAccountId || null,
+                      })
+                      await authService.logActivity('EDIT_BRANCH', `แก้ไขสาขา ${editingBranch.name}`)
+                      setEditingBranch(null)
+                      await refreshBranches()
+                    } catch (err) {
+                      alert('แก้ไขสาขาไม่สำเร็จ: ' + err.message)
+                    }
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >

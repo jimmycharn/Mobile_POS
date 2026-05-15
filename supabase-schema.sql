@@ -41,9 +41,12 @@ CREATE TABLE IF NOT EXISTS branches (
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   address TEXT,
+  phone TEXT,
   bank_account_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS phone TEXT;
 
 -- Bank accounts table
 CREATE TABLE IF NOT EXISTS bank_accounts (
@@ -52,9 +55,12 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
   name TEXT NOT NULL,
   bank_name TEXT,
   account_no TEXT,
+  account_holder TEXT,
   type TEXT CHECK (type IN ('promptpay', 'bank')) DEFAULT 'bank',
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS account_holder TEXT;
 
 -- Add deferred foreign keys after all tables exist
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS shop_id UUID REFERENCES shops(id) ON DELETE SET NULL;
@@ -135,20 +141,38 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 
 CREATE OR REPLACE FUNCTION get_my_role()
 RETURNS TEXT
-LANGUAGE SQL
+LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
+SET search_path = public
 AS $$
-  SELECT role FROM profiles WHERE id = auth.uid()
+DECLARE
+  v_role TEXT;
+BEGIN
+  SELECT role INTO v_role FROM profiles WHERE id = auth.uid();
+  IF v_role IS NULL AND EXISTS (SELECT 1 FROM shops WHERE owner_id = auth.uid()) THEN
+    v_role := 'owner';
+  END IF;
+  RETURN v_role;
+END
 $$;
 
 CREATE OR REPLACE FUNCTION get_my_shop_id()
 RETURNS UUID
-LANGUAGE SQL
+LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
+SET search_path = public
 AS $$
-  SELECT shop_id FROM profiles WHERE id = auth.uid()
+DECLARE
+  v_shop_id UUID;
+BEGIN
+  SELECT shop_id INTO v_shop_id FROM profiles WHERE id = auth.uid();
+  IF v_shop_id IS NULL THEN
+    SELECT id INTO v_shop_id FROM shops WHERE owner_id = auth.uid() LIMIT 1;
+  END IF;
+  RETURN v_shop_id;
+END
 $$;
 
 -- ============================================================
@@ -168,11 +192,31 @@ CREATE POLICY "Profiles read policy" ON profiles
 
 DROP POLICY IF EXISTS "Profiles insert policy" ON profiles;
 CREATE POLICY "Profiles insert policy" ON profiles
-  FOR INSERT WITH CHECK (auth.uid() = id OR get_my_role() = 'superadmin');
+  FOR INSERT WITH CHECK (
+    auth.uid() = id
+    OR get_my_role() = 'superadmin'
+    OR (get_my_role() = 'owner' AND shop_id = get_my_shop_id())
+  );
 
 DROP POLICY IF EXISTS "Profiles update policy" ON profiles;
 CREATE POLICY "Profiles update policy" ON profiles
-  FOR UPDATE USING (auth.uid() = id OR get_my_role() = 'superadmin');
+  FOR UPDATE USING (
+    auth.uid() = id
+    OR get_my_role() = 'superadmin'
+    OR (get_my_role() = 'owner' AND shop_id = get_my_shop_id())
+  )
+  WITH CHECK (
+    auth.uid() = id
+    OR get_my_role() = 'superadmin'
+    OR (get_my_role() = 'owner' AND shop_id = get_my_shop_id())
+  );
+
+DROP POLICY IF EXISTS "Profiles delete policy" ON profiles;
+CREATE POLICY "Profiles delete policy" ON profiles
+  FOR DELETE USING (
+    get_my_role() = 'superadmin'
+    OR (get_my_role() = 'owner' AND shop_id = get_my_shop_id())
+  );
 
 -- Shops
 ALTER TABLE shops ENABLE ROW LEVEL SECURITY;
@@ -193,8 +237,16 @@ DROP POLICY IF EXISTS "Branches read policy" ON branches;
 CREATE POLICY "Branches read policy" ON branches
   FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 DROP POLICY IF EXISTS "Branches write policy" ON branches;
-CREATE POLICY "Branches write policy" ON branches
-  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Branches insert policy" ON branches;
+CREATE POLICY "Branches insert policy" ON branches
+  FOR INSERT WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Branches update policy" ON branches;
+CREATE POLICY "Branches update policy" ON branches
+  FOR UPDATE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin')
+  WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Branches delete policy" ON branches;
+CREATE POLICY "Branches delete policy" ON branches
+  FOR DELETE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
 -- Products (global)
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
@@ -227,8 +279,16 @@ DROP POLICY IF EXISTS "Sales read policy" ON sales;
 CREATE POLICY "Sales read policy" ON sales
   FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 DROP POLICY IF EXISTS "Sales write policy" ON sales;
-CREATE POLICY "Sales write policy" ON sales
-  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Sales insert policy" ON sales;
+CREATE POLICY "Sales insert policy" ON sales
+  FOR INSERT WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Sales update policy" ON sales;
+CREATE POLICY "Sales update policy" ON sales
+  FOR UPDATE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin')
+  WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Sales delete policy" ON sales;
+CREATE POLICY "Sales delete policy" ON sales
+  FOR DELETE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
 -- Activity logs
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
@@ -260,8 +320,16 @@ DROP POLICY IF EXISTS "Bank accounts read policy" ON bank_accounts;
 CREATE POLICY "Bank accounts read policy" ON bank_accounts
   FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 DROP POLICY IF EXISTS "Bank accounts write policy" ON bank_accounts;
-CREATE POLICY "Bank accounts write policy" ON bank_accounts
-  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Bank accounts insert policy" ON bank_accounts;
+CREATE POLICY "Bank accounts insert policy" ON bank_accounts
+  FOR INSERT WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Bank accounts update policy" ON bank_accounts;
+CREATE POLICY "Bank accounts update policy" ON bank_accounts
+  FOR UPDATE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin')
+  WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Bank accounts delete policy" ON bank_accounts;
+CREATE POLICY "Bank accounts delete policy" ON bank_accounts
+  FOR DELETE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
 -- ============================================================
 -- Seed data: packages (for new installs)

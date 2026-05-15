@@ -12,23 +12,28 @@ export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    const result = login(email, password)
-    setLoading(false)
+    try {
+      const result = await login(email, password)
 
-    if (result.error) {
-      setError(result.error)
-      return
-    }
+      if (result?.error) {
+        setError(result.error)
+        return
+      }
 
-    if (result.user.role === 'superadmin') {
-      navigate('/superadmin')
-    } else {
-      navigate('/pos')
+      if (result?.user?.role === 'superadmin') {
+        navigate('/superadmin')
+      } else {
+        navigate('/pos')
+      }
+    } catch (err) {
+      setError(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+    } finally {
+      setLoading(false)
     }
   }
 

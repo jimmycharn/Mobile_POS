@@ -84,36 +84,40 @@ export const authService = {
       password,
     })
     if (authError) return { error: authError.message }
+    if (!authData.user) return { error: 'ไม่สามารถสร้างผู้ใช้ได้ (อาจต้องยืนยันอีเมลก่อน)' }
 
     const userId = authData.user.id
 
-    // 2. Create shop
-    const { data: shop } = await supabase
+    // 2. Create profile FIRST (shops.owner_id has FK -> profiles.id)
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({ id: userId, email, name, role: 'owner' })
+    if (profileError) return { error: 'สร้างโปรไฟล์ไม่สำเร็จ: ' + profileError.message }
+
+    // 3. Create shop
+    const { data: shop, error: shopError } = await supabase
       .from('shops')
       .insert({ name: shopName, owner_id: userId, phone, package_id: packageId })
       .select()
       .single()
+    if (shopError) return { error: 'สร้างร้านไม่สำเร็จ: ' + shopError.message }
 
-    // 3. Create default branch
-    const { data: branch } = await supabase
+    // 4. Create default branch
+    const { data: branch, error: branchError } = await supabase
       .from('branches')
       .insert({ shop_id: shop.id, name: 'สาขาหลัก' })
       .select()
       .single()
+    if (branchError) return { error: 'สร้างสาขาไม่สำเร็จ: ' + branchError.message }
 
-    // 4. Create profile
-    const { data: profile } = await supabase
+    // 5. Update profile with shop_id / branch_id
+    const { data: profile, error: updateError } = await supabase
       .from('profiles')
-      .insert({
-        id: userId,
-        email,
-        name,
-        role: 'owner',
-        shop_id: shop.id,
-        branch_id: branch.id,
-      })
+      .update({ shop_id: shop.id, branch_id: branch.id })
+      .eq('id', userId)
       .select()
       .single()
+    if (updateError) return { error: 'อัปเดตโปรไฟล์ไม่สำเร็จ: ' + updateError.message }
 
     const user = {
       id: userId,
@@ -184,15 +188,18 @@ export const branchService = {
     return toCamel(data)
   },
   async create(branch) {
-    const { data } = await supabase.from('branches').insert(toSnake(branch)).select().single()
-    return toCamel(data)
+    const { data, error } = await supabase.from('branches').insert(toSnake(branch)).select()
+    if (error) throw new Error(error.message)
+    return toCamel(Array.isArray(data) ? data[0] : data)
   },
   async update(id, changes) {
-    const { data } = await supabase.from('branches').update(toSnake(changes)).eq('id', id).select().single()
-    return toCamel(data)
+    const { data, error } = await supabase.from('branches').update(toSnake(changes)).eq('id', id).select()
+    if (error) throw new Error(error.message)
+    return toCamel(Array.isArray(data) ? data[0] : data)
   },
   async remove(id) {
-    await supabase.from('branches').delete().eq('id', id)
+    const { error } = await supabase.from('branches').delete().eq('id', id)
+    if (error) throw new Error(error.message)
   },
 }
 
@@ -291,13 +298,32 @@ export const userService = {
     return toCamel(data) || []
   },
   async create(user) {
-    // Staff signup requires admin RPC or manual invite flow
-    // For now: create auth user via admin API (requires service_role key on server)
-    // Client-side fallback: store in localStorage (temporary)
-    // TODO: move to serverless function for production
-    const tempStaff = { ...user, id: 'staff-' + Date.now(), createdAt: new Date().toISOString(), isActive: true }
-    // This is a placeholder — real implementation needs Edge Function
-    return tempStaff
+    // 1. Create auth user for staff (email confirmation required by default, owner session stays intact)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: user.email,
+      password: user.password,
+    })
+    if (authError) throw new Error(authError.message)
+    if (!authData.user) throw new Error('ไม่สามารถสร้างผู้ใช้พนักงานได้')
+
+    const staffId = authData.user.id
+
+    // 2. Create profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: staffId,
+        email: user.email,
+        name: user.name,
+        role: 'staff',
+        shop_id: user.shopId,
+        branch_id: user.branchId,
+      })
+      .select()
+      .single()
+    if (profileError) throw new Error('สร้างโปรไฟล์พนักงานไม่สำเร็จ: ' + profileError.message)
+
+    return toCamel(profile)
   },
   async update(id, changes) {
     const { data } = await supabase.from('profiles').update(toSnake(changes)).eq('id', id).select().single()
@@ -357,15 +383,18 @@ export const bankAccountService = {
     return toCamel(data)
   },
   async create(account) {
-    const { data } = await supabase.from('bank_accounts').insert(toSnake(account)).select().single()
-    return toCamel(data)
+    const { data, error } = await supabase.from('bank_accounts').insert(toSnake(account)).select()
+    if (error) throw new Error(error.message)
+    return toCamel(Array.isArray(data) ? data[0] : data)
   },
   async update(id, changes) {
-    const { data } = await supabase.from('bank_accounts').update(toSnake(changes)).eq('id', id).select().single()
-    return toCamel(data)
+    const { data, error } = await supabase.from('bank_accounts').update(toSnake(changes)).eq('id', id).select()
+    if (error) throw new Error(error.message)
+    return toCamel(Array.isArray(data) ? data[0] : data)
   },
   async remove(id) {
-    await supabase.from('bank_accounts').delete().eq('id', id)
+    const { error } = await supabase.from('bank_accounts').delete().eq('id', id)
+    if (error) throw new Error(error.message)
   },
 }
 
