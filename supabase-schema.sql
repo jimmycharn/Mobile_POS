@@ -228,8 +228,15 @@ DROP POLICY IF EXISTS "Logs read policy" ON activity_logs;
 CREATE POLICY "Logs read policy" ON activity_logs
   FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 DROP POLICY IF EXISTS "Logs write policy" ON activity_logs;
-CREATE POLICY "Logs write policy" ON activity_logs
-  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Logs insert policy" ON activity_logs;
+CREATE POLICY "Logs insert policy" ON activity_logs
+  FOR INSERT WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Logs update policy" ON activity_logs;
+CREATE POLICY "Logs update policy" ON activity_logs
+  FOR UPDATE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Logs delete policy" ON activity_logs;
+CREATE POLICY "Logs delete policy" ON activity_logs
+  FOR DELETE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
 -- Packages
 ALTER TABLE packages ENABLE ROW LEVEL SECURITY;
