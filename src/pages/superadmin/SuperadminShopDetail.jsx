@@ -124,8 +124,8 @@ export default function SuperadminShopDetail() {
         {/* Shop Info Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border border-slate-100 p-4">
-            <p className="text-slate-400 text-xs mb-1">{selectedBranchId === 'all' ? 'สาขา' : branches.find(b => b.id === selectedBranchId)?.name}</p>
-            <p className="font-bold text-slate-800">{selectedBranchId === 'all' ? branches.length : 'สาขานี้'}</p>
+            <p className="text-slate-400 text-xs mb-1">{selectedBranchId === 'all' ? 'สาขา' : 'สาขา'}</p>
+            <p className="font-bold text-slate-800">{selectedBranchId === 'all' ? branches.length : branches.find(b => b.id === selectedBranchId)?.name || '-'}</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-100 p-4">
             <p className="text-slate-400 text-xs mb-1">สถานะ</p>
