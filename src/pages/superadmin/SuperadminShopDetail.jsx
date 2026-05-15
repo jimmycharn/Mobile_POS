@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2 } from 'lucide-react'
-import { logService, shopService, branchService, packageService } from '../../services/supabaseApi'
-import { format, parseISO } from 'date-fns'
+import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2, TrendingUp, ShoppingBag, DollarSign, Calendar, CreditCard, Wallet } from 'lucide-react'
+import { logService, shopService, branchService, packageService, saleService } from '../../services/supabaseApi'
+import { format, parseISO, startOfDay, endOfDay, subDays, isSameDay, startOfMonth, endOfMonth } from 'date-fns'
 
 const actionConfig = {
   LOGIN: { label: 'เข้าสู่ระบบ', icon: LogIn, color: 'bg-green-50 text-green-600' },
@@ -31,6 +31,18 @@ export default function SuperadminShopDetail() {
   const [selectedBranchId, setSelectedBranchId] = useState('all')
   const [branchOpen, setBranchOpen] = useState(false)
   const [pkgName, setPkgName] = useState('-')
+  const [sales, setSales] = useState([])
+  const [reportRange, setReportRange] = useState('7') // 'today', '7', 'month'
+
+  const getReportDateRange = () => {
+    const today = new Date()
+    switch (reportRange) {
+      case 'today': return { start: startOfDay(today), end: endOfDay(today) }
+      case '7': return { start: startOfDay(subDays(today, 6)), end: endOfDay(today) }
+      case 'month': return { start: startOfMonth(today), end: endOfMonth(today) }
+      default: return { start: startOfDay(subDays(today, 6)), end: endOfDay(today) }
+    }
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -62,6 +74,73 @@ export default function SuperadminShopDetail() {
     }
     loadLogs()
   }, [selectedBranchId, shopId])
+
+  // Load sales for report
+  useEffect(() => {
+    if (!shopId) return
+    const loadSales = async () => {
+      if (selectedBranchId === 'all') {
+        const data = await saleService.getByShop(shopId)
+        setSales(data)
+      } else {
+        const data = await saleService.getByBranch(selectedBranchId)
+        setSales(data)
+      }
+    }
+    loadSales()
+  }, [selectedBranchId, shopId])
+
+  const reportStats = useMemo(() => {
+    const { start, end } = getReportDateRange()
+    const filtered = sales.filter(s => {
+      const d = new Date(s.createdAt)
+      return d >= start && d <= end
+    })
+    const totalRevenue = filtered.reduce((sum, s) => sum + s.total, 0)
+    const totalOrders = filtered.length
+    const avgOrder = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0
+    const todaySales = sales.filter(s => isSameDay(parseISO(s.createdAt), new Date()))
+    const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0)
+    return { totalRevenue, totalOrders, avgOrder, todayRevenue, todayOrders: todaySales.length }
+  }, [sales, reportRange])
+
+  const dailyData = useMemo(() => {
+    const { start, end } = getReportDateRange()
+    const data = {}
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      data[format(d, 'yyyy-MM-dd')] = { revenue: 0, orders: 0 }
+    }
+    sales.forEach(s => {
+      const key = format(parseISO(s.createdAt), 'yyyy-MM-dd')
+      if (data[key]) {
+        data[key].revenue += s.total
+        data[key].orders += 1
+      }
+    })
+    return Object.entries(data).map(([date, val]) => ({
+      date: format(parseISO(date), 'dd/MM'),
+      ...val,
+    }))
+  }, [sales, reportRange])
+
+  const paymentStats = useMemo(() => {
+    const { start, end } = getReportDateRange()
+    const filtered = sales.filter(s => {
+      const d = new Date(s.createdAt)
+      return d >= start && d <= end
+    })
+    const cash = filtered.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0)
+    const transfer = filtered.filter(s => s.paymentMethod === 'transfer').reduce((sum, s) => sum + s.total, 0)
+    return { cash, transfer }
+  }, [sales, reportRange])
+
+  const maxRevenue = Math.max(...dailyData.map(d => d.revenue), 1)
+
+  const dateRangeLabel = useMemo(() => {
+    const { start, end } = getReportDateRange()
+    if (isSameDay(start, end)) return format(start, 'dd MMM yyyy')
+    return `${format(start, 'dd MMM')} - ${format(end, 'dd MMM yyyy')}`
+  }, [reportRange])
 
   return (
     <div className="h-full pb-20 md:pb-0 overflow-y-auto">
@@ -138,6 +217,126 @@ export default function SuperadminShopDetail() {
           <div className="bg-white rounded-xl border border-slate-100 p-4">
             <p className="text-slate-400 text-xs mb-1">แพ็คเกจ</p>
             <p className="font-bold text-primary-600">{pkgName}</p>
+          </div>
+        </div>
+
+        {/* Sales Report Summary */}
+        <div className="space-y-4">
+          {/* Range Filter */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex space-x-2 overflow-x-auto no-scrollbar">
+              {[
+                { value: 'today', label: 'วันนี้' },
+                { value: '7', label: '7 วัน' },
+                { value: 'month', label: 'เดือนนี้' },
+              ].map(r => (
+                <button
+                  key={r.value}
+                  onClick={() => setReportRange(r.value)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                    reportRange === r.value ? 'bg-primary-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center space-x-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+              <Calendar size={16} className="text-slate-400" />
+              <span className="text-sm text-slate-600">{dateRangeLabel}</span>
+            </div>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-9 h-9 bg-primary-50 rounded-lg flex items-center justify-center">
+                  <DollarSign size={18} className="text-primary-600" />
+                </div>
+                <span className="text-xs font-medium text-slate-400">รายได้รวม</span>
+              </div>
+              <p className="text-xl font-bold text-slate-800">฿{reportStats.totalRevenue.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 mt-1">{reportStats.totalOrders} ออเดอร์</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center">
+                  <TrendingUp size={18} className="text-green-600" />
+                </div>
+                <span className="text-xs font-medium text-slate-400">รายได้วันนี้</span>
+              </div>
+              <p className="text-xl font-bold text-slate-800">฿{reportStats.todayRevenue.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 mt-1">{reportStats.todayOrders} ออเดอร์</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <ShoppingBag size={18} className="text-blue-600" />
+                </div>
+                <span className="text-xs font-medium text-slate-400">ออเดอร์เฉลี่ย</span>
+              </div>
+              <p className="text-xl font-bold text-slate-800">฿{reportStats.avgOrder.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 mt-1">ต่อบิล</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center">
+                  <CreditCard size={18} className="text-amber-600" />
+                </div>
+                <span className="text-xs font-medium text-slate-400">การชำระเงิน</span>
+              </div>
+              <p className="text-xl font-bold text-slate-800">฿{paymentStats.cash.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 mt-1">เงินสด</p>
+            </div>
+          </div>
+
+          {/* Trend Chart */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <h3 className="font-semibold text-slate-800 mb-4">แนวโน้มยอดขาย</h3>
+            <div className="flex items-end space-x-2 h-48 overflow-x-auto no-scrollbar">
+              {dailyData.map((d, i) => (
+                <div key={i} className="flex-1 min-w-[40px] flex flex-col items-center justify-end h-full">
+                  <div className="text-xs text-slate-400 mb-1">{d.revenue > 0 ? `฿${(d.revenue/1000).toFixed(1)}k` : ''}</div>
+                  <div
+                    className="w-full max-w-[40px] bg-primary-500 rounded-t-lg transition-all"
+                    style={{ height: `${(d.revenue / maxRevenue) * 100}%`, minHeight: d.revenue > 0 ? 4 : 0 }}
+                  />
+                  <div className="text-[10px] text-slate-400 mt-2">{d.date}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment Methods */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <h3 className="font-semibold text-slate-800 mb-4">วิธีชำระเงิน</h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-slate-600 flex items-center gap-2"><Wallet size={14} /> เงินสด</span>
+                  <span className="font-medium">฿{paymentStats.cash.toLocaleString()}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full transition-all"
+                    style={{ width: `${reportStats.totalRevenue > 0 ? (paymentStats.cash / reportStats.totalRevenue) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-slate-600 flex items-center gap-2"><CreditCard size={14} /> โอนเงิน / QR</span>
+                  <span className="font-medium">฿{paymentStats.transfer.toLocaleString()}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary-500 rounded-full transition-all"
+                    style={{ width: `${reportStats.totalRevenue > 0 ? (paymentStats.transfer / reportStats.totalRevenue) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
