@@ -46,7 +46,7 @@ export default function ActivityLogsPage() {
   }, [user, navigate, selectedBranch, canFilterBranch])
 
   return (
-    <div className="h-full pb-20 md:pb-0">
+    <div className="h-full pb-20 md:pb-0 overflow-y-auto">
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -87,7 +87,7 @@ export default function ActivityLogsPage() {
                   return (
                     <tr key={log.id} className="hover:bg-slate-50/50">
                       <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{format(parseISO(log.createdAt), 'dd MMM yyyy HH:mm')}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-slate-700">{log.userName}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-slate-700">{log.profiles?.name || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color}`}>
                           <Icon size={14} />
@@ -118,7 +118,7 @@ export default function ActivityLogsPage() {
                       <span className="text-xs text-slate-400">{format(parseISO(log.createdAt), 'HH:mm')}</span>
                     </div>
                     <p className="text-sm text-slate-600 mt-0.5">{log.detail}</p>
-                    <p className="text-xs text-slate-400 mt-1">โดย {log.userName}</p>
+                    <p className="text-xs text-slate-400 mt-1">โดย {log.profiles?.name || '—'}</p>
                   </div>
                 </div>
               )

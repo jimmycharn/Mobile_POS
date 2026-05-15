@@ -353,15 +353,15 @@ export const packageService = {
 // ============================================================
 export const logService = {
   async getAll() {
-    const { data } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false })
+    const { data } = await supabase.from('activity_logs').select('*, profiles(name, email)').order('created_at', { ascending: false })
     return toCamel(data) || []
   },
   async getByShop(shopId) {
-    const { data } = await supabase.from('activity_logs').select('*').eq('shop_id', shopId).order('created_at', { ascending: false })
+    const { data } = await supabase.from('activity_logs').select('*, profiles(name, email)').eq('shop_id', shopId).order('created_at', { ascending: false })
     return toCamel(data) || []
   },
   async getByBranch(branchId) {
-    const { data } = await supabase.from('activity_logs').select('*').eq('branch_id', branchId).order('created_at', { ascending: false })
+    const { data } = await supabase.from('activity_logs').select('*, profiles(name, email)').eq('branch_id', branchId).order('created_at', { ascending: false })
     return toCamel(data) || []
   },
   async create(log) {

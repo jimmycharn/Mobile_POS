@@ -22,6 +22,7 @@ export default function ShopSettingsPage() {
   const [editingShop, setEditingShop] = useState(false)
   const [shopForm, setShopForm] = useState({ name: '', phone: '', packageId: '' })
   const [allPackages, setAllPackages] = useState([])
+  const [showPackageSelector, setShowPackageSelector] = useState(false)
 
   const refreshBranches = async () => {
     if (user?.shopId) setBranches(await branchService.getByShop(user.shopId))
@@ -128,9 +129,10 @@ export default function ShopSettingsPage() {
               <p className="text-slate-400 text-xs mb-1">เบอร์โทร</p>
               <p className="font-medium text-slate-700">{shop?.phone || '-'}</p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3">
+            <div className="bg-slate-50 rounded-xl p-3 cursor-pointer hover:bg-primary-50 transition-colors"
+                 onClick={() => setShowPackageSelector(true)}>
               <p className="text-slate-400 text-xs mb-1">แพ็คเกจ</p>
-              <p className="font-medium text-primary-600">{pkg?.name || '-'}</p>
+              <p className="font-medium text-primary-600">{pkg?.name || '-'} <span className="text-xs text-primary-400">(ดูรายละเอียด)</span></p>
             </div>
           </div>
         </div>
@@ -191,6 +193,63 @@ export default function ShopSettingsPage() {
                 >
                   บันทึก
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Package Selector Modal */}
+        {showPackageSelector && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 overflow-y-auto">
+            <div className="bg-white rounded-2xl w-full max-w-lg p-6 animate-scale-in my-auto">
+              <h3 className="text-lg font-bold text-slate-800 mb-1">เลือกแพ็คเกจ</h3>
+              <p className="text-sm text-slate-400 mb-4">เปรียบเทียบและเลือกแพ็คเกจที่เหมาะกับร้านคุณ</p>
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                {allPackages.map(p => {
+                  const isCurrent = p.id === shop?.packageId
+                  return (
+                    <div key={p.id} className={`border-2 rounded-2xl p-4 ${isCurrent ? 'border-primary-500 bg-primary-50/50' : 'border-slate-100'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-slate-800">{p.name}</h4>
+                        <span className="text-lg font-bold text-primary-600">
+                          {p.price === 0 ? 'ฟรี' : `฿${p.price.toLocaleString()}/เดือน`}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-4 text-xs text-slate-500 mb-3">
+                        <span>พนักงานสูงสุด {p.maxUsers || '-'} คน</span>
+                        <span>สินค้าสูงสุด {p.maxProducts || '-'} รายการ</span>
+                      </div>
+                      <ul className="space-y-1 mb-4">
+                        {(p.features || []).map((f, i) => (
+                          <li key={i} className="flex items-center space-x-2 text-sm text-slate-600">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                            <span>{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {isCurrent ? (
+                        <span className="inline-block px-4 py-2 rounded-xl bg-primary-100 text-primary-700 text-sm font-medium">แพ็คเกจปัจจุบัน</span>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            await shopService.update(user.shopId, { packageId: p.id })
+                            await authService.logActivity('EDIT_SHOP', `เปลี่ยนแพ็คเกจเป็น ${p.name}`)
+                            const s = await shopService.getById(user.shopId)
+                            setShop(s)
+                            if (s) setPkg(await packageService.getById(s.packageId))
+                            setShowPackageSelector(false)
+                          }}
+                          className="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium"
+                        >
+                          เลือกแพ็คเกจนี้
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex space-x-3 mt-5">
+                <button onClick={() => setShowPackageSelector(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ปิด</button>
               </div>
             </div>
           </div>
