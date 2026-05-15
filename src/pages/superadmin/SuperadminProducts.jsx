@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode } from 'lucide-react'
 import { productService } from '../../services/supabaseApi'
 
 export default function SuperadminProducts() {
@@ -8,6 +8,9 @@ export default function SuperadminProducts() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '' })
+  const [scanningBarcode, setScanningBarcode] = useState(false)
+  const scanVideoRef = useRef(null)
+  const scanAnimRef = useRef(null)
 
   useEffect(() => {
     refresh()
@@ -24,6 +27,44 @@ export default function SuperadminProducts() {
   useEffect(() => {
     refresh()
   }, [search])
+
+  useEffect(() => {
+    if (!scanningBarcode) return
+    let stream = null
+    const start = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        if (scanVideoRef.current) {
+          scanVideoRef.current.srcObject = stream
+          await scanVideoRef.current.play()
+          if ('BarcodeDetector' in window) {
+            const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39'] })
+            const loop = async () => {
+              if (!scanningBarcode || !scanVideoRef.current) return
+              try {
+                const barcodes = await detector.detect(scanVideoRef.current)
+                if (barcodes.length > 0) {
+                  setForm(f => ({ ...f, barcode: barcodes[0].rawValue }))
+                  setScanningBarcode(false)
+                  return
+                }
+              } catch (e) {}
+              scanAnimRef.current = requestAnimationFrame(loop)
+            }
+            loop()
+          }
+        }
+      } catch (err) {
+        alert('ไม่สามารถเปิดกล้องได้ กรุณาอนุญาติการใช้กล้อง')
+        setScanningBarcode(false)
+      }
+    }
+    start()
+    return () => {
+      if (scanAnimRef.current) cancelAnimationFrame(scanAnimRef.current)
+      if (stream) stream.getTracks().forEach(t => t.stop())
+    }
+  }, [scanningBarcode])
 
   const handleSave = async () => {
     if (editingId) {
@@ -129,17 +170,33 @@ export default function SuperadminProducts() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scale-in">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">{editingId ? 'แก้ไขสินค้ากลาง' : 'เพิ่มสินค้ากลาง'}</h3>
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scale-in my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800">{editingId ? 'แก้ไขสินค้ากลาง' : 'เพิ่มสินค้ากลาง'}</h3>
+              <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '' }); setScanningBarcode(false) }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
             <div className="space-y-3">
+              <div className="flex space-x-2">
+                <input placeholder="บาร์โค้ด" value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                <button onClick={() => setScanningBarcode(s => !s)} className="px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500" title="สแกนบาร์โค้ด">
+                  <ScanBarcode size={18} />
+                </button>
+              </div>
+              {scanningBarcode && (
+                <div className="relative w-full h-40 rounded-xl overflow-hidden bg-black">
+                  <video ref={scanVideoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
+                  <button onClick={() => setScanningBarcode(false)} className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded-lg text-xs font-medium">ปิดกล้อง</button>
+                </div>
+              )}
               <input placeholder="ชื่อสินค้า" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
-              <input placeholder="บาร์โค้ด" value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
               <input placeholder="หมวดหมู่" value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
               <input placeholder="หน่วย (เช่น ขวด, ซอง)" value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
             </div>
             <div className="flex space-x-3 mt-5">
-              <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '' }) }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+              <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '' }); setScanningBarcode(false) }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
               <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm">บันทึก</button>
             </div>
           </div>
