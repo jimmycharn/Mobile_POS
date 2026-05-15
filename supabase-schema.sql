@@ -19,10 +19,18 @@ CREATE TABLE IF NOT EXISTS shops (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   owner_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  email TEXT,
   phone TEXT,
   address TEXT,
+  package_id UUID REFERENCES packages(id) ON DELETE SET NULL,
+  is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Add missing columns for existing databases
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS package_id UUID REFERENCES packages(id) ON DELETE SET NULL;
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
 -- Packages table
 CREATE TABLE IF NOT EXISTS packages (

@@ -45,9 +45,9 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 -- STEP 3: Shops (อ้างอิง owner_id จาก profiles)
 -- ============================================================
-INSERT INTO shops (id, name, owner_id, phone, address, package_id)
+INSERT INTO shops (id, name, owner_id, email, phone, address, package_id, is_active)
 VALUES
-  ('660e8400-e29b-41d4-a716-446655440000', 'ร้านตัวอย่าง 1', (SELECT user_id FROM _seed_uuids WHERE role = 'owner'), '081-234-5678', '123 ถนนสุขุมวิท กรุงเทพฯ', '550e8400-e29b-41d4-a716-446655440001')
+  ('660e8400-e29b-41d4-a716-446655440000', 'ร้านตัวอย่าง 1', (SELECT user_id FROM _seed_uuids WHERE role = 'owner'), 'shop1@example.com', '081-234-5678', '123 ถนนสุขุมวิท กรุงเทพฯ', '550e8400-e29b-41d4-a716-446655440001', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
