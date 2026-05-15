@@ -930,97 +930,97 @@ export default function PosPage() {
               )}
             </div>
 
-            {/* ─── Cash Payment Details ─── */}
-            {paymentMethod === 'cash' && (
-              <div className="space-y-4 mb-6">
-                {/* Discount */}
-                <div className="bg-slate-50 rounded-2xl p-4">
-                  <p className="text-sm font-semibold text-slate-700 mb-3">ส่วนลด</p>
-                  <div className="flex space-x-2 mb-3">
-                    <button
-                      onClick={() => setDiscountType('amount')}
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${discountType === 'amount' ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      จำนวนเงิน
-                    </button>
-                    <button
-                      onClick={() => setDiscountType('percent')}
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${discountType === 'percent' ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      เปอร์เซ็นต์
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={discountValue}
-                      onChange={e => setDiscountValue(e.target.value)}
-                      placeholder={discountType === 'percent' ? 'เช่น 10 = 10%' : 'เช่น 50'}
-                      className="w-full px-4 py-2.5 pr-10 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm font-medium"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                      {discountType === 'percent' ? '%' : '฿'}
-                    </span>
-                  </div>
+            {/* ─── Discount (All Payment Methods) ─── */}
+            <div className="space-y-4 mb-6">
+              <div className="bg-slate-50 rounded-2xl p-4">
+                <p className="text-sm font-semibold text-slate-700 mb-3">ส่วนลด</p>
+                <div className="flex space-x-2 mb-3">
+                  <button
+                    onClick={() => setDiscountType('amount')}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${discountType === 'amount' ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    จำนวนเงิน
+                  </button>
+                  <button
+                    onClick={() => setDiscountType('percent')}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${discountType === 'percent' ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    เปอร์เซ็นต์
+                  </button>
                 </div>
-
-                {/* Summary */}
-                <div className="bg-slate-50 rounded-2xl p-4 space-y-2.5">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">ยอดรวม</span>
-                    <span className="font-medium text-slate-700">฿{cartTotal.toLocaleString()}</span>
-                  </div>
-                  {discountAmount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">ส่วนลด</span>
-                      <span className="font-medium text-red-500">-฿{discountAmount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold text-lg border-t border-slate-200 pt-2.5">
-                    <span className="text-slate-800">ยอดสุทธิ</span>
-                    <span className="text-primary-600">฿{finalTotal.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {/* Received Amount */}
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">เงินที่รับมา</label>
+                <div className="relative">
                   <input
                     type="number"
-                    value={receivedAmount}
-                    onChange={e => setReceivedAmount(e.target.value)}
-                    placeholder="กรอกจำนวนเงิน"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-primary-500 outline-none text-lg font-bold text-center text-slate-800"
+                    value={discountValue}
+                    onChange={e => setDiscountValue(e.target.value)}
+                    placeholder={discountType === 'percent' ? 'เช่น 10 = 10%' : 'เช่น 50'}
+                    className="w-full px-4 py-2.5 pr-10 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm font-medium"
                   />
-                  {/* Quick amount buttons */}
-                  <div className="flex space-x-2 mt-2">
-                    {[100, 500, 1000].map(amt => (
-                      <button
-                        key={amt}
-                        onClick={() => setReceivedAmount(String(amt))}
-                        className="flex-1 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-600 transition-colors"
-                      >
-                        ฿{amt.toLocaleString()}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setReceivedAmount(String(finalTotal))}
-                      className="flex-1 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 text-xs font-medium text-primary-700 transition-colors"
-                    >
-                      พอดี
-                    </button>
-                  </div>
-                </div>
-
-                {/* Change */}
-                <div className={`rounded-2xl p-4 text-center ${change >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
-                  <p className="text-sm text-slate-500 mb-1">เงินทอน</p>
-                  <p className={`text-2xl font-bold ${change >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    ฿{Math.abs(change).toLocaleString()}
-                  </p>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                    {discountType === 'percent' ? '%' : '฿'}
+                  </span>
                 </div>
               </div>
-            )}
+
+              {/* Summary */}
+              <div className="bg-slate-50 rounded-2xl p-4 space-y-2.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">ยอดรวม</span>
+                  <span className="font-medium text-slate-700">฿{cartTotal.toLocaleString()}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">ส่วนลด</span>
+                    <span className="font-medium text-red-500">-฿{discountAmount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-lg border-t border-slate-200 pt-2.5">
+                  <span className="text-slate-800">ยอดสุทธิ</span>
+                  <span className="text-primary-600">฿{finalTotal.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Cash-specific: Received & Change */}
+              {paymentMethod === 'cash' && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 mb-1.5 block">เงินที่รับมา</label>
+                    <input
+                      type="number"
+                      value={receivedAmount}
+                      onChange={e => setReceivedAmount(e.target.value)}
+                      placeholder="กรอกจำนวนเงิน"
+                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-primary-500 outline-none text-lg font-bold text-center text-slate-800"
+                    />
+                    {/* Quick amount buttons */}
+                    <div className="flex space-x-2 mt-2">
+                      {[100, 500, 1000].map(amt => (
+                        <button
+                          key={amt}
+                          onClick={() => setReceivedAmount(String(amt))}
+                          className="flex-1 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-600 transition-colors"
+                        >
+                          ฿{amt.toLocaleString()}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setReceivedAmount(String(finalTotal))}
+                        className="flex-1 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 text-xs font-medium text-primary-700 transition-colors"
+                      >
+                        พอดี
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={`rounded-2xl p-4 text-center ${change >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                    <p className="text-sm text-slate-500 mb-1">เงินทอน</p>
+                    <p className={`text-2xl font-bold ${change >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      ฿{Math.abs(change).toLocaleString()}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* ─── PromptPay QR ─── */}
             {paymentMethod === 'transfer' && selectedBankAccount?.type === 'promptpay' && qrUrl && (
