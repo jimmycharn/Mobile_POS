@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2, TrendingUp, ShoppingBag, DollarSign, Calendar, CreditCard, Wallet } from 'lucide-react'
 import { logService, shopService, branchService, packageService, saleService } from '../../services/supabaseApi'
-import { format, parseISO, startOfDay, endOfDay, subDays, isSameDay, startOfMonth, endOfMonth } from 'date-fns'
+import { format, parseISO, startOfDay, endOfDay, subDays, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
 
 const actionConfig = {
   LOGIN: { label: 'เข้าสู่ระบบ', icon: LogIn, color: 'bg-green-50 text-green-600' },
@@ -32,7 +32,10 @@ export default function SuperadminShopDetail() {
   const [branchOpen, setBranchOpen] = useState(false)
   const [pkgName, setPkgName] = useState('-')
   const [sales, setSales] = useState([])
-  const [reportRange, setReportRange] = useState('7') // 'today', '7', 'month'
+  const [reportRange, setReportRange] = useState('7') // 'today', '7', 'month', 'custom'
+  const [customStart, setCustomStart] = useState(format(subDays(new Date(), 6), 'yyyy-MM-dd'))
+  const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [showCustomPicker, setShowCustomPicker] = useState(false)
 
   const getReportDateRange = () => {
     const today = new Date()
@@ -40,6 +43,14 @@ export default function SuperadminShopDetail() {
       case 'today': return { start: startOfDay(today), end: endOfDay(today) }
       case '7': return { start: startOfDay(subDays(today, 6)), end: endOfDay(today) }
       case 'month': return { start: startOfMonth(today), end: endOfMonth(today) }
+      case 'custom': {
+        const s = parse(customStart, 'yyyy-MM-dd', new Date())
+        const e = parse(customEnd, 'yyyy-MM-dd', new Date())
+        if (isValid(s) && isValid(e)) {
+          return { start: startOfDay(s), end: endOfDay(e) }
+        }
+        return { start: startOfDay(subDays(today, 6)), end: endOfDay(today) }
+      }
       default: return { start: startOfDay(subDays(today, 6)), end: endOfDay(today) }
     }
   }
@@ -102,7 +113,7 @@ export default function SuperadminShopDetail() {
     const todaySales = sales.filter(s => isSameDay(parseISO(s.createdAt), new Date()))
     const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0)
     return { totalRevenue, totalOrders, avgOrder, todayRevenue, todayOrders: todaySales.length }
-  }, [sales, reportRange])
+  }, [sales, reportRange, customStart, customEnd])
 
   const dailyData = useMemo(() => {
     const { start, end } = getReportDateRange()
@@ -121,7 +132,7 @@ export default function SuperadminShopDetail() {
       date: format(parseISO(date), 'dd/MM'),
       ...val,
     }))
-  }, [sales, reportRange])
+  }, [sales, reportRange, customStart, customEnd])
 
   const paymentStats = useMemo(() => {
     const { start, end } = getReportDateRange()
@@ -132,7 +143,7 @@ export default function SuperadminShopDetail() {
     const cash = filtered.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0)
     const transfer = filtered.filter(s => s.paymentMethod === 'transfer').reduce((sum, s) => sum + s.total, 0)
     return { cash, transfer }
-  }, [sales, reportRange])
+  }, [sales, reportRange, customStart, customEnd])
 
   const maxRevenue = Math.max(...dailyData.map(d => d.revenue), 1)
 
@@ -140,7 +151,7 @@ export default function SuperadminShopDetail() {
     const { start, end } = getReportDateRange()
     if (isSameDay(start, end)) return format(start, 'dd MMM yyyy')
     return `${format(start, 'dd MMM')} - ${format(end, 'dd MMM yyyy')}`
-  }, [reportRange])
+  }, [reportRange, customStart, customEnd])
 
   return (
     <div className="h-full pb-20 md:pb-0 overflow-y-auto">
@@ -229,10 +240,14 @@ export default function SuperadminShopDetail() {
                 { value: 'today', label: 'วันนี้' },
                 { value: '7', label: '7 วัน' },
                 { value: 'month', label: 'เดือนนี้' },
+                { value: 'custom', label: 'กำหนดเอง' },
               ].map(r => (
                 <button
                   key={r.value}
-                  onClick={() => setReportRange(r.value)}
+                  onClick={() => {
+                    if (r.value === 'custom') setShowCustomPicker(true)
+                    setReportRange(r.value)
+                  }}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                     reportRange === r.value ? 'bg-primary-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
@@ -410,6 +425,52 @@ export default function SuperadminShopDetail() {
           )}
         </div>
       </div>
+
+      {/* Custom Date Picker Modal */}
+      {showCustomPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">เลือกช่วงวันที่</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">วันที่เริ่มต้น</label>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={e => setCustomStart(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">วันที่สิ้นสุด</label>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={e => setCustomEnd(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-5">
+              <button
+                onClick={() => setShowCustomPicker(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setShowCustomPicker(false)
+                  setReportRange('custom')
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+              >
+                ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
