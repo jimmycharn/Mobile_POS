@@ -37,6 +37,8 @@ export default function InventoryPage() {
 
   const refresh = async () => {
     let list = await shopProductService.getByBranch(user.branchId)
+    console.log('[DEBUG refresh] list raw sample:', list[0])
+    console.log('[DEBUG refresh] imageUrl values:', list.map(p => ({ name: p.name, imageUrl: p.imageUrl, image_url: p.image_url })))
     if (search.trim()) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
     if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
     if (filter === 'standard') list = list.filter(p => p.isStandard)
