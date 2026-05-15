@@ -107,45 +107,54 @@ export default function InventoryPage() {
   }, [showScanner])
 
   const handleSave = async () => {
-    if (selectedProduct) {
-      const updates = {
-        name: form.name,
-        barcode: form.barcode,
-        category: form.category,
-        unit: form.unit,
-        costPrice: Number(form.costPrice),
-        salePrice: Number(form.salePrice),
-        minStock: Number(form.minStock),
-        color: form.color || '',
-        size: form.size || '',
+    try {
+      console.log('[DEBUG handleSave] form.imageUrl length:', form.imageUrl ? form.imageUrl.length : 0)
+      if (selectedProduct) {
+        const updates = {
+          name: form.name,
+          barcode: form.barcode,
+          category: form.category,
+          unit: form.unit,
+          costPrice: Number(form.costPrice),
+          salePrice: Number(form.salePrice),
+          minStock: Number(form.minStock),
+          color: form.color || '',
+          size: form.size || '',
+        }
+        if (form.imageUrl) updates.imageUrl = form.imageUrl
+        console.log('[DEBUG handleSave] updating product:', selectedProduct.id, updates)
+        await shopProductService.update(selectedProduct.id, updates)
+        await authService.logActivity('EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
+      } else {
+        const payload = {
+          shopId: user.shopId,
+          branchId: user.branchId,
+          productId: null,
+          name: form.name,
+          barcode: form.barcode || 'SHOP' + Date.now(),
+          category: form.category || 'ทั่วไป',
+          unit: form.unit || 'ชิ้น',
+          costPrice: Number(form.costPrice) || 0,
+          salePrice: Number(form.salePrice) || 0,
+          stock: Number(form.stock) || 0,
+          minStock: Number(form.minStock) || 5,
+          isStandard: false,
+          imageUrl: form.imageUrl || '',
+          color: form.color || '',
+          size: form.size || '',
+        }
+        console.log('[DEBUG handleSave] creating product:', payload)
+        await shopProductService.create(payload)
+        await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
       }
-      if (form.imageUrl) updates.imageUrl = form.imageUrl
-      await shopProductService.update(selectedProduct.id, updates)
-      await authService.logActivity('EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
-    } else {
-      await shopProductService.create({
-        shopId: user.shopId,
-        branchId: user.branchId,
-        productId: null,
-        name: form.name,
-        barcode: form.barcode || 'SHOP' + Date.now(),
-        category: form.category || 'ทั่วไป',
-        unit: form.unit || 'ชิ้น',
-        costPrice: Number(form.costPrice) || 0,
-        salePrice: Number(form.salePrice) || 0,
-        stock: Number(form.stock) || 0,
-        minStock: Number(form.minStock) || 5,
-        isStandard: false,
-        imageUrl: form.imageUrl || '',
-        color: form.color || '',
-        size: form.size || '',
-      })
-      await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
+      setShowForm(false)
+      setSelectedProduct(null)
+      setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
+      await refresh()
+    } catch (err) {
+      console.error('[DEBUG handleSave] error:', err.message)
+      alert('เกิดข้อผิดพลาด: ' + err.message)
     }
-    setShowForm(false)
-    setSelectedProduct(null)
-    setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
-    await refresh()
   }
 
   const handleDelete = async (id) => {
