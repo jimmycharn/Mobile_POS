@@ -22,13 +22,17 @@ export default function InventoryPage() {
   const [categories, setCategories] = useState([])
   const [colors, setColors] = useState([])
   const [sizes, setSizes] = useState([])
+  const [branchName, setBranchName] = useState('สาขาหลัก')
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
 
   useEffect(() => {
-    if (user?.branchId) refresh()
+    if (user?.branchId) {
+      refresh()
+      branchService.getById(user.branchId).then(b => { if (b?.name) setBranchName(b.name) })
+    }
   }, [user])
 
   const refresh = async () => {
@@ -102,7 +106,7 @@ export default function InventoryPage() {
     }
   }, [showScanner])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (selectedProduct) {
       const updates = {
         name: form.name,
@@ -116,10 +120,10 @@ export default function InventoryPage() {
         size: form.size || '',
       }
       if (form.image) updates.image = form.image
-      shopProductService.update(selectedProduct.id, updates)
-      authService.logActivity(user.id, user.shopId, 'EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
+      await shopProductService.update(selectedProduct.id, updates)
+      await authService.logActivity('EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
     } else {
-      const newProduct = shopProductService.create({
+      await shopProductService.create({
         shopId: user.shopId,
         branchId: user.branchId,
         productId: null,
@@ -136,18 +140,18 @@ export default function InventoryPage() {
         color: form.color || '',
         size: form.size || '',
       })
-      authService.logActivity(user.id, user.shopId, 'ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
+      await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
     }
     setShowForm(false)
     setSelectedProduct(null)
     setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '', color: '', size: '' })
-    refresh()
+    await refresh()
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!confirm('ยืนยันลบสินค้านี้?')) return
-    shopProductService.remove(id)
-    refresh()
+    await shopProductService.remove(id)
+    await refresh()
   }
 
   const openEdit = (p) => {
@@ -168,7 +172,7 @@ export default function InventoryPage() {
     setShowForm(true)
   }
 
-  const handleStockIn = () => {
+  const handleStockIn = async () => {
     if (!selectedProduct || !stockInQty) return
     const inQty = Number(stockInQty)
     const newStock = selectedProduct.stock + inQty
@@ -178,19 +182,19 @@ export default function InventoryPage() {
       const avgCost = ((selectedProduct.stock * selectedProduct.costPrice) + (inQty * inCost)) / newStock
       updates.costPrice = Math.round(avgCost * 100) / 100
     }
-    shopProductService.update(selectedProduct.id, updates)
+    await shopProductService.update(selectedProduct.id, updates)
     const logDetail = stockInCost && Number(stockInCost) > 0
       ? `รับสินค้า ${selectedProduct.name} จำนวน ${inQty} ${selectedProduct.unit} (ทุนล็อตใหม่ ${Number(stockInCost)} บ./หน่วย) (คงเหลือ ${newStock})`
       : `รับสินค้า ${selectedProduct.name} จำนวน ${inQty} ${selectedProduct.unit} (คงเหลือ ${newStock})`
-    authService.logActivity(user.id, user.shopId, 'STOCK_IN', logDetail)
+    await authService.logActivity('STOCK_IN', logDetail)
     setShowStockIn(false)
     setSelectedProduct(null)
     setStockInQty('')
     setStockInCost('')
-    refresh()
+    await refresh()
   }
 
-  const handleStockOut = () => {
+  const handleStockOut = async () => {
     if (!selectedProduct || !stockOutQty) return
     const qty = Number(stockOutQty)
     if (qty <= 0 || qty > selectedProduct.stock) {
@@ -198,14 +202,14 @@ export default function InventoryPage() {
       return
     }
     const newStock = selectedProduct.stock - qty
-    shopProductService.update(selectedProduct.id, { stock: newStock })
+    await shopProductService.update(selectedProduct.id, { stock: newStock })
     const reasonLabels = { spoilage: 'เน่าเสีย', expiry: 'หมดอายุ', damage: 'เสียหาย', loss: 'สูญหาย' }
-    authService.logActivity(user.id, user.shopId, 'STOCK_OUT', `ตัดสต็อก ${selectedProduct.name} ${qty} ${selectedProduct.unit} (${reasonLabels[stockOutReason]}) (คงเหลือ ${newStock})`)
+    await authService.logActivity('STOCK_OUT', `ตัดสต็อก ${selectedProduct.name} ${qty} ${selectedProduct.unit} (${reasonLabels[stockOutReason]}) (คงเหลือ ${newStock})`)
     setShowStockOut(false)
     setSelectedProduct(null)
     setStockOutQty('')
     setStockOutReason('spoilage')
-    refresh()
+    await refresh()
   }
 
   // Permission check: owner always can manage, staff needs canManageInventory flag
@@ -217,7 +221,7 @@ export default function InventoryPage() {
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-lg md:text-xl font-bold text-slate-800">สินค้าและสต็อก ({branchService.getById(user.branchId)?.name || 'สาขาหลัก'})</h1>
+            <h1 className="text-lg md:text-xl font-bold text-slate-800">สินค้าและสต็อก ({branchName})</h1>
             <p className="text-sm text-slate-400">รับสินค้าเข้า ตรวจสอบ และจัดการสต็อก</p>
           </div>
           {canManage && (
@@ -635,13 +639,13 @@ export default function InventoryPage() {
                       <span className="text-xs bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full">{count}</span>
                     </div>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (!confirm(`ลบหมวดหมู่ "${cat}"?\nสินค้า ${count} รายการจะถูกย้ายไปหมวดหมู่ "ทั่วไป"`)) return
-                        const all = shopProductService.getByBranch(user.branchId)
-                        all.filter(p => p.category === cat).forEach(p => {
-                          shopProductService.update(p.id, { category: 'ทั่วไป' })
-                        })
-                        refresh()
+                        const all = await shopProductService.getByBranch(user.branchId)
+                        for (const p of all.filter(p => p.category === cat)) {
+                          await shopProductService.update(p.id, { category: 'ทั่วไป' })
+                        }
+                        await refresh()
                       }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors"
                     >
