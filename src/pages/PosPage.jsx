@@ -871,7 +871,7 @@ export default function PosPage() {
       {/* Payment Modal */}
       {showPayment && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/50">
-          <div className="bg-white rounded-t-3xl md:rounded-2xl w-full max-w-sm animate-slide-up max-h-[85vh] flex flex-col">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl w-full max-w-sm animate-slide-up h-[100dvh] flex flex-col">
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-6">
               {/* Header */}
