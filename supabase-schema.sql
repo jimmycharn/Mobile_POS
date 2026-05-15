@@ -3,17 +3,12 @@
 -- Run this in Supabase SQL Editor
 -- ============================================================
 
--- Enable RLS on all tables
-ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
-
 -- Profiles table (extends auth.users)
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email TEXT NOT NULL,
   name TEXT,
   role TEXT NOT NULL CHECK (role IN ('superadmin', 'owner', 'staff')),
-  shop_id UUID REFERENCES shops(id) ON DELETE SET NULL,
-  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   avatar TEXT,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -26,7 +21,6 @@ CREATE TABLE IF NOT EXISTS shops (
   owner_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   phone TEXT,
   address TEXT,
-  package_id UUID REFERENCES packages(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -62,7 +56,11 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Add FK from branches to bank_accounts after both tables exist
+-- Add deferred foreign keys after all tables exist
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS shop_id UUID REFERENCES shops(id) ON DELETE SET NULL;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id) ON DELETE SET NULL;
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS package_id UUID REFERENCES packages(id) ON DELETE SET NULL;
+
 ALTER TABLE branches
   DROP CONSTRAINT IF EXISTS fk_branch_bank_account;
 ALTER TABLE branches
