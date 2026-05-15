@@ -117,12 +117,18 @@ CREATE TABLE IF NOT EXISTS sales (
   branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   items JSONB NOT NULL DEFAULT '[]',
   total NUMERIC(12,2) DEFAULT 0,
+  discount NUMERIC(12,2) DEFAULT 0,
+  discount_type TEXT,
   payment_method TEXT,
   received NUMERIC(12,2) DEFAULT 0,
   change NUMERIC(12,2) DEFAULT 0,
   staff_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Migration: add discount columns if not exists
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount_type TEXT;
 
 -- Activity logs
 CREATE TABLE IF NOT EXISTS activity_logs (

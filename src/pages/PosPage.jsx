@@ -16,6 +16,9 @@ export default function PosPage() {
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [lastSale, setLastSale] = useState(null)
   const [stats, setStats] = useState({ todayRevenue: 0, todayOrders: 0, totalProducts: 0 })
+  const [receivedAmount, setReceivedAmount] = useState('')
+  const [discountValue, setDiscountValue] = useState('')
+  const [discountType, setDiscountType] = useState('amount') // 'amount' | 'percent'
   const [activeCategory, setActiveCategory] = useState('all')
   const [activeColor, setActiveColor] = useState('')
   const [activeSize, setActiveSize] = useState('')
@@ -212,6 +215,19 @@ export default function PosPage() {
   const cartTotal = cart.reduce((sum, item) => sum + item.salePrice * item.qty, 0)
   const cartItems = cart.reduce((sum, item) => sum + item.qty, 0)
 
+  const discountAmount = useMemo(() => {
+    const val = parseFloat(discountValue) || 0
+    if (discountType === 'percent') return Math.round(cartTotal * (val / 100))
+    return val
+  }, [cartTotal, discountValue, discountType])
+
+  const finalTotal = Math.max(0, cartTotal - discountAmount)
+
+  const change = useMemo(() => {
+    const received = parseFloat(receivedAmount) || 0
+    return received - finalTotal
+  }, [receivedAmount, finalTotal])
+
   const setActiveCartItems = (updater) => {
     setCarts(prev => prev.map(c => c.id === activeCartId ? { ...c, items: typeof updater === 'function' ? updater(c.items) : updater } : c))
   }
@@ -293,24 +309,34 @@ export default function PosPage() {
   useEffect(() => {
     async function generateQr() {
       if (paymentMethod === 'transfer' && selectedBankAccount?.type === 'promptpay' && isPromptPayId(selectedBankAccount.accountNo)) {
-        const url = await generatePromptPayQrUrl(selectedBankAccount.accountNo, cartTotal)
+        const url = await generatePromptPayQrUrl(selectedBankAccount.accountNo, finalTotal)
         setQrUrl(url)
       } else {
         setQrUrl(null)
       }
     }
     generateQr()
-  }, [paymentMethod, cartTotal, selectedBankAccount])
+  }, [paymentMethod, finalTotal, selectedBankAccount])
 
   const handleCheckout = async () => {
     if (cart.length === 0) return
+
+    // Validate cash payment has enough received amount
+    if (paymentMethod === 'cash' && change < 0) {
+      alert('เงินที่รับมาไม่พอชำระ')
+      return
+    }
 
     const sale = await saleService.create({
       shop_id: user.shopId,
       branch_id: user.branchId,
       items: cartItems,
-      total: cartTotal,
+      total: finalTotal,
+      discount: discountAmount,
+      discount_type: discountType,
       payment_method: paymentMethod,
+      received: paymentMethod === 'cash' ? (parseFloat(receivedAmount) || 0) : finalTotal,
+      change: paymentMethod === 'cash' ? Math.max(0, change) : 0,
       staff_id: user.id,
     })
 
@@ -321,11 +347,14 @@ export default function PosPage() {
       }
     }
 
-    await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดรวม ฿${cartTotal.toLocaleString()}`)
+    await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดสุทธิ ฿${finalTotal.toLocaleString()}`)
 
     setLastSale(sale)
     setShowPayment(false)
     setShowReceipt(true)
+    setReceivedAmount('')
+    setDiscountValue('')
+    setDiscountType('amount')
     const newStats = await getStats(user.shopId, user.branchId)
     setStats(newStats)
     // Close active cart after checkout
@@ -832,16 +861,19 @@ export default function PosPage() {
       {showPayment && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/50">
           <div className="bg-white rounded-t-3xl md:rounded-2xl w-full max-w-sm p-6 pb-20 md:pb-6 animate-slide-up max-h-[85vh] overflow-y-auto">
+            {/* Header */}
             <div className="text-center mb-6">
               <p className="text-sm text-slate-400">ยอดรวมที่ต้องชำระ</p>
               <p className="text-4xl font-bold text-primary-600 mt-2">฿{cartTotal.toLocaleString()}</p>
             </div>
 
-            <div className="space-y-3 mb-6">
+            {/* Payment Method Selector */}
+            <div className="space-y-2 mb-6">
+              {/* Cash */}
               <button
-                onClick={() => setPaymentMethod('cash')}
+                onClick={() => { setPaymentMethod('cash'); setSelectedBankAccount(null); }}
                 className={`w-full flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all ${
-                  paymentMethod === 'cash' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50'
+                  paymentMethod === 'cash' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'
                 }`}
               >
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'cash' ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400'}`}>
@@ -853,20 +885,40 @@ export default function PosPage() {
                 </div>
               </button>
 
-              {shopBankAccounts.map(acc => (
+              {/* PromptPay (separate from banks) */}
+              {shopBankAccounts.filter(a => a.type === 'promptpay').map(acc => (
                 <button
                   key={acc.id}
                   onClick={() => { setPaymentMethod('transfer'); setSelectedBankAccount(acc); }}
                   className={`w-full flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all ${
-                    paymentMethod === 'transfer' && selectedBankAccount?.id === acc.id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50'
+                    paymentMethod === 'transfer' && selectedBankAccount?.id === acc.id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'
                   }`}
                 >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' && selectedBankAccount?.id === acc.id ? (acc.type === 'promptpay' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white') : 'bg-white text-slate-400'}`}>
-                    {acc.type === 'promptpay' ? <QrCode size={24} /> : <Building2 size={24} />}
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' && selectedBankAccount?.id === acc.id ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400'}`}>
+                    <QrCode size={24} />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-slate-800">{acc.type === 'promptpay' ? 'PromptPay / QR Code' : 'โอนผ่านธนาคาร'}</p>
-                    <p className="text-xs text-slate-400">{acc.type === 'promptpay' ? 'สแกน QR โอนเงิน' : acc.bankName}</p>
+                    <p className="font-semibold text-slate-800">PromptPay / QR Code</p>
+                    <p className="text-xs text-slate-400">{acc.name}</p>
+                  </div>
+                </button>
+              ))}
+
+              {/* Bank Accounts */}
+              {shopBankAccounts.filter(a => a.type === 'bank').map(acc => (
+                <button
+                  key={acc.id}
+                  onClick={() => { setPaymentMethod('transfer'); setSelectedBankAccount(acc); }}
+                  className={`w-full flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all ${
+                    paymentMethod === 'transfer' && selectedBankAccount?.id === acc.id ? 'border-blue-500 bg-blue-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${paymentMethod === 'transfer' && selectedBankAccount?.id === acc.id ? 'bg-blue-500 text-white' : 'bg-white text-slate-400'}`}>
+                    <Building2 size={24} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-slate-800">{acc.name}</p>
+                    <p className="text-xs text-slate-400">{acc.bankName}</p>
                   </div>
                 </button>
               ))}
@@ -878,7 +930,99 @@ export default function PosPage() {
               )}
             </div>
 
-            {/* Transfer Details */}
+            {/* ─── Cash Payment Details ─── */}
+            {paymentMethod === 'cash' && (
+              <div className="space-y-4 mb-6">
+                {/* Discount */}
+                <div className="bg-slate-50 rounded-2xl p-4">
+                  <p className="text-sm font-semibold text-slate-700 mb-3">ส่วนลด</p>
+                  <div className="flex space-x-2 mb-3">
+                    <button
+                      onClick={() => setDiscountType('amount')}
+                      className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${discountType === 'amount' ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                      จำนวนเงิน
+                    </button>
+                    <button
+                      onClick={() => setDiscountType('percent')}
+                      className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${discountType === 'percent' ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                      เปอร์เซ็นต์
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={discountValue}
+                      onChange={e => setDiscountValue(e.target.value)}
+                      placeholder={discountType === 'percent' ? 'เช่น 10 = 10%' : 'เช่น 50'}
+                      className="w-full px-4 py-2.5 pr-10 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm font-medium"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                      {discountType === 'percent' ? '%' : '฿'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <div className="bg-slate-50 rounded-2xl p-4 space-y-2.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">ยอดรวม</span>
+                    <span className="font-medium text-slate-700">฿{cartTotal.toLocaleString()}</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">ส่วนลด</span>
+                      <span className="font-medium text-red-500">-฿{discountAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-lg border-t border-slate-200 pt-2.5">
+                    <span className="text-slate-800">ยอดสุทธิ</span>
+                    <span className="text-primary-600">฿{finalTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Received Amount */}
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">เงินที่รับมา</label>
+                  <input
+                    type="number"
+                    value={receivedAmount}
+                    onChange={e => setReceivedAmount(e.target.value)}
+                    placeholder="กรอกจำนวนเงิน"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-primary-500 outline-none text-lg font-bold text-center text-slate-800"
+                  />
+                  {/* Quick amount buttons */}
+                  <div className="flex space-x-2 mt-2">
+                    {[100, 500, 1000].map(amt => (
+                      <button
+                        key={amt}
+                        onClick={() => setReceivedAmount(String(amt))}
+                        className="flex-1 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-600 transition-colors"
+                      >
+                        ฿{amt.toLocaleString()}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setReceivedAmount(String(finalTotal))}
+                      className="flex-1 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 text-xs font-medium text-primary-700 transition-colors"
+                    >
+                      พอดี
+                    </button>
+                  </div>
+                </div>
+
+                {/* Change */}
+                <div className={`rounded-2xl p-4 text-center ${change >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                  <p className="text-sm text-slate-500 mb-1">เงินทอน</p>
+                  <p className={`text-2xl font-bold ${change >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    ฿{Math.abs(change).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ─── PromptPay QR ─── */}
             {paymentMethod === 'transfer' && selectedBankAccount?.type === 'promptpay' && qrUrl && (
               <div className="mb-6 flex flex-col items-center">
                 <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-4">
@@ -895,6 +1039,8 @@ export default function PosPage() {
                 ไม่สามารถสร้าง QR Code ได้ (ตรวจสอบเบอร์ PromptPay)
               </div>
             )}
+
+            {/* ─── Bank Transfer Details ─── */}
             {paymentMethod === 'transfer' && selectedBankAccount?.type === 'bank' && (
               <div className="mb-6 bg-blue-50 rounded-2xl p-5 space-y-3">
                 <p className="text-sm font-semibold text-blue-800 text-center">โอนเงินผ่านธนาคาร</p>
@@ -910,6 +1056,7 @@ export default function PosPage() {
               </div>
             )}
 
+            {/* Actions */}
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowPayment(false)}
@@ -1074,8 +1221,30 @@ export default function PosPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">วิธีชำระเงิน</span>
-                <span className="font-medium text-slate-800">{lastSale.paymentMethod === 'cash' ? 'เงินสด' : 'PromptPay'}</span>
+                <span className="font-medium text-slate-800">
+                  {lastSale.paymentMethod === 'cash' ? 'เงินสด' : (lastSale.paymentMethod === 'transfer' ? 'โอนเงิน / PromptPay' : lastSale.paymentMethod)}
+                </span>
               </div>
+              {lastSale.discount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">ส่วนลด</span>
+                  <span className="font-medium text-red-500">-฿{lastSale.discount.toLocaleString()}</span>
+                </div>
+              )}
+              {lastSale.paymentMethod === 'cash' && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">รับเงินมา</span>
+                    <span className="font-medium text-slate-800">฿{lastSale.received.toLocaleString()}</span>
+                  </div>
+                  {lastSale.change > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">เงินทอน</span>
+                      <span className="font-medium text-emerald-600">฿{lastSale.change.toLocaleString()}</span>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
                 <span className="font-semibold text-slate-800">ยอดรวม</span>
                 <span className="font-bold text-primary-600 text-2xl">฿{lastSale.total.toLocaleString()}</span>
