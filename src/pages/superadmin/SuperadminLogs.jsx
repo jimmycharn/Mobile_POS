@@ -18,7 +18,11 @@ export default function SuperadminLogs() {
   const [logs, setLogs] = useState([])
 
   useEffect(() => {
-    setLogs(logService.getAll())
+    const load = async () => {
+      const data = await logService.getAll()
+      setLogs(data)
+    }
+    load()
   }, [])
 
   return (

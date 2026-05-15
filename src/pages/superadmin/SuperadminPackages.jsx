@@ -6,7 +6,11 @@ export default function SuperadminPackages() {
   const [packages, setPackages] = useState([])
 
   useEffect(() => {
-    setPackages(packageService.getAll())
+    const load = async () => {
+      const data = await packageService.getAll()
+      setPackages(data)
+    }
+    load()
   }, [])
 
   return (

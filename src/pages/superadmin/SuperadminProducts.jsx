@@ -13,8 +13,8 @@ export default function SuperadminProducts() {
     refresh()
   }, [])
 
-  const refresh = () => {
-    let list = productService.getAll()
+  const refresh = async () => {
+    let list = await productService.getAll()
     if (search.trim()) {
       list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
     }
@@ -25,16 +25,16 @@ export default function SuperadminProducts() {
     refresh()
   }, [search])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editingId) {
-      productService.update(editingId, form)
+      await productService.update(editingId, form)
       setEditingId(null)
     } else {
-      productService.create(form)
+      await productService.create(form)
     }
     setShowForm(false)
     setForm({ name: '', barcode: '', category: '', unit: '' })
-    refresh()
+    await refresh()
   }
 
   const handleEdit = (p) => {
@@ -43,10 +43,10 @@ export default function SuperadminProducts() {
     setShowForm(true)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!confirm('ลบสินค้านี้ออกจากคลังกลาง?')) return
-    productService.remove(id)
-    refresh()
+    await productService.remove(id)
+    await refresh()
   }
 
   return (

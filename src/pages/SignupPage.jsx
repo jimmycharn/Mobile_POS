@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Store, Eye, EyeOff, AlertCircle, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -16,9 +16,13 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [packages, setPackages] = useState([])
   const { signup } = useAuth()
   const navigate = useNavigate()
-  const packages = packageService.getAll()
+
+  useEffect(() => {
+    packageService.getAll().then(data => setPackages(data))
+  }, [])
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })

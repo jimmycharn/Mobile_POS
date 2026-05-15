@@ -12,30 +12,33 @@ export default function SuperadminDashboard() {
   const [logs, setLogs] = useState([])
 
   useEffect(() => {
-    setShops(shopService.getAll())
-    setUsers(userService.getAll())
-    setSales(saleService.getByShop ? [] : saleService.getAll ? saleService.getAll() : [])
-    setLogs(logService.getAll().slice(0, 10))
-  }, [])
-
-  const allSales = useMemo(() => {
-    // We need a way to get all sales across shops
-    const key = 'pos_sales'
-    return JSON.parse(localStorage.getItem(key) || '[]')
+    const load = async () => {
+      const [shopsData, usersData, salesData, logsData] = await Promise.all([
+        shopService.getAll(),
+        userService.getAll(),
+        saleService.getAll(),
+        logService.getAll(),
+      ])
+      setShops(shopsData)
+      setUsers(usersData)
+      setSales(salesData)
+      setLogs(logsData.slice(0, 10))
+    }
+    load()
   }, [])
 
   const stats = useMemo(() => {
-    const totalRevenue = allSales.reduce((sum, s) => sum + s.total, 0)
+    const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)
     const today = startOfDay(new Date())
-    const todayRevenue = allSales.filter(s => new Date(s.createdAt) >= today).reduce((sum, s) => sum + s.total, 0)
+    const todayRevenue = sales.filter(s => new Date(s.createdAt) >= today).reduce((sum, s) => sum + s.total, 0)
     return {
       shops: shops.length,
       users: users.length,
       totalRevenue,
       todayRevenue,
-      totalSales: allSales.length,
+      totalSales: sales.length,
     }
-  }, [shops, users, allSales])
+  }, [shops, users, sales])
 
   const recentShops = shops.slice(0, 5)
 

@@ -21,9 +21,9 @@ export default function ActivityLogsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [logs, setLogs] = useState([])
+  const [branches, setBranches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState('all')
 
-  const branches = user?.shopId ? branchService.getByShop(user.shopId) : []
   const canFilterBranch = user && (user.role === 'owner' || user.role === 'superadmin') && branches.length > 1
 
   useEffect(() => {
@@ -31,13 +31,18 @@ export default function ActivityLogsPage() {
       navigate('/pos')
       return
     }
-    if (user?.shopId) {
-      if (canFilterBranch && selectedBranch !== 'all') {
-        setLogs(logService.getByBranch(selectedBranch))
-      } else {
-        setLogs(logService.getByShop(user.shopId))
+    const load = async () => {
+      if (user?.shopId) {
+        const branchList = await branchService.getByShop(user.shopId)
+        setBranches(branchList)
+        if (canFilterBranch && selectedBranch !== 'all') {
+          setLogs(await logService.getByBranch(selectedBranch))
+        } else {
+          setLogs(await logService.getByShop(user.shopId))
+        }
       }
     }
+    load()
   }, [user, navigate, selectedBranch, canFilterBranch])
 
   return (

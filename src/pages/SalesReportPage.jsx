@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { saleService, shopProductService, branchService } from '../services/supabaseApi'
@@ -12,8 +12,10 @@ export default function SalesReportPage() {
   const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [showCustomPicker, setShowCustomPicker] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState('all') // 'all' or branchId
+  const [branches, setBranches] = useState([])
+  const [sales, setSales] = useState([])
+  const [products, setProducts] = useState([])
 
-  const branches = user?.shopId ? branchService.getByShop(user.shopId) : []
   const canFilterBranch = user && (user.role === 'owner' || user.role === 'superadmin') && branches.length > 1
   const effectiveBranchId = canFilterBranch ? (selectedBranch === 'all' ? null : selectedBranch) : user?.branchId
 
@@ -39,24 +41,29 @@ export default function SalesReportPage() {
     }
   }
 
-  const sales = useMemo(() => {
-    if (!effectiveBranchId && !user?.shopId) return []
-    const { start, end } = getDateRange()
-    const list = effectiveBranchId
-      ? saleService.getByBranch(effectiveBranchId)
-      : saleService.getByShop(user.shopId)
-    return list.filter(s => {
-      const d = new Date(s.createdAt)
-      return d >= start && d <= end
-    })
-  }, [effectiveBranchId, user?.shopId, range, currentDate, customStart, customEnd])
-
-  const products = useMemo(() => {
-    if (!effectiveBranchId && !user?.shopId) return []
-    return effectiveBranchId
-      ? shopProductService.getByBranch(effectiveBranchId)
-      : shopProductService.getByShop(user.shopId)
-  }, [effectiveBranchId, user?.shopId])
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.shopId) return
+      const branchList = await branchService.getByShop(user.shopId)
+      setBranches(branchList)
+      const effId = (user.role === 'owner' || user.role === 'superadmin') && branchList.length > 1 && selectedBranch !== 'all'
+        ? selectedBranch
+        : user.branchId
+      const { start, end } = getDateRange()
+      const saleList = effId
+        ? await saleService.getByBranch(effId)
+        : await saleService.getByShop(user.shopId)
+      setSales(saleList.filter(s => {
+        const d = new Date(s.createdAt)
+        return d >= start && d <= end
+      }))
+      const prodList = effId
+        ? await shopProductService.getByBranch(effId)
+        : await shopProductService.getByShop(user.shopId)
+      setProducts(prodList)
+    }
+    load()
+  }, [user, selectedBranch, range, currentDate, customStart, customEnd])
 
   const stats = useMemo(() => {
     const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0)

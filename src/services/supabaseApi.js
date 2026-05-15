@@ -138,6 +138,10 @@ export const authService = {
 // Shops
 // ============================================================
 export const shopService = {
+  async getAll() {
+    const { data } = await supabase.from('shops').select('*').order('created_at', { ascending: false })
+    return toCamel(data) || []
+  },
   async getById(id) {
     const { data } = await supabase.from('shops').select('*').eq('id', id).single()
     return toCamel(data)
@@ -235,6 +239,10 @@ export const shopProductService = {
 // Sales
 // ============================================================
 export const saleService = {
+  async getAll() {
+    const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false })
+    return toCamel(data) || []
+  },
   async getByShop(shopId) {
     const { data } = await supabase.from('sales').select('*').eq('shop_id', shopId).order('created_at', { ascending: false })
     return toCamel(data) || []
@@ -253,6 +261,10 @@ export const saleService = {
 // Users / Staff
 // ============================================================
 export const userService = {
+  async getAll() {
+    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+    return toCamel(data) || []
+  },
   async getByShop(shopId) {
     const { data } = await supabase.from('profiles').select('*').eq('shop_id', shopId).neq('role', 'owner')
     return toCamel(data) || []
@@ -293,8 +305,16 @@ export const packageService = {
 // Activity Logs
 // ============================================================
 export const logService = {
+  async getAll() {
+    const { data } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false })
+    return toCamel(data) || []
+  },
   async getByShop(shopId) {
     const { data } = await supabase.from('activity_logs').select('*').eq('shop_id', shopId).order('created_at', { ascending: false })
+    return toCamel(data) || []
+  },
+  async getByBranch(branchId) {
+    const { data } = await supabase.from('activity_logs').select('*').eq('branch_id', branchId).order('created_at', { ascending: false })
     return toCamel(data) || []
   },
   async create(log) {

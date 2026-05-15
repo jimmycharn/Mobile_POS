@@ -7,7 +7,11 @@ export default function SuperadminShops() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    setShops(shopService.getAll())
+    const load = async () => {
+      const data = await shopService.getAll()
+      setShops(data)
+    }
+    load()
   }, [])
 
   const filtered = shops.filter(s =>
