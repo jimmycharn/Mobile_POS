@@ -63,7 +63,7 @@ export default function SuperadminShopDetail() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-slate-800">{shop?.name || 'ร้านค้า'}</h1>
-              <p className="text-sm text-slate-400">{shop?.email} · {shop?.phone || '-'}</p>
+              <p className="text-sm text-slate-400">{[shop?.email, shop?.phone].filter(Boolean).join(' · ') || '-'}</p>
             </div>
           </div>
         </div>
