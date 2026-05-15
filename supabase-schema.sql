@@ -126,85 +126,123 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 );
 
 -- ============================================================
+-- Helper Functions (SECURITY DEFINER เพื่อหลีกเลี่ยง RLS recursion)
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION get_my_role()
+RETURNS TEXT
+LANGUAGE SQL
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT role FROM profiles WHERE id = auth.uid()
+$$;
+
+CREATE OR REPLACE FUNCTION get_my_shop_id()
+RETURNS UUID
+LANGUAGE SQL
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT shop_id FROM profiles WHERE id = auth.uid()
+$$;
+
+-- ============================================================
 -- Row Level Security Policies
 -- ============================================================
 
--- Profiles: users can read their own profile, superadmin reads all
+-- Profiles: ใช้ policy ง่าย ๆ ไม่มี recursion
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
-CREATE POLICY "Users can read own profile" ON profiles
-  FOR SELECT USING (auth.uid() = id OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin');
+DROP POLICY IF EXISTS "Profiles read policy" ON profiles;
+CREATE POLICY "Profiles read policy" ON profiles
+  FOR SELECT USING (
+    auth.uid() = id
+    OR get_my_role() = 'superadmin'
+    OR shop_id = get_my_shop_id()
+  );
 
--- Shops: owner sees own shop, staff sees their shop, superadmin sees all
+DROP POLICY IF EXISTS "Profiles insert policy" ON profiles;
+CREATE POLICY "Profiles insert policy" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id OR get_my_role() = 'superadmin');
+
+DROP POLICY IF EXISTS "Profiles update policy" ON profiles;
+CREATE POLICY "Profiles update policy" ON profiles
+  FOR UPDATE USING (auth.uid() = id OR get_my_role() = 'superadmin');
+
+-- Shops
 ALTER TABLE shops ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Shops read policy" ON shops;
 CREATE POLICY "Shops read policy" ON shops
   FOR SELECT USING (
     owner_id = auth.uid()
-    OR id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
-    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
+    OR id = get_my_shop_id()
+    OR get_my_role() = 'superadmin'
   );
+DROP POLICY IF EXISTS "Shops write policy" ON shops;
+CREATE POLICY "Shops write policy" ON shops
+  FOR ALL USING (owner_id = auth.uid() OR get_my_role() = 'superadmin');
 
--- Branches: same as shops
+-- Branches
 ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Branches read policy" ON branches;
 CREATE POLICY "Branches read policy" ON branches
-  FOR SELECT USING (
-    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
-    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
-  );
+  FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Branches write policy" ON branches;
+CREATE POLICY "Branches write policy" ON branches
+  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
--- Products (global): everyone can read, superadmin can write
+-- Products (global)
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Products read all" ON products;
 CREATE POLICY "Products read all" ON products FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Products superadmin write" ON products;
 CREATE POLICY "Products superadmin write" ON products
-  FOR ALL USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin');
+  FOR ALL USING (get_my_role() = 'superadmin');
 
--- Shop products: scoped to user's shop/branch
+-- Shop products
 ALTER TABLE shop_products ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Shop products read policy" ON shop_products;
 CREATE POLICY "Shop products read policy" ON shop_products
-  FOR SELECT USING (
-    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
-    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
-  );
+  FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Shop products write policy" ON shop_products;
+CREATE POLICY "Shop products write policy" ON shop_products
+  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
--- Sales: scoped to user's shop/branch
+-- Sales
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Sales read policy" ON sales;
 CREATE POLICY "Sales read policy" ON sales
-  FOR SELECT USING (
-    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
-    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
-  );
+  FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Sales write policy" ON sales;
+CREATE POLICY "Sales write policy" ON sales
+  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
 -- Activity logs
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Logs read policy" ON activity_logs;
 CREATE POLICY "Logs read policy" ON activity_logs
-  FOR SELECT USING (
-    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
-    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
-  );
+  FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Logs write policy" ON activity_logs;
+CREATE POLICY "Logs write policy" ON activity_logs
+  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
--- Packages: everyone read, superadmin write
+-- Packages
 ALTER TABLE packages ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Packages read all" ON packages;
 CREATE POLICY "Packages read all" ON packages FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Packages superadmin write" ON packages;
 CREATE POLICY "Packages superadmin write" ON packages
-  FOR ALL USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin');
+  FOR ALL USING (get_my_role() = 'superadmin');
 
 -- Bank accounts
 ALTER TABLE bank_accounts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Bank accounts read policy" ON bank_accounts;
 CREATE POLICY "Bank accounts read policy" ON bank_accounts
-  FOR SELECT USING (
-    shop_id IN (SELECT shop_id FROM profiles WHERE id = auth.uid())
-    OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'superadmin'
-  );
+  FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Bank accounts write policy" ON bank_accounts;
+CREATE POLICY "Bank accounts write policy" ON bank_accounts
+  FOR ALL USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
 -- ============================================================
 -- Seed data: packages (for new installs)
