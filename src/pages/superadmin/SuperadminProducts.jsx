@@ -80,14 +80,15 @@ export default function SuperadminProducts() {
     setAiLoading(true)
     try {
       const result = await lookupProductByBarcode(barcode, aiAbortRef.current.signal)
-      if (result.name || result.category || result.unit) {
-        setForm(f => ({
-          ...f,
-          barcode,
-          name: result.name || f.name,
-          category: result.category || f.category,
-          unit: result.unit || f.unit,
-        }))
+      setForm(f => ({
+        ...f,
+        barcode,
+        name: result.name || f.name,
+        category: result.category || f.category,
+        unit: result.unit || f.unit,
+      }))
+      if (!result.name && !result.category && !result.unit) {
+        alert('AI ไม่พบข้อมูลสินค้าจากบาร์โค้ดนี้ กรุณากรอกข้อมูลเอง')
       }
     } catch (err) {
       alert('AI ค้นหาไม่สำเร็จ: ' + err.message)
