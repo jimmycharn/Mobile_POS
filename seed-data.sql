@@ -4,22 +4,11 @@
 -- ขั้นตอน:
 -- 1. ไปที่ Supabase Dashboard → Authentication → Users
 -- 2. สร้าง 3 users ด้วย email/password ตามด้านล่าง
--- 3. คัดลอก UUID ของแต่ละ user มาใส่แทน 'REPLACE_WITH_...' ด้านล่าง
+-- 3. คัดลอก UUID ของแต่ละ user มาใส่แทน placeholder ด้านล่าง
 -- 4. วาง SQL นี้ใน Supabase SQL Editor แล้กด Run
 -- ============================================================
 
--- ============================================================
--- STEP 1: แก้ไข UUID ตรงนี้ก่อน (คัดลอกจาก Supabase Dashboard)
--- ============================================================
--- แก้ตัวแปรตรงนี้ เอา UUID ที่ได้จาก Supabase Dashboard มาใส่
---
--- DO $$ BEGIN
---   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'uuid_array') THEN
---     CREATE TYPE uuid_array AS (vals uuid[]);
---   END IF;
--- END $$;
-
--- สร้างตารางชั่วคราวเพื่อเก็บ UUID (รันก่อนแล้ว copy UUID มาใส่)
+-- สร้างตารางชั่วคราวเพื่อเก็บ UUID
 CREATE TABLE IF NOT EXISTS _seed_uuids (
   role TEXT PRIMARY KEY,
   user_id UUID
@@ -27,13 +16,13 @@ CREATE TABLE IF NOT EXISTS _seed_uuids (
 
 -- ⚠️ แก้ไข UUID ตรงนี้ให้ตรงกับที่ได้จาก Supabase Dashboard
 INSERT INTO _seed_uuids (role, user_id) VALUES
-  ('superadmin', '11111111-1111-1111-1111-111111111111'),  -- แก้เป็น UUID จริงของ yuttasakk@gmail.com
-  ('owner',      '22222222-2222-2222-2222-222222222222'),  -- แก้เป็น UUID จริงของ owner
-  ('staff',      '33333333-3333-3333-3333-333333333333')   -- แก้เป็น UUID จริงของ staff
+  ('superadmin', '11111111-1111-1111-1111-111111111111'),
+  ('owner',      '22222222-2222-2222-2222-222222222222'),
+  ('staff',      '33333333-3333-3333-3333-333333333333')
 ON CONFLICT (role) DO UPDATE SET user_id = EXCLUDED.user_id;
 
 -- ============================================================
--- STEP 2: Seed Packages (ถ้ายังไม่มี)
+-- STEP 1: Packages (ไม่มี dependencies)
 -- ============================================================
 INSERT INTO packages (id, name, price, max_users, max_products, features)
 VALUES
@@ -44,7 +33,17 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
--- STEP 3: Seed Shops
+-- STEP 2: Profiles (ไม่มี shop_id/branch_id ก่อน เพราะยังไม่มีร้าน)
+-- ============================================================
+INSERT INTO profiles (id, email, name, role, is_active)
+VALUES
+  ((SELECT user_id FROM _seed_uuids WHERE role = 'superadmin'), 'yuttasakk@gmail.com', 'Super Admin', 'superadmin', true),
+  ((SELECT user_id FROM _seed_uuids WHERE role = 'owner'),      'owner@demo.com',      'เจ้าของร้าน', 'owner',      true),
+  ((SELECT user_id FROM _seed_uuids WHERE role = 'staff'),      'staff@demo.com',      'พนักงาน 1',   'staff',      true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- STEP 3: Shops (อ้างอิง owner_id จาก profiles)
 -- ============================================================
 INSERT INTO shops (id, name, owner_id, phone, address, package_id)
 VALUES
@@ -52,7 +51,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
--- STEP 4: Seed Branches
+-- STEP 4: Branches (อ้างอิง shop_id)
 -- ============================================================
 INSERT INTO branches (id, shop_id, name, address)
 VALUES
@@ -61,19 +60,13 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
--- STEP 5: Seed Profiles (ต้องมี auth.users ก่อน)
+-- STEP 5: Update Profiles ด้วย shop_id และ branch_id
 -- ============================================================
-INSERT INTO profiles (id, email, name, role, shop_id, branch_id, is_active)
-VALUES
-  ((SELECT user_id FROM _seed_uuids WHERE role = 'superadmin'), 'yuttasakk@gmail.com', 'Super Admin', 'superadmin', NULL, NULL, true),
-  ((SELECT user_id FROM _seed_uuids WHERE role = 'owner'),      'owner@demo.com',      'เจ้าของร้าน', 'owner',      '660e8400-e29b-41d4-a716-446655440000', '770e8400-e29b-41d4-a716-446655440000', true),
-  ((SELECT user_id FROM _seed_uuids WHERE role = 'staff'),      'staff@demo.com',      'พนักงาน 1',   'staff',      '660e8400-e29b-41d4-a716-446655440000', '770e8400-e29b-41d4-a716-446655440000', true)
-ON CONFLICT (id) DO UPDATE SET
-  name = EXCLUDED.name,
-  role = EXCLUDED.role,
-  shop_id = EXCLUDED.shop_id,
-  branch_id = EXCLUDED.branch_id,
-  is_active = EXCLUDED.is_active;
+UPDATE profiles SET shop_id = '660e8400-e29b-41d4-a716-446655440000', branch_id = '770e8400-e29b-41d4-a716-446655440000'
+WHERE id = (SELECT user_id FROM _seed_uuids WHERE role = 'owner');
+
+UPDATE profiles SET shop_id = '660e8400-e29b-41d4-a716-446655440000', branch_id = '770e8400-e29b-41d4-a716-446655440000'
+WHERE id = (SELECT user_id FROM _seed_uuids WHERE role = 'staff');
 
 -- ============================================================
 -- STEP 6: Seed Bank Accounts
