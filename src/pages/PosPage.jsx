@@ -32,6 +32,11 @@ export default function PosPage() {
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
   const loadedBranchId = useRef(null)
+  const allProductsRef = useRef([])
+
+  useEffect(() => {
+    allProductsRef.current = allProducts
+  }, [allProducts])
 
   const playBeep = () => {
     try {
@@ -124,7 +129,8 @@ export default function PosPage() {
           if (now - scanCooldownRef.current > COOLDOWN) {
             scanCooldownRef.current = now
             const code = barcodes[0].rawValue
-            const product = allProducts.find(p => p.barcode === code)
+            const products = allProductsRef.current
+            const product = products.find(p => p.barcode === code)
             if (product) {
               if (product.stock > 0) {
                 addToCart(product)
@@ -136,7 +142,8 @@ export default function PosPage() {
                 setScanMsg(`${product.name} หมดสต็อก`)
               }
             } else {
-              const globalProd = productService.getAll().find(p => p.barcode === code)
+              const globalList = await productService.getAll()
+              const globalProd = globalList.find(p => p.barcode === code)
               if (globalProd) {
                 setScannedGlobal(globalProd)
                 setGlobalPrice('')
@@ -962,7 +969,7 @@ export default function PosPage() {
                 type="text"
                 placeholder="กรอกบาร์โค้ดเอง"
                 className="flex-1 px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/50 outline-none text-sm"
-                onKeyDown={(e) => {
+                onKeyDown={async (e) => {
                   if (e.key === 'Enter') {
                     const code = e.target.value
                     const product = allProducts.find(p => p.barcode === code)
@@ -975,7 +982,8 @@ export default function PosPage() {
                     } else if (product) {
                       setScanMsg(`${product.name} หมดสต็อก`)
                     } else {
-                      const globalProd = productService.getAll().find(p => p.barcode === code)
+                      const globalList = await productService.getAll()
+                      const globalProd = globalList.find(p => p.barcode === code)
                       if (globalProd) {
                         setScannedGlobal(globalProd)
                         setGlobalPrice('')

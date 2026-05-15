@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard, PenLine } from 'lucide-react'
+import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard, PenLine, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopService, userService, authService, packageService, branchService, bankAccountService } from '../services/supabaseApi'
 
@@ -139,9 +139,14 @@ export default function ShopSettingsPage() {
 
         {/* Edit Shop Modal */}
         {editingShop && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">แก้ไขข้อมูลร้าน</h3>
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800">แก้ไขข้อมูลร้าน</h3>
+                <button onClick={() => setEditingShop(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">ชื่อร้าน</label>
@@ -200,9 +205,14 @@ export default function ShopSettingsPage() {
 
         {/* Package Selector Modal */}
         {showPackageSelector && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
             <div className="bg-white rounded-2xl w-full max-w-lg p-6 animate-scale-in my-auto">
-              <h3 className="text-lg font-bold text-slate-800 mb-1">เลือกแพ็คเกจ</h3>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-lg font-bold text-slate-800">เลือกแพ็คเกจ</h3>
+                <button onClick={() => setShowPackageSelector(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
               <p className="text-sm text-slate-400 mb-4">เปรียบเทียบและเลือกแพ็คเกจที่เหมาะกับร้านคุณ</p>
               <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                 {allPackages.map(p => {
@@ -454,9 +464,14 @@ export default function ShopSettingsPage() {
 
         {/* Add Staff Modal */}
         {showAddStaff && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">เพิ่มพนักงาน</h3>
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800">เพิ่มพนักงาน</h3>
+                <button onClick={() => setShowAddStaff(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
               <div className="space-y-3">
                 <input
                   placeholder="ชื่อพนักงาน"
@@ -498,9 +513,14 @@ export default function ShopSettingsPage() {
 
         {/* Edit Staff Modal */}
         {editingStaff && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">แก้ไขพนักงาน</h3>
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800">แก้ไขพนักงาน</h3>
+                <button onClick={() => setEditingStaff(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
               <div className="space-y-3">
                 <input
                   placeholder="ชื่อพนักงาน"
@@ -563,9 +583,14 @@ export default function ShopSettingsPage() {
 
         {/* Add Branch Modal */}
         {showAddBranch && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">เพิ่มสาขา</h3>
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800">เพิ่มสาขา</h3>
+                <button onClick={() => setShowAddBranch(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
               <div className="space-y-3">
                 <input
                   placeholder="ชื่อสาขา"
@@ -612,9 +637,14 @@ export default function ShopSettingsPage() {
 
         {/* Add Bank Modal */}
         {showAddBank && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">เพิ่มบัญชีธนาคาร / PromptPay</h3>
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800">เพิ่มบัญชีธนาคาร / PromptPay</h3>
+                <button onClick={() => setShowAddBank(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
               <div className="space-y-3">
                 <input
                   placeholder="ชื่อบัญชี (สำหรับแสดง)"
@@ -684,9 +714,14 @@ export default function ShopSettingsPage() {
 
         {/* Edit Bank Modal */}
         {editingBank && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">แก้ไขบัญชี</h3>
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800">แก้ไขบัญชี</h3>
+                <button onClick={() => setEditingBank(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
               <div className="space-y-3">
                 <input
                   placeholder="ชื่อบัญชี"
@@ -753,9 +788,14 @@ export default function ShopSettingsPage() {
 
         {/* Edit Branch Modal */}
         {editingBranch && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">แก้ไขสาขา</h3>
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800">แก้ไขสาขา</h3>
+                <button onClick={() => setEditingBranch(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
               <div className="space-y-3">
                 <input
                   placeholder="ชื่อสาขา"
