@@ -96,9 +96,13 @@ CREATE TABLE IF NOT EXISTS shop_products (
   min_stock INTEGER DEFAULT 0,
   color TEXT,
   size TEXT,
+  image_url TEXT,
   is_standard BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Add image_url to existing shop_products (safe migration)
+ALTER TABLE shop_products ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 -- Sales / transactions
 CREATE TABLE IF NOT EXISTS sales (
