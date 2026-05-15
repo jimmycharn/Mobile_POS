@@ -52,22 +52,50 @@ export function setAiSettings(settings) {
   }
 }
 
+function getBarcodeCountry(barcode) {
+  const b = barcode.replace(/\D/g, '')
+  const prefix3 = b.slice(0, 3)
+  const prefix2 = b.slice(0, 2)
+  if (prefix3 === '885') return 'ประเทศไทย (Thailand)'
+  if (prefix3 >= '690' && prefix3 <= '699') return 'ประเทศจีน (China)'
+  if (prefix3 >= '880' && prefix3 <= '881') return 'ประเทศเกาหลีใต้ (South Korea)'
+  if (prefix3 === '890') return 'ประเทศอินเดีย (India)'
+  if (prefix3 === '93') return 'ประเทศออสเตรเลีย (Australia)'
+  if (prefix3 === '94') return 'ประเทศนิวซีแลนด์ (New Zealand)'
+  if (prefix2 >= '00' && prefix2 <= '09') return 'สหรัฐอเมริกา/แคนาดา (USA/Canada)'
+  if (prefix2 >= '30' && prefix2 <= '37') return 'ฝรั่งเศส (France)'
+  if (prefix2 >= '40' && prefix2 <= '44') return 'เยอรมนี (Germany)'
+  if (prefix2 >= '45' && prefix2 <= '49') return 'ญี่ปุ่น (Japan)'
+  if (prefix2 === '50') return 'สหราชอาณาจักร (UK)'
+  if (prefix2 === '76') return 'สวิตเซอร์แลนด์ (Switzerland)'
+  if (prefix2 >= '80' && prefix2 <= '83') return 'อิตาลี (Italy)'
+  if (prefix2 === '84') return 'สเปน (Spain)'
+  if (prefix2 === '87') return 'เนเธอร์แลนด์ (Netherlands)'
+  return 'ไม่ทราบประเทศ'
+}
+
 export async function lookupProductByBarcode(barcode, signal) {
   const { apiKey, model } = getAiSettings()
   if (!apiKey) {
     throw new Error('ยังไม่ได้ตั้งค่า OpenRouter API Key กรุณาไปที่ ตั้งค่า > AI Model')
   }
 
-  const prompt = `บาร์โค้ดสินค้า: "${barcode}"
-คุณเป็นผู้เชี่ยวชาญด้านสินค้าและบาร์โค้ด กรุณาช่วยระบุข้อมูลสินค้าจากบาร์โค้ดนี้หากคุณรู้จักสินค้านี้ (เช่น สินค้ายี่ห้อดัง, สินค้าทั่วไปที่มีบาร์โค้ดนี้)
-หากคุณไม่รู้จักบาร์โค้ดนี้หรือไม่สามารถระบุได้ ให้ตอบกลับด้วย JSON ว่าง:
+  const country = getBarcodeCountry(barcode)
+  const prompt = `ฉันมีบาร์โค้ดสินค้า: "${barcode}"
+บาร์โค้ดนี้ลงทะเบียนในประเทศ: ${country}
+
+คุณเป็นผู้เชี่ยวชาญด้านสินค้าอุปโภคบริโภคและบาร์โค้ด EAN/UPC กรุณาช่วยระบุข้อมูลสินค้าจากบาร์โค้ดนี้ให้ได้มากที่สุด
+
+ถ้าคุณรู้จักสินค้านี้ (แม้จะไม่แน่ใจ 100% แต่มีความเป็นไปได้สูง):
+- ชื่อสินค้า: ระบุชื่อยี่ห้อและรุ่น/ขนาด เช่น "Coca-Cola 325ml", "Lay's รสดั้งเดิม 50g", "ยาสีฟัน Colgate 150g"
+- หมวดหมู่: ระบุหมวดหมู่ที่เหมาะสม เช่น เครื่องดื่ม, ขนม, อาหารแห้ง, ของใช้ในบ้าน, ยาและเวชภัณฑ์, เครื่องสำอาง, อาหารสด
+- หน่วย: ระบุหน่วยบรรจุภัณฑ์ เช่น ขวด, กล่อง, ซอง, ชิ้น, แพ็ค, กระป๋อง, ถุง
+
+ถ้าคุณไม่รู้จักบาร์โค้ดนี้เลย หรือไม่มีข้อมูลใดๆ ให้ตอบกลับเป็น JSON ว่าง:
 {"name":"","category":"","unit":""}
-หากรู้จัก ตอบกลับเป็น JSON เท่านั้น โดยไม่ต้องมีอธิบายเพิ่มเติม:
-{
-  "name": "ชื่อสินค้า",
-  "category": "หมวดหมู่ เช่น เครื่องดื่ม, ขนม, ของใช้, อาหาร",
-  "unit": "หน่วย เช่น ขวด, ซอง, กล่อง, ชิ้น, แพ็ค"
-}`
+
+ถ้ารู้จัก ตอบกลับเป็น JSON เท่านั้น โดยไม่ต้องมีอธิบายเพิ่มเติม:
+{"name":"ชื่อสินค้า","category":"หมวดหมู่","unit":"หน่วย"}`
 
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -79,8 +107,11 @@ export async function lookupProductByBarcode(barcode, signal) {
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2,
+      messages: [
+        { role: 'system', content: 'คุณเป็นผู้เชี่ยวชาญด้านสินค้าอุปโภคบริโภคและบาร์โค้ด EAN/UPC คุณสามารถระบุชื่อสินค้า หมวดหมู่ และหน่วยจากบาร์โค้ดได้ ตอบกลับเป็น JSON เท่านั้น' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.1,
     }),
     signal,
   })
