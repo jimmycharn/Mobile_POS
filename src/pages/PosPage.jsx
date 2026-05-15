@@ -862,14 +862,16 @@ export default function PosPage() {
       {/* Payment Modal */}
       {showPayment && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/50">
-          <div className="bg-white rounded-t-3xl md:rounded-2xl w-full max-w-sm p-6 pb-20 md:pb-6 animate-slide-up max-h-[85vh] overflow-y-auto">
-            {/* Header */}
-            <div className="text-center mb-6">
-              <p className="text-sm text-slate-400">ยอดรวมที่ต้องชำระ</p>
-              <p className="text-4xl font-bold text-primary-600 mt-2">฿{cartTotal.toLocaleString()}</p>
-            </div>
+          <div className="bg-white rounded-t-3xl md:rounded-2xl w-full max-w-sm animate-slide-up max-h-[85vh] flex flex-col">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <p className="text-sm text-slate-400">ยอดรวมที่ต้องชำระ</p>
+                <p className="text-4xl font-bold text-primary-600 mt-2">฿{cartTotal.toLocaleString()}</p>
+              </div>
 
-            {/* Payment Method Selector */}
+              {/* Payment Method Selector */}
             <div className="space-y-2 mb-6">
               {/* Cash */}
               <button
@@ -1080,20 +1082,24 @@ export default function PosPage() {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowPayment(false)}
-                className="flex-1 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-medium"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleCheckout}
-                className="flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
-              >
-                ยืนยันชำระเงิน
-              </button>
+            </div>
+
+            {/* Fixed Actions Footer */}
+            <div className="shrink-0 p-6 pt-4 pb-20 md:pb-6 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowPayment(false)}
+                  className="flex-1 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-medium"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleCheckout}
+                  className="flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+                >
+                  ยืนยันชำระเงิน
+                </button>
+              </div>
             </div>
           </div>
         </div>
