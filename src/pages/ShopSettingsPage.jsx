@@ -20,27 +20,31 @@ export default function ShopSettingsPage() {
   const [newBank, setNewBank] = useState({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' })
   const [editingBranch, setEditingBranch] = useState(null)
 
-  const refreshBranches = () => {
-    if (user?.shopId) setBranches(branchService.getByShop(user.shopId))
+  const refreshBranches = async () => {
+    if (user?.shopId) setBranches(await branchService.getByShop(user.shopId))
   }
 
-  const refreshBankAccounts = () => {
-    if (user?.shopId) setBankAccounts(bankAccountService.getByShop(user.shopId))
+  const refreshBankAccounts = async () => {
+    if (user?.shopId) setBankAccounts(await bankAccountService.getByShop(user.shopId))
   }
 
   useEffect(() => {
-    if (user?.shopId) {
-      const s = shopService.getById(user.shopId)
-      setShop(s)
-      setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
-      if (s) setPkg(packageService.getById(s.packageId))
-      refreshBranches()
-      refreshBankAccounts()
+    const load = async () => {
+      if (user?.shopId) {
+        const s = await shopService.getById(user.shopId)
+        setShop(s)
+        const staffList = await userService.getByShop(user.shopId)
+        setStaff(staffList.filter(u => u.id !== user.id))
+        if (s) setPkg(await packageService.getById(s.packageId))
+        await refreshBranches()
+        await refreshBankAccounts()
+      }
     }
+    load()
   }, [user])
 
-  const handleAddStaff = () => {
-    const result = userService.create({
+  const handleAddStaff = async () => {
+    const result = await userService.create({
       ...newStaff,
       role: 'staff',
       shopId: user.shopId,
@@ -48,25 +52,27 @@ export default function ShopSettingsPage() {
       avatar: null,
     })
     if (!result.error) {
-      authService.logActivity(user.id, user.shopId, 'ADD_STAFF', `เพิ่มพนักงาน ${newStaff.name}`)
-      setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
+      await authService.logActivity('ADD_STAFF', `เพิ่มพนักงาน ${newStaff.name}`)
+      const staffList = await userService.getByShop(user.shopId)
+      setStaff(staffList.filter(u => u.id !== user.id))
       setShowAddStaff(false)
       setNewStaff({ name: '', email: '', password: '', branchId: '' })
     }
   }
 
-  const handleRemoveStaff = (id, name) => {
+  const handleRemoveStaff = async (id, name) => {
     if (!confirm(`ลบพนักงาน ${name}?`)) return
-    userService.remove(id)
-    authService.logActivity(user.id, user.shopId, 'REMOVE_STAFF', `ลบพนักงาน ${name}`)
-    setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
+    await userService.remove(id)
+    await authService.logActivity('REMOVE_STAFF', `ลบพนักงาน ${name}`)
+    const staffList = await userService.getByShop(user.shopId)
+    setStaff(staffList.filter(u => u.id !== user.id))
   }
 
-  const toggleStaffPermission = (staffMember, field) => {
+  const toggleStaffPermission = async (staffMember, field) => {
     const updated = { ...staffMember, [field]: !staffMember[field] }
-    userService.update(staffMember.id, { [field]: updated[field] })
+    await userService.update(staffMember.id, { [field]: updated[field] })
     setStaff(prev => prev.map(s => s.id === staffMember.id ? updated : s))
-    authService.logActivity(user.id, user.shopId, 'UPDATE_STAFF_PERM', `เปลี่ยนสิทธิ์ ${field} ของ ${staffMember.name} เป็น ${updated[field] ? 'เปิด' : 'ปิด'}`)
+    await authService.logActivity('UPDATE_STAFF_PERM', `เปลี่ยนสิทธิ์ ${field} ของ ${staffMember.name} เป็น ${updated[field] ? 'เปิด' : 'ปิด'}`)
   }
 
   return (
@@ -137,11 +143,11 @@ export default function ShopSettingsPage() {
                       <Edit3 size={16} />
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (!confirm(`ลบบัญชี ${acc.name}?`)) return
-                        bankAccountService.remove(acc.id)
-                        authService.logActivity(user.id, user.shopId, 'DELETE_BANK', `ลบบัญชี ${acc.name}`)
-                        refreshBankAccounts()
+                        await bankAccountService.remove(acc.id)
+                        await authService.logActivity('DELETE_BANK', `ลบบัญชี ${acc.name}`)
+                        await refreshBankAccounts()
                       }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
                     >
@@ -195,11 +201,11 @@ export default function ShopSettingsPage() {
                     </button>
                     {branches.length > 1 && (
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (!confirm(`ลบ ${b.name}?`)) return
-                          branchService.remove(b.id)
-                          authService.logActivity(user.id, user.shopId, 'DELETE_BRANCH', `ลบสาขา ${b.name}`)
-                          refreshBranches()
+                          await branchService.remove(b.id)
+                          await authService.logActivity('DELETE_BRANCH', `ลบสาขา ${b.name}`)
+                          await refreshBranches()
                         }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
                       >
@@ -372,16 +378,17 @@ export default function ShopSettingsPage() {
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setEditingStaff(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const updates = {
                       name: editingStaff.name,
                       email: editingStaff.email,
                       branchId: editingStaff.branchId,
                     }
                     if (editingStaff._newPassword) updates.password = editingStaff._newPassword
-                    userService.update(editingStaff.id, updates)
-                    authService.logActivity(user.id, user.shopId, 'EDIT_STAFF', `แก้ไขพนักงาน ${editingStaff.name}`)
-                    setStaff(userService.getByShop(user.shopId).filter(u => u.id !== user.id))
+                    await userService.update(editingStaff.id, updates)
+                    await authService.logActivity('EDIT_STAFF', `แก้ไขพนักงาน ${editingStaff.name}`)
+                    const staffList = await userService.getByShop(user.shopId)
+                    setStaff(staffList.filter(u => u.id !== user.id))
                     setEditingStaff(null)
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
@@ -421,13 +428,13 @@ export default function ShopSettingsPage() {
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setShowAddBranch(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newBranch.name.trim()) return
-                    branchService.create({ shopId: user.shopId, name: newBranch.name.trim(), address: newBranch.address, phone: newBranch.phone })
-                    authService.logActivity(user.id, user.shopId, 'CREATE_BRANCH', `เพิ่มสาขา ${newBranch.name}`)
+                    await branchService.create({ shopId: user.shopId, name: newBranch.name.trim(), address: newBranch.address, phone: newBranch.phone })
+                    await authService.logActivity('CREATE_BRANCH', `เพิ่มสาขา ${newBranch.name}`)
                     setNewBranch({ name: '', address: '', phone: '' })
                     setShowAddBranch(false)
-                    refreshBranches()
+                    await refreshBranches()
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
@@ -482,9 +489,9 @@ export default function ShopSettingsPage() {
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setShowAddBank(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newBank.name.trim() || !newBank.accountNo.trim() || !newBank.accountHolder.trim()) return
-                    bankAccountService.create({
+                    await bankAccountService.create({
                       shopId: user.shopId,
                       name: newBank.name.trim(),
                       bankName: newBank.bankName || (newBank.type === 'promptpay' ? 'PromptPay' : ''),
@@ -492,10 +499,10 @@ export default function ShopSettingsPage() {
                       accountHolder: newBank.accountHolder.trim(),
                       type: newBank.type,
                     })
-                    authService.logActivity(user.id, user.shopId, 'ADD_BANK', `เพิ่มบัญชี ${newBank.name}`)
+                    await authService.logActivity('ADD_BANK', `เพิ่มบัญชี ${newBank.name}`)
                     setNewBank({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' })
                     setShowAddBank(false)
-                    refreshBankAccounts()
+                    await refreshBankAccounts()
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
@@ -550,17 +557,17 @@ export default function ShopSettingsPage() {
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setEditingBank(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button
-                  onClick={() => {
-                    bankAccountService.update(editingBank.id, {
+                  onClick={async () => {
+                    await bankAccountService.update(editingBank.id, {
                       name: editingBank.name,
                       bankName: editingBank.bankName,
                       accountNo: editingBank.accountNo,
                       accountHolder: editingBank.accountHolder,
                       type: editingBank.type,
                     })
-                    authService.logActivity(user.id, user.shopId, 'EDIT_BANK', `แก้ไขบัญชี ${editingBank.name}`)
+                    await authService.logActivity('EDIT_BANK', `แก้ไขบัญชี ${editingBank.name}`)
                     setEditingBank(null)
-                    refreshBankAccounts()
+                    await refreshBankAccounts()
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
@@ -609,16 +616,16 @@ export default function ShopSettingsPage() {
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setEditingBranch(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
                 <button
-                  onClick={() => {
-                    branchService.update(editingBranch.id, {
+                  onClick={async () => {
+                    await branchService.update(editingBranch.id, {
                       name: editingBranch.name,
                       address: editingBranch.address,
                       phone: editingBranch.phone,
                       bankAccountId: editingBranch.bankAccountId || null,
                     })
-                    authService.logActivity(user.id, user.shopId, 'EDIT_BRANCH', `แก้ไขสาขา ${editingBranch.name}`)
+                    await authService.logActivity('EDIT_BRANCH', `แก้ไขสาขา ${editingBranch.name}`)
                     setEditingBranch(null)
-                    refreshBranches()
+                    await refreshBranches()
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
