@@ -19,6 +19,9 @@ export default function InventoryPage() {
   const [filter, setFilter] = useState('all') // all, low, standard, custom
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
+  const [categories, setCategories] = useState([])
+  const [colors, setColors] = useState([])
+  const [sizes, setSizes] = useState([])
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const videoRef = useRef(null)
@@ -28,13 +31,16 @@ export default function InventoryPage() {
     if (user?.branchId) refresh()
   }, [user])
 
-  const refresh = () => {
-    let list = shopProductService.getByBranch(user.branchId)
+  const refresh = async () => {
+    let list = await shopProductService.getByBranch(user.branchId)
     if (search.trim()) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
     if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
     if (filter === 'standard') list = list.filter(p => p.isStandard)
     if (filter === 'custom') list = list.filter(p => !p.isStandard)
     setProducts(list)
+    setCategories([...new Set(list.map(p => p.category))])
+    setColors([...new Set(list.map(p => p.color).filter(Boolean))])
+    setSizes([...new Set(list.map(p => p.size).filter(Boolean))])
   }
 
   useEffect(() => {
@@ -201,10 +207,6 @@ export default function InventoryPage() {
     setStockOutReason('spoilage')
     refresh()
   }
-
-  const categories = [...new Set(shopProductService.getByBranch(user.branchId).map(p => p.category))]
-  const colors = [...new Set(shopProductService.getByBranch(user.branchId).map(p => p.color).filter(Boolean))]
-  const sizes = [...new Set(shopProductService.getByBranch(user.branchId).map(p => p.size).filter(Boolean))]
 
   // Permission check: owner always can manage, staff needs canManageInventory flag
   const canManage = user.role === 'owner' || (user.role === 'staff' && (user.canManageInventory ?? true))

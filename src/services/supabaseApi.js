@@ -3,6 +3,29 @@
 
 import { supabase } from '../lib/supabase'
 
+// Helper: camelCase ↔ snake_case
+const toSnake = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(toSnake)
+  const result = {}
+  for (const [key, value] of Object.entries(obj)) {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+    result[snakeKey] = typeof value === 'object' && value !== null ? toSnake(value) : value
+  }
+  return result
+}
+
+const toCamel = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(toCamel)
+  const result = {}
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+    result[camelKey] = typeof value === 'object' && value !== null ? toCamel(value) : value
+  }
+  return result
+}
+
 // ============================================================
 // Auth
 // ============================================================
@@ -117,11 +140,11 @@ export const authService = {
 export const shopService = {
   async getById(id) {
     const { data } = await supabase.from('shops').select('*').eq('id', id).single()
-    return data
+    return toCamel(data)
   },
   async update(id, changes) {
-    const { data } = await supabase.from('shops').update(changes).eq('id', id).select().single()
-    return data
+    const { data } = await supabase.from('shops').update(toSnake(changes)).eq('id', id).select().single()
+    return toCamel(data)
   },
 }
 
@@ -131,19 +154,19 @@ export const shopService = {
 export const branchService = {
   async getByShop(shopId) {
     const { data } = await supabase.from('branches').select('*').eq('shop_id', shopId).order('created_at')
-    return data || []
+    return toCamel(data) || []
   },
   async getById(id) {
     const { data } = await supabase.from('branches').select('*').eq('id', id).single()
-    return data
+    return toCamel(data)
   },
   async create(branch) {
-    const { data } = await supabase.from('branches').insert(branch).select().single()
-    return data
+    const { data } = await supabase.from('branches').insert(toSnake(branch)).select().single()
+    return toCamel(data)
   },
   async update(id, changes) {
-    const { data } = await supabase.from('branches').update(changes).eq('id', id).select().single()
-    return data
+    const { data } = await supabase.from('branches').update(toSnake(changes)).eq('id', id).select().single()
+    return toCamel(data)
   },
   async remove(id) {
     await supabase.from('branches').delete().eq('id', id)
@@ -156,15 +179,15 @@ export const branchService = {
 export const productService = {
   async getAll() {
     const { data } = await supabase.from('products').select('*').order('name')
-    return data || []
+    return toCamel(data) || []
   },
   async create(product) {
-    const { data } = await supabase.from('products').insert(product).select().single()
-    return data
+    const { data } = await supabase.from('products').insert(toSnake(product)).select().single()
+    return toCamel(data)
   },
   async update(id, changes) {
-    const { data } = await supabase.from('products').update(changes).eq('id', id).select().single()
-    return data
+    const { data } = await supabase.from('products').update(toSnake(changes)).eq('id', id).select().single()
+    return toCamel(data)
   },
   async remove(id) {
     await supabase.from('products').delete().eq('id', id)
@@ -177,23 +200,23 @@ export const productService = {
 export const shopProductService = {
   async getByShop(shopId) {
     const { data } = await supabase.from('shop_products').select('*').eq('shop_id', shopId)
-    return data || []
+    return toCamel(data) || []
   },
   async getByBranch(branchId) {
     const { data } = await supabase.from('shop_products').select('*').eq('branch_id', branchId)
-    return data || []
+    return toCamel(data) || []
   },
   async getById(id) {
     const { data } = await supabase.from('shop_products').select('*').eq('id', id).single()
-    return data
+    return toCamel(data)
   },
   async create(sp) {
-    const { data } = await supabase.from('shop_products').insert(sp).select().single()
-    return data
+    const { data } = await supabase.from('shop_products').insert(toSnake(sp)).select().single()
+    return toCamel(data)
   },
   async update(id, changes) {
-    const { data } = await supabase.from('shop_products').update(changes).eq('id', id).select().single()
-    return data
+    const { data } = await supabase.from('shop_products').update(toSnake(changes)).eq('id', id).select().single()
+    return toCamel(data)
   },
   async remove(id) {
     await supabase.from('shop_products').delete().eq('id', id)
@@ -204,7 +227,7 @@ export const shopProductService = {
       .select('*')
       .eq('shop_id', shopId)
       .ilike('name', `%${query}%`)
-    return data || []
+    return toCamel(data) || []
   },
 }
 
@@ -214,15 +237,15 @@ export const shopProductService = {
 export const saleService = {
   async getByShop(shopId) {
     const { data } = await supabase.from('sales').select('*').eq('shop_id', shopId).order('created_at', { ascending: false })
-    return data || []
+    return toCamel(data) || []
   },
   async getByBranch(branchId) {
     const { data } = await supabase.from('sales').select('*').eq('branch_id', branchId).order('created_at', { ascending: false })
-    return data || []
+    return toCamel(data) || []
   },
   async create(sale) {
-    const { data } = await supabase.from('sales').insert(sale).select().single()
-    return data
+    const { data } = await supabase.from('sales').insert(toSnake(sale)).select().single()
+    return toCamel(data)
   },
 }
 
@@ -232,7 +255,7 @@ export const saleService = {
 export const userService = {
   async getByShop(shopId) {
     const { data } = await supabase.from('profiles').select('*').eq('shop_id', shopId).neq('role', 'owner')
-    return data || []
+    return toCamel(data) || []
   },
   async create(user) {
     // Staff signup requires admin RPC or manual invite flow
@@ -244,8 +267,8 @@ export const userService = {
     return tempStaff
   },
   async update(id, changes) {
-    const { data } = await supabase.from('profiles').update(changes).eq('id', id).select().single()
-    return data
+    const { data } = await supabase.from('profiles').update(toSnake(changes)).eq('id', id).select().single()
+    return toCamel(data)
   },
   async remove(id) {
     await supabase.from('profiles').delete().eq('id', id)
@@ -258,11 +281,11 @@ export const userService = {
 export const packageService = {
   async getAll() {
     const { data } = await supabase.from('packages').select('*').order('price')
-    return data || []
+    return toCamel(data) || []
   },
   async getById(id) {
     const { data } = await supabase.from('packages').select('*').eq('id', id).single()
-    return data
+    return toCamel(data)
   },
 }
 
@@ -272,11 +295,11 @@ export const packageService = {
 export const logService = {
   async getByShop(shopId) {
     const { data } = await supabase.from('activity_logs').select('*').eq('shop_id', shopId).order('created_at', { ascending: false })
-    return data || []
+    return toCamel(data) || []
   },
   async create(log) {
-    const { data } = await supabase.from('activity_logs').insert(log).select().single()
-    return data
+    const { data } = await supabase.from('activity_logs').insert(toSnake(log)).select().single()
+    return toCamel(data)
   },
 }
 
@@ -286,19 +309,19 @@ export const logService = {
 export const bankAccountService = {
   async getByShop(shopId) {
     const { data } = await supabase.from('bank_accounts').select('*').eq('shop_id', shopId)
-    return data || []
+    return toCamel(data) || []
   },
   async getById(id) {
     const { data } = await supabase.from('bank_accounts').select('*').eq('id', id).single()
-    return data
+    return toCamel(data)
   },
   async create(account) {
-    const { data } = await supabase.from('bank_accounts').insert(account).select().single()
-    return data
+    const { data } = await supabase.from('bank_accounts').insert(toSnake(account)).select().single()
+    return toCamel(data)
   },
   async update(id, changes) {
-    const { data } = await supabase.from('bank_accounts').update(changes).eq('id', id).select().single()
-    return data
+    const { data } = await supabase.from('bank_accounts').update(toSnake(changes)).eq('id', id).select().single()
+    return toCamel(data)
   },
   async remove(id) {
     await supabase.from('bank_accounts').delete().eq('id', id)
@@ -320,19 +343,22 @@ export async function getStats(shopId, branchId = null) {
     productsQuery = productsQuery.eq('branch_id', branchId)
   }
 
-  const [{ data: sales }, { data: products }] = await Promise.all([
+  const [{ data: rawSales }, { data: rawProducts }] = await Promise.all([
     salesQuery,
     productsQuery,
   ])
 
-  const todaySales = (sales || []).filter(s => new Date(s.created_at) >= today)
+  const sales = toCamel(rawSales) || []
+  const products = toCamel(rawProducts) || []
+
+  const todaySales = sales.filter(s => new Date(s.createdAt) >= today)
 
   return {
-    totalSales: (sales || []).length,
+    totalSales: sales.length,
     todayRevenue: todaySales.reduce((sum, s) => sum + (s.total || 0), 0),
     todayOrders: todaySales.length,
-    lowStock: (products || []).filter(p => (p.stock || 0) <= (p.min_stock || 0)).length,
-    totalProducts: (products || []).length,
+    lowStock: products.filter(p => (p.stock || 0) <= (p.minStock || 0)).length,
+    totalProducts: products.length,
   }
 }
 
