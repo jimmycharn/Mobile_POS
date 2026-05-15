@@ -258,12 +258,14 @@ export const shopProductService = {
   },
   async update(id, changes) {
     const payload = toSnake(changes)
-    console.log('[DEBUG shopProductService.update] id:', id, 'payload:', payload)
+    console.log('[DEBUG update] payload JSON:', JSON.stringify(payload))
+    console.log('[DEBUG update] has image_url:', 'image_url' in payload, 'value:', payload.image_url)
     const { data, error } = await supabase.from('shop_products').update(payload).eq('id', id).select()
     if (error) {
-      console.error('[DEBUG shopProductService.update] error:', error.message, error.details)
+      console.error('[DEBUG update] error:', error.message, error.details)
       throw new Error(error.message)
     }
+    console.log('[DEBUG update] returned rows:', data?.length, 'data:', JSON.stringify(data))
     const result = Array.isArray(data) ? data[0] : data
     return toCamel(result)
   },
