@@ -513,8 +513,8 @@ export default function PosPage() {
                 >
                   {/* Product Image Area */}
                   <div className="relative bg-slate-100 h-28 flex items-center justify-center overflow-hidden">
-                    {product.image ? (
-                      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                    {product.imageUrl ? (
+                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-14 h-14 bg-white/60 rounded-xl flex items-center justify-center">
                         <Store size={24} className="text-slate-300" />
@@ -648,8 +648,8 @@ export default function PosPage() {
             cart.map(item => (
               <div key={item.id} className="flex items-center space-x-3 bg-slate-50 rounded-xl p-3">
                 <div className="w-10 h-10 bg-slate-200 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
-                  {item.image ? (
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                   ) : (
                     <Store size={18} className="text-slate-400" />
                   )}
@@ -757,8 +757,8 @@ export default function PosPage() {
                 cart.map(item => (
                   <div key={item.id} className="flex items-center space-x-3 bg-slate-50 rounded-xl p-3">
                     <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
-                      {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
                         <Store size={20} className="text-slate-400" />
                       )}

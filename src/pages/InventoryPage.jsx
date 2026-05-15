@@ -15,7 +15,7 @@ export default function InventoryPage() {
   const [stockInCost, setStockInCost] = useState('')
   const [stockOutQty, setStockOutQty] = useState('')
   const [stockOutReason, setStockOutReason] = useState('spoilage')
-  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '', color: '', size: '' })
+  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
   const [filter, setFilter] = useState('all') // all, low, standard, custom
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
@@ -119,7 +119,7 @@ export default function InventoryPage() {
         color: form.color || '',
         size: form.size || '',
       }
-      if (form.image) updates.image = form.image
+      if (form.imageUrl) updates.imageUrl = form.imageUrl
       await shopProductService.update(selectedProduct.id, updates)
       await authService.logActivity('EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
     } else {
@@ -136,7 +136,7 @@ export default function InventoryPage() {
         stock: Number(form.stock) || 0,
         minStock: Number(form.minStock) || 5,
         isStandard: false,
-        image: form.image || '',
+        imageUrl: form.imageUrl || '',
         color: form.color || '',
         size: form.size || '',
       })
@@ -144,7 +144,7 @@ export default function InventoryPage() {
     }
     setShowForm(false)
     setSelectedProduct(null)
-    setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', image: '', color: '', size: '' })
+    setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
     await refresh()
   }
 
@@ -165,7 +165,7 @@ export default function InventoryPage() {
       salePrice: p.salePrice,
       stock: p.stock,
       minStock: p.minStock,
-      image: p.image || '',
+      imageUrl: p.imageUrl || '',
       color: p.color || '',
       size: p.size || '',
     })
@@ -234,7 +234,7 @@ export default function InventoryPage() {
                 <span>หมวดหมู่</span>
               </button>
               <button
-                onClick={() => { setShowForm(true); setSelectedProduct(null); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '' }) }}
+                onClick={() => { setShowForm(true); setSelectedProduct(null); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' }) }}
                 className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
               >
                 <Plus size={18} />
@@ -311,8 +311,8 @@ export default function InventoryPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
-                            {product.image ? (
-                              <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                            {product.imageUrl ? (
+                              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                             ) : (
                               <Package size={18} className="text-slate-400" />
                             )}
@@ -423,11 +423,11 @@ export default function InventoryPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">รูปสินค้า</label>
                 <div className="flex items-center space-x-3">
-                  {form.image && (
+                  {form.imageUrl && (
                     <div className="relative shrink-0">
-                      <img src={form.image} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                      <img src={form.imageUrl} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
                       <button
-                        onClick={() => setForm({ ...form, image: '' })}
+                        onClick={() => setForm({ ...form, imageUrl: '' })}
                         className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px]"
                       >
                         x
@@ -443,7 +443,7 @@ export default function InventoryPage() {
                         const file = e.target.files[0]
                         if (!file) return
                         const reader = new FileReader()
-                        reader.onload = ev => setForm({ ...form, image: ev.target.result })
+                        reader.onload = ev => setForm({ ...form, imageUrl: ev.target.result })
                         reader.readAsDataURL(file)
                       }}
                     />
