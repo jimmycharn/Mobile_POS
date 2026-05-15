@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react'
-import { Store, Search, Mail, Phone, Package, Users } from 'lucide-react'
-import { shopService, userService, packageService } from '../../services/supabaseApi'
+import { useNavigate } from 'react-router-dom'
+import { Store, Search } from 'lucide-react'
+import { shopService, packageService } from '../../services/supabaseApi'
 
 export default function SuperadminShops() {
+  const navigate = useNavigate()
   const [shops, setShops] = useState([])
+  const [packages, setPackages] = useState([])
   const [search, setSearch] = useState('')
 
   useEffect(() => {
     const load = async () => {
-      const data = await shopService.getAll()
+      const [data, pkgs] = await Promise.all([
+        shopService.getAll(),
+        packageService.getAll(),
+      ])
       setShops(data)
+      setPackages(pkgs)
     }
     load()
   }, [])
@@ -54,10 +61,13 @@ export default function SuperadminShops() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(shop => {
-                  const pkg = packageService.getById(shop.packageId)
-                  const staffCount = userService.getByShop(shop.id).length
+                  const pkg = packages.find(p => p.id === shop.packageId)
                   return (
-                    <tr key={shop.id} className="hover:bg-slate-50/50">
+                    <tr
+                      key={shop.id}
+                      onClick={() => navigate(`/superadmin/shops/${shop.id}`)}
+                      className="hover:bg-slate-50/50 cursor-pointer"
+                    >
                       <td className="px-5 py-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">

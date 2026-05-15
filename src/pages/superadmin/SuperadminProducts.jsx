@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode } from 'lucide-react'
+import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode, Sparkles } from 'lucide-react'
 import { productService } from '../../services/supabaseApi'
+import { lookupProductByBarcode } from '../../services/aiService'
 
 export default function SuperadminProducts() {
   const [products, setProducts] = useState([])
@@ -9,8 +10,11 @@ export default function SuperadminProducts() {
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '' })
   const [scanningBarcode, setScanningBarcode] = useState(false)
+  const [useAi, setUseAi] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
   const scanVideoRef = useRef(null)
   const scanAnimRef = useRef(null)
+  const aiAbortRef = useRef(null)
 
   useEffect(() => {
     refresh()
@@ -44,8 +48,12 @@ export default function SuperadminProducts() {
               try {
                 const barcodes = await detector.detect(scanVideoRef.current)
                 if (barcodes.length > 0) {
-                  setForm(f => ({ ...f, barcode: barcodes[0].rawValue }))
+                  const code = barcodes[0].rawValue
+                  setForm(f => ({ ...f, barcode: code }))
                   setScanningBarcode(false)
+                  if (useAi && code.length >= 8) {
+                    runAiLookup(code)
+                  }
                   return
                 }
               } catch (e) {}
@@ -65,6 +73,35 @@ export default function SuperadminProducts() {
       if (stream) stream.getTracks().forEach(t => t.stop())
     }
   }, [scanningBarcode])
+
+  const runAiLookup = async (barcode) => {
+    if (aiAbortRef.current) aiAbortRef.current.abort()
+    aiAbortRef.current = new AbortController()
+    setAiLoading(true)
+    try {
+      const result = await lookupProductByBarcode(barcode, aiAbortRef.current.signal)
+      if (result.name || result.category || result.unit) {
+        setForm(f => ({
+          ...f,
+          barcode,
+          name: result.name || f.name,
+          category: result.category || f.category,
+          unit: result.unit || f.unit,
+        }))
+      }
+    } catch (err) {
+      alert('AI ค้นหาไม่สำเร็จ: ' + err.message)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const handleBarcodeChange = (code) => {
+    setForm(f => ({ ...f, barcode: code }))
+    if (useAi && code.length >= 8) {
+      runAiLookup(code)
+    }
+  }
 
   const handleSave = async () => {
     if (editingId) {
@@ -179,8 +216,23 @@ export default function SuperadminProducts() {
               </button>
             </div>
             <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <label className="flex items-center space-x-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={useAi} onChange={e => setUseAi(e.target.checked)} className="w-4 h-4 rounded accent-primary-600" />
+                  <span className="text-sm text-slate-600 flex items-center space-x-1">
+                    <Sparkles size={14} className="text-amber-500" />
+                    <span>ค้นด้วย AI</span>
+                  </span>
+                </label>
+                {aiLoading && <span className="text-xs text-primary-600 animate-pulse">กำลังค้นหา...</span>}
+              </div>
               <div className="flex space-x-2">
-                <input placeholder="บาร์โค้ด" value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                <input
+                  placeholder="บาร์โค้ด"
+                  value={form.barcode}
+                  onChange={e => handleBarcodeChange(e.target.value)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
                 <button onClick={() => setScanningBarcode(s => !s)} className="px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500" title="สแกนบาร์โค้ด">
                   <ScanBarcode size={18} />
                 </button>

@@ -18,6 +18,8 @@ import SuperadminShops from './pages/superadmin/SuperadminShops'
 import SuperadminProducts from './pages/superadmin/SuperadminProducts'
 import SuperadminPackages from './pages/superadmin/SuperadminPackages'
 import SuperadminLogs from './pages/superadmin/SuperadminLogs'
+import SuperadminSettings from './pages/superadmin/SuperadminSettings'
+import SuperadminShopDetail from './pages/superadmin/SuperadminShopDetail'
 
 function AppRoutes() {
   const { user } = useAuth()
@@ -40,7 +42,8 @@ function AppRoutes() {
         <Route path="/superadmin/shops" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminShops /></ProtectedRoute>} />
         <Route path="/superadmin/products" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminProducts /></ProtectedRoute>} />
         <Route path="/superadmin/packages" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminPackages /></ProtectedRoute>} />
-        <Route path="/superadmin/logs" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminLogs /></ProtectedRoute>} />
+        <Route path="/superadmin/shops/:shopId" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminShopDetail /></ProtectedRoute>} />
+        <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminSettings /></ProtectedRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

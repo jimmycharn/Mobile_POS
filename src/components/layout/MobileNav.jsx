@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { ShoppingCart, Package, BarChart3, Settings, ClipboardList, Store, Shield, LayoutDashboard } from 'lucide-react'
+import { ShoppingCart, Package, BarChart3, Settings, ClipboardList, Store, Shield, LayoutDashboard, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const shopNavItems = [
@@ -15,7 +15,7 @@ const superAdminNavItems = [
   { path: '/superadmin/shops', label: 'ร้านค้า', icon: Store },
   { path: '/superadmin/products', label: 'สินค้า', icon: Package },
   { path: '/superadmin/packages', label: 'แพ็คเกจ', icon: Shield },
-  { path: '/superadmin/logs', label: 'บันทึก', icon: ClipboardList },
+  { path: '/superadmin/settings', label: 'ตั้งค่า', icon: SlidersHorizontal },
 ]
 
 export default function MobileNav() {

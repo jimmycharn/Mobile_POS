@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { ShoppingCart, Package, BarChart3, Settings, Store, Shield, LogOut, ClipboardList, Users } from 'lucide-react'
+import { ShoppingCart, Package, BarChart3, Settings, Store, Shield, LogOut, ClipboardList, Users, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import BranchSwitcher from '../BranchSwitcher'
 
@@ -16,7 +16,7 @@ const superAdminItems = [
   { path: '/superadmin/shops', label: 'ร้านค้า', icon: Store },
   { path: '/superadmin/products', label: 'คลังสินค้ากลาง', icon: Package },
   { path: '/superadmin/packages', label: 'แพ็คเกจราคา', icon: Shield },
-  { path: '/superadmin/logs', label: 'บันทึกกิจกรรม', icon: ClipboardList },
+  { path: '/superadmin/settings', label: 'ตั้งค่า', icon: SlidersHorizontal },
 ]
 
 export default function DesktopSidebar() {
