@@ -36,6 +36,8 @@ export default function PosPage() {
   const scanCooldownRef = useRef(0)
   const loadedBranchId = useRef(null)
   const allProductsRef = useRef([])
+  const discountInputRef = useRef(null)
+  const receivedInputRef = useRef(null)
 
   useEffect(() => {
     allProductsRef.current = allProducts
@@ -950,12 +952,22 @@ export default function PosPage() {
                 </div>
                 <div className="relative">
                   <input
+                    ref={discountInputRef}
                     type="number"
                     value={discountValue}
                     onChange={e => setDiscountValue(e.target.value)}
                     placeholder={discountType === 'percent' ? 'เช่น 10 = 10%' : 'เช่น 50'}
                     className="w-full px-4 py-2.5 pr-10 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm font-medium"
                   />
+                  {discountValue !== '' && (
+                    <button
+                      type="button"
+                      onClick={() => { setDiscountValue(''); discountInputRef.current?.focus() }}
+                      className="absolute right-8 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-slate-200 hover:bg-red-100 text-slate-500 hover:text-red-500 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
                     {discountType === 'percent' ? '%' : '฿'}
                   </span>
@@ -985,13 +997,25 @@ export default function PosPage() {
                 <>
                   <div>
                     <label className="text-sm font-medium text-slate-700 mb-1.5 block">เงินที่รับมา</label>
-                    <input
-                      type="number"
-                      value={receivedAmount}
-                      onChange={e => setReceivedAmount(e.target.value)}
-                      placeholder="กรอกจำนวนเงิน"
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-primary-500 outline-none text-lg font-bold text-center text-slate-800"
-                    />
+                    <div className="relative">
+                      <input
+                        ref={receivedInputRef}
+                        type="number"
+                        value={receivedAmount}
+                        onChange={e => setReceivedAmount(e.target.value)}
+                        placeholder="กรอกจำนวนเงิน"
+                        className="w-full px-4 py-3 pr-10 rounded-xl border-2 border-slate-200 focus:border-primary-500 outline-none text-lg font-bold text-center text-slate-800"
+                      />
+                      {receivedAmount !== '' && (
+                        <button
+                          type="button"
+                          onClick={() => { setReceivedAmount(''); receivedInputRef.current?.focus() }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-100 text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
                     {/* Quick amount buttons */}
                     <div className="flex space-x-2 mt-2">
                       {[100, 500, 1000].map(amt => (
