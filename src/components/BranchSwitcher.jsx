@@ -27,7 +27,7 @@ export default function BranchSwitcher({ variant = 'default' }) {
   const isLight = variant === 'light'
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative flex justify-center">
       {canSwitch ? (
         <button
           onClick={() => setOpen(!open)}
@@ -51,7 +51,7 @@ export default function BranchSwitcher({ variant = 'default' }) {
       )}
 
       {open && canSwitch && (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50 animate-scale-in">
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50 animate-scale-in">
           {branches.map(branch => (
             <button
               key={branch.id}
