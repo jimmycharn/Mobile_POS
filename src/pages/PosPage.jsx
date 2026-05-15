@@ -1094,17 +1094,17 @@ export default function PosPage() {
             </div>
 
             {/* Fixed Actions Footer */}
-            <div className="shrink-0 p-6 pt-4 pb-6 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-              <div className="flex space-x-3">
+            <div className="shrink-0 px-4 py-2 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+              <div className="flex space-x-2">
                 <button
                   onClick={() => setShowPayment(false)}
-                  className="flex-1 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-medium"
+                  className="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm"
                 >
                   ยกเลิก
                 </button>
                 <button
                   onClick={handleCheckout}
-                  className="flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+                  className="flex-1 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm"
                 >
                   ยืนยันชำระเงิน
                 </button>
