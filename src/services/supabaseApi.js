@@ -31,16 +31,27 @@ const toCamel = (obj) => {
 // ============================================================
 export const authService = {
   async login(email, password) {
+    console.log('[DEBUG] login called with:', email)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return { error: error.message }
+    if (error) {
+      console.error('[DEBUG] signInWithPassword error:', error.message)
+      return { error: error.message }
+    }
+    console.log('[DEBUG] auth success, user id:', data.user.id)
 
-    const { data: profile } = await supabase
+    // Simple profile query without complex joins
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('*, shops:id (id)')
+      .select('*')
       .eq('id', data.user.id)
       .single()
 
-    if (!profile) return { error: 'Profile not found' }
+    if (profileError) {
+      console.error('[DEBUG] profile fetch error:', profileError.message)
+    }
+    console.log('[DEBUG] profile fetched:', profile)
+
+    if (!profile) return { error: 'Profile not found in database' }
 
     const user = {
       id: data.user.id,
@@ -55,6 +66,7 @@ export const authService = {
     }
 
     sessionStorage.setItem('pos_session', JSON.stringify(user))
+    console.log('[DEBUG] login success, user:', user)
     return { user }
   },
 
