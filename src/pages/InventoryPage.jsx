@@ -631,12 +631,12 @@ export default function InventoryPage() {
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm flex items-center justify-between bg-white"
                     >
                       <span className={form.category ? 'text-slate-800' : 'text-slate-400'}>
-                        {form.category || 'เลือกหมวดหมู่'}
+                        {form.category || 'เลือก'}
                       </span>
                       <ChevronDown size={16} className={`text-slate-400 transition-transform ${catDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
                     {catDropdownOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 shadow-lg z-10 max-h-72 overflow-y-auto animate-scale-in">
+                      <div className="absolute left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] sm:left-0 sm:translate-x-0 sm:w-full top-full mt-1 bg-white rounded-xl border border-slate-200 shadow-lg z-[60] max-h-72 overflow-y-auto animate-scale-in">
                         {categories.length === 0 ? (
                           <div className="px-4 py-6 text-center">
                             <FolderOpen size={32} className="text-slate-200 mx-auto mb-2" />
