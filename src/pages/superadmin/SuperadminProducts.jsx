@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode, Sparkles } from 'lucide-react'
+import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode, Sparkles, FolderOpen, Trash2 } from 'lucide-react'
 import { productService } from '../../services/supabaseApi'
 import { lookupProductByBarcode } from '../../services/aiService'
 
@@ -12,6 +12,10 @@ export default function SuperadminProducts() {
   const [scanningBarcode, setScanningBarcode] = useState(false)
   const [useAi, setUseAi] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [categoryList, setCategoryList] = useState([])
+  const [newCategory, setNewCategory] = useState('')
+  const [editingCategory, setEditingCategory] = useState(null)
   const scanVideoRef = useRef(null)
   const scanAnimRef = useRef(null)
   const aiAbortRef = useRef(null)
@@ -128,31 +132,79 @@ export default function SuperadminProducts() {
     await refresh()
   }
 
+  const refreshCategories = async () => {
+    const all = await productService.getAll()
+    const cats = [...new Set(all.map(p => p.category).filter(Boolean))]
+    setCategoryList(cats.map(name => ({
+      name,
+      count: all.filter(p => p.category === name).length,
+    })))
+  }
+
+  const handleAddCategory = async () => {
+    if (!newCategory.trim()) return
+    setNewCategory('')
+    await refreshCategories()
+  }
+
+  const handleRenameCategory = async (oldName, newName) => {
+    if (!newName.trim() || newName.trim() === oldName) {
+      setEditingCategory(null)
+      return
+    }
+    const all = await productService.getAll()
+    const toUpdate = all.filter(p => p.category === oldName)
+    for (const p of toUpdate) {
+      await productService.update(p.id, { ...p, category: newName.trim() })
+    }
+    setEditingCategory(null)
+    await refreshCategories()
+    await refresh()
+  }
+
+  const handleDeleteCategory = async (name) => {
+    if (!confirm(`ลบหมวดหมู่ "${name}"? สินค้าในหมวดหมู่นี้จะไม่มีหมวดหมู่`)) return
+    const all = await productService.getAll()
+    const toUpdate = all.filter(p => p.category === name)
+    for (const p of toUpdate) {
+      await productService.update(p.id, { ...p, category: '' })
+    }
+    await refreshCategories()
+    await refresh()
+  }
+
   return (
     <div className="h-full">
       <div className="bg-white border-b border-slate-100 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">คลังสินค้ากลาง</h1>
-            <p className="text-sm text-slate-400">สินค้ามาตรฐานที่ทุกร้านสามารถดึงไปใช้ได้</p>
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">คลังสินค้ากลาง</h1>
+          <p className="text-sm text-slate-400">สินค้ามาตรฐานที่ทุกร้านสามารถดึงไปใช้ได้</p>
+        </div>
+        <div className="flex items-center gap-2 mt-4">
+          <div className="relative flex-1 max-w-md">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="ค้นหาสินค้า..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 outline-none text-sm"
+            />
           </div>
           <button
-            onClick={() => { setShowForm(true); setForm({ name: '', barcode: '', category: '', unit: '' }) }}
-            className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium"
+            onClick={() => { setShowCategoryModal(true); refreshCategories() }}
+            className="flex items-center space-x-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-3 py-2.5 rounded-xl text-sm font-medium shrink-0"
           >
-            <Plus size={18} />
-            <span>เพิ่มสินค้า</span>
+            <FolderOpen size={16} />
+            <span className="hidden sm:inline">หมวดหมู่</span>
           </button>
-        </div>
-        <div className="relative mt-4 max-w-md">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="ค้นหาสินค้า..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 outline-none text-sm"
-          />
+          <button
+            onClick={() => { setShowForm(true); setForm({ name: '', barcode: '', category: '', unit: '' }) }}
+            className="flex items-center space-x-1.5 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2.5 rounded-xl text-sm font-medium shrink-0"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">เพิ่มสินค้า</span>
+          </button>
         </div>
       </div>
 
@@ -251,6 +303,78 @@ export default function SuperadminProducts() {
             <div className="flex space-x-3 mt-5">
               <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '' }); setScanningBarcode(false) }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
               <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm">บันทึก</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Category Management Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scale-in my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800">จัดการหมวดหมู่</h3>
+              <button onClick={() => setShowCategoryModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="flex space-x-2">
+                <input
+                  placeholder="เพิ่มหมวดหมู่ใหม่"
+                  value={newCategory}
+                  onChange={e => setNewCategory(e.target.value)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                />
+                <button
+                  onClick={handleAddCategory}
+                  className="px-3 py-2.5 rounded-xl bg-primary-600 text-white font-medium text-sm"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {categoryList.map(cat => (
+                  <div key={cat.name} className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl">
+                    {editingCategory?.old === cat.name ? (
+                      <input
+                        autoFocus
+                        defaultValue={cat.name}
+                        onBlur={e => handleRenameCategory(cat.name, e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleRenameCategory(cat.name, e.target.value)
+                          if (e.key === 'Escape') setEditingCategory(null)
+                        }}
+                        className="flex-1 px-2 py-1 rounded-lg border border-primary-300 text-sm outline-none mr-2"
+                      />
+                    ) : (
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-800">{cat.name}</p>
+                        <p className="text-xs text-slate-400">{cat.count} สินค้า</p>
+                      </div>
+                    )}
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => setEditingCategory({ old: cat.name })}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-primary-500"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(cat.name)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-red-500"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {categoryList.length === 0 && (
+                  <div className="text-center py-8">
+                    <FolderOpen size={40} className="text-slate-200 mx-auto mb-2" />
+                    <p className="text-slate-400 text-sm">ยังไม่มีหมวดหมู่</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
