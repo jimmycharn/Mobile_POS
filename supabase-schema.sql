@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS packages (
   max_products INTEGER DEFAULT 50,
   sales_limit INTEGER, -- NULL = unlimited
   is_visible BOOLEAN DEFAULT true,
+  is_default BOOLEAN DEFAULT false,
   features TEXT[] DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -360,12 +361,12 @@ CREATE INDEX IF NOT EXISTS idx_shop_products_product_id ON shop_products(product
 
 -- Seed data: packages (for new installs)
 -- ============================================================
-INSERT INTO packages (name, price, max_users, max_products, sales_limit, is_visible, features)
+INSERT INTO packages (name, price, max_users, max_products, sales_limit, is_visible, is_default, features)
 VALUES
-  ('Starter', 0, 2, 50, NULL, true, ARRAY['POS ขายหน้าร้าน', 'จัดการสต็อกพื้นฐาน', 'รายงานยอดขาย']),
-  ('Basic', 299, 5, 200, NULL, true, ARRAY['ทุกอย่างใน Starter', 'จัดการพนักงาน', 'รายงานขั้นสูง', 'ซัพพอร์ตอีเมล']),
-  ('Pro', 599, 15, 1000, NULL, true, ARRAY['ทุกอย่างใน Basic', 'API เชื่อมต่อ', 'ซัพพอร์ตโทรศัพท์', 'ระบบสาขา']),
-  ('Enterprise', 1299, 999, 9999, NULL, true, ARRAY['ทุกอย่างใน Pro', 'Dedicated Support', 'Custom Integration', 'On-premise Option'])
+  ('Starter', 0, 2, 50, NULL, true, true, ARRAY['POS ขายหน้าร้าน', 'จัดการสต็อกพื้นฐาน', 'รายงานยอดขาย']),
+  ('Basic', 299, 5, 200, NULL, true, false, ARRAY['ทุกอย่างใน Starter', 'จัดการพนักงาน', 'รายงานขั้นสูง', 'ซัพพอร์ตอีเมล']),
+  ('Pro', 599, 15, 1000, NULL, true, false, ARRAY['ทุกอย่างใน Basic', 'API เชื่อมต่อ', 'ซัพพอร์ตโทรศัพท์', 'ระบบสาขา']),
+  ('Enterprise', 1299, 999, 9999, NULL, true, false, ARRAY['ทุกอย่างใน Pro', 'Dedicated Support', 'Custom Integration', 'On-premise Option'])
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
@@ -373,3 +374,4 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 ALTER TABLE packages ADD COLUMN IF NOT EXISTS sales_limit INTEGER;
 ALTER TABLE packages ADD COLUMN IF NOT EXISTS is_visible BOOLEAN DEFAULT true;
+ALTER TABLE packages ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT false;

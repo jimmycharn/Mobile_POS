@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Store, Eye, EyeOff, AlertCircle, Check } from 'lucide-react'
+import { Store, Eye, EyeOff, AlertCircle, Package } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { packageService } from '../services/supabaseApi'
 
@@ -16,27 +16,20 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [packages, setPackages] = useState([])
+  const [defaultPkg, setDefaultPkg] = useState(null)
   const { signup } = useAuth()
   const navigate = useNavigate()
 
-  const refreshPackages = async () => {
-    const data = await packageService.getAll()
-    const visible = data.filter(p => p.isVisible !== false)
-    setPackages(prev => {
-      // only update packageId default if packages list was empty before
-      if (prev.length === 0 && visible.length > 0) {
-        setForm(f => ({ ...f, packageId: visible[0].id }))
-      }
-      return visible
-    })
-  }
-
   useEffect(() => {
-    refreshPackages()
-    const onFocus = () => refreshPackages()
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
+    const loadDefault = async () => {
+      const data = await packageService.getAll()
+      const def = data.find(p => p.isDefault) || data[0]
+      if (def) {
+        setDefaultPkg(def)
+        setForm(prev => ({ ...prev, packageId: def.id }))
+      }
+    }
+    loadDefault()
   }, [])
 
   const handleChange = (e) => {
@@ -158,31 +151,20 @@ export default function SignupPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">แพ็คเกจ</label>
-              <div className="grid grid-cols-2 gap-2">
-                {packages.map(pkg => (
-                  <button
-                    key={pkg.id}
-                    type="button"
-                    onClick={() => setForm({ ...form, packageId: pkg.id })}
-                    className={`relative p-3 rounded-xl border-2 text-left transition-all ${
-                      form.packageId === pkg.id
-                        ? 'border-primary-500 bg-primary-50'
-                        : 'border-slate-100 bg-slate-50 hover:border-slate-200'
-                    }`}
-                  >
-                    {form.packageId === pkg.id && (
-                      <div className="absolute top-2 right-2 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
-                        <Check size={12} className="text-white" />
-                      </div>
-                    )}
-                    <p className="font-semibold text-sm text-slate-800">{pkg.name}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{pkg.price === 0 ? 'ฟรี' : `฿${pkg.price}/เดือน`}</p>
-                  </button>
-                ))}
+            {defaultPkg && (
+              <div className="bg-primary-50 border border-primary-100 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-1">
+                  <Package size={16} className="text-primary-600" />
+                  <span className="text-sm font-semibold text-primary-700">แพ็คเกจที่ได้รับ</span>
+                </div>
+                <p className="text-sm text-slate-700">
+                  <span className="font-bold">{defaultPkg.name}</span>
+                  {' '}&middot;{' '}
+                  {defaultPkg.price === 0 ? 'ฟรี' : `฿${defaultPkg.price.toLocaleString()}/เดือน`}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">สามารถเปลี่ยนแพ็คเกจได้ภายหลังจากตั้งค่าร้าน</p>
               </div>
-            </div>
+            )}
 
             <button
               type="submit"

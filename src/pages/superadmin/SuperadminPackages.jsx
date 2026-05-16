@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Shield, Check, Users, Package, Plus, Pencil, Trash2, X, Eye, EyeOff, ShoppingCart } from 'lucide-react'
+import { Shield, Check, Users, Package, Plus, Pencil, Trash2, X, Eye, EyeOff, ShoppingCart, Star } from 'lucide-react'
 import { packageService } from '../../services/supabaseApi'
 
 const emptyForm = {
@@ -10,6 +10,7 @@ const emptyForm = {
   salesLimit: '',
   isUnlimited: true,
   isVisible: true,
+  isDefault: false,
   features: [''],
 }
 
@@ -44,6 +45,7 @@ export default function SuperadminPackages() {
       salesLimit: pkg.salesLimit ?? '',
       isUnlimited: pkg.salesLimit == null,
       isVisible: pkg.isVisible !== false,
+      isDefault: pkg.isDefault === true,
       features: (pkg.features || []).length > 0 ? [...pkg.features] : [''],
     })
     setShowForm(true)
@@ -58,6 +60,7 @@ export default function SuperadminPackages() {
         maxProducts: Number(form.maxProducts) || 0,
         salesLimit: form.isUnlimited ? null : (Number(form.salesLimit) || 0),
         isVisible: form.isVisible,
+        isDefault: form.isDefault,
         features: form.features.filter(f => f.trim()),
       }
       if (editing) {
@@ -76,6 +79,21 @@ export default function SuperadminPackages() {
     if (!confirm(`ลบแพ็คเกจ "${pkg.name}"?`)) return
     try {
       await packageService.remove(pkg.id)
+      await refresh()
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message)
+    }
+  }
+
+  const handleSetDefault = async (pkg) => {
+    try {
+      // Unset all other packages first
+      for (const p of packages) {
+        if (p.isDefault && p.id !== pkg.id) {
+          await packageService.update(p.id, { isDefault: false })
+        }
+      }
+      await packageService.update(pkg.id, { isDefault: true })
       await refresh()
     } catch (err) {
       alert('เกิดข้อผิดพลาด: ' + err.message)
@@ -114,6 +132,12 @@ export default function SuperadminPackages() {
                   <Shield size={20} className="text-primary-600" />
                 </div>
                 <div className="flex items-center space-x-1">
+                  {pkg.isDefault && (
+                    <span className="px-2 py-1 bg-yellow-50 text-yellow-600 text-xs font-medium rounded-lg flex items-center space-x-1">
+                      <Star size={12} fill="currentColor" />
+                      <span>หลัก</span>
+                    </span>
+                  )}
                   {pkg.price === 0 && (
                     <span className="px-2.5 py-1 bg-green-50 text-green-600 text-xs font-medium rounded-lg">ฟรี</span>
                   )}
@@ -150,6 +174,16 @@ export default function SuperadminPackages() {
                 </div>
               </div>
 
+              <div className="flex items-center space-x-2 mt-1 mb-3">
+                {!pkg.isDefault && (
+                  <button
+                    onClick={() => handleSetDefault(pkg)}
+                    className="text-xs text-slate-500 hover:text-yellow-600 underline"
+                  >
+                    ตั้งเป็นหลัก
+                  </button>
+                )}
+              </div>
               <div className="flex-1">
                 <p className="text-xs font-medium text-slate-400 mb-2">ฟีเจอร์:</p>
                 <ul className="space-y-2">
@@ -218,6 +252,19 @@ export default function SuperadminPackages() {
                     </label>
                   </div>
                 </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isDefault"
+                  checked={form.isDefault}
+                  onChange={e => setForm({ ...form, isDefault: e.target.checked })}
+                  className="w-4 h-4 accent-yellow-500"
+                />
+                <label htmlFor="isDefault" className="text-sm text-slate-700 cursor-pointer flex items-center space-x-1.5">
+                  <Star size={14} className="text-yellow-500" />
+                  <span>แพ็คเกจหลัก (สมัครอัตโนมัติ)</span>
+                </label>
               </div>
               <div className="flex items-center space-x-2">
                 <input
