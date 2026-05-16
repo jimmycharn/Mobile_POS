@@ -621,7 +621,7 @@ export default function InventoryPage() {
                   </label>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">หมวดหมู่</label>
                   <div className="relative" ref={catDropdownRef}>
@@ -636,7 +636,7 @@ export default function InventoryPage() {
                       <ChevronDown size={16} className={`text-slate-400 transition-transform ${catDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
                     {catDropdownOpen && (
-                      <div className="absolute left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] sm:left-0 sm:translate-x-0 sm:w-full top-full mt-1 bg-white rounded-xl border border-slate-200 shadow-lg z-[60] max-h-72 overflow-y-auto animate-scale-in">
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 shadow-lg z-[60] max-h-72 overflow-y-auto animate-scale-in">
                         {categories.length === 0 ? (
                           <div className="px-4 py-6 text-center">
                             <FolderOpen size={32} className="text-slate-200 mx-auto mb-2" />
