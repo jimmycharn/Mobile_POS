@@ -11,7 +11,7 @@ export default function SignupPage() {
     password: '',
     shopName: '',
     phone: '',
-    packageId: 'pkg-1',
+    packageId: '',
   })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -21,7 +21,12 @@ export default function SignupPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    packageService.getAll().then(data => setPackages(data))
+    packageService.getAll().then(data => {
+      setPackages(data)
+      if (data.length > 0) {
+        setForm(prev => ({ ...prev, packageId: data[0].id }))
+      }
+    })
   }, [])
 
   const handleChange = (e) => {

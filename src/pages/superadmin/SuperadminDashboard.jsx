@@ -10,19 +10,22 @@ export default function SuperadminDashboard() {
   const [users, setUsers] = useState([])
   const [sales, setSales] = useState([])
   const [logs, setLogs] = useState([])
+  const [packages, setPackages] = useState([])
 
   useEffect(() => {
     const load = async () => {
-      const [shopsData, usersData, salesData, logsData] = await Promise.all([
+      const [shopsData, usersData, salesData, logsData, pkgs] = await Promise.all([
         shopService.getAll(),
         userService.getAll(),
         saleService.getAll(),
         logService.getAll(),
+        packageService.getAll(),
       ])
       setShops(shopsData)
       setUsers(usersData)
       setSales(salesData)
       setLogs(logsData.slice(0, 10))
+      setPackages(pkgs)
     }
     load()
   }, [])
@@ -103,7 +106,7 @@ export default function SuperadminDashboard() {
             <h3 className="font-semibold text-slate-800 mb-4">ร้านค้าล่าสุด</h3>
             <div className="space-y-3">
               {recentShops.map(shop => {
-                const pkg = packageService.getById(shop.packageId)
+                const pkg = packages.find(p => p.id === shop.packageId)
                 return (
                   <div key={shop.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
                     <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
@@ -113,7 +116,7 @@ export default function SuperadminDashboard() {
                       <p className="text-sm font-medium text-slate-800 truncate">{shop.name}</p>
                       <p className="text-xs text-slate-400">{shop.email}</p>
                     </div>
-                    <span className="px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-medium rounded-lg">{pkg?.name}</span>
+                    <span className="px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-medium rounded-lg">{pkg?.name || '-'}</span>
                   </div>
                 )
               })}
