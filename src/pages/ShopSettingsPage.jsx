@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard, PenLine, X } from 'lucide-react'
+import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard, PenLine, X, ChevronDown, ChevronUp, UserPlus } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopService, userService, authService, packageService, branchService, bankAccountService } from '../services/supabaseApi'
 
@@ -23,9 +23,18 @@ export default function ShopSettingsPage() {
   const [shopForm, setShopForm] = useState({ name: '', phone: '', packageId: '' })
   const [allPackages, setAllPackages] = useState([])
   const [showPackageSelector, setShowPackageSelector] = useState(false)
+  const [expandedBranchIds, setExpandedBranchIds] = useState(new Set())
 
   const refreshBranches = async () => {
-    if (user?.shopId) setBranches(await branchService.getByShop(user.shopId))
+    if (user?.shopId) {
+      const list = await branchService.getByShop(user.shopId)
+      setBranches(list)
+      setExpandedBranchIds(prev => {
+        const next = new Set(prev)
+        list.forEach(b => next.add(b.id))
+        return next
+      })
+    }
   }
 
   const refreshBankAccounts = async () => {
@@ -35,6 +44,15 @@ export default function ShopSettingsPage() {
   const refreshPackages = async () => {
     const data = await packageService.getAll()
     setAllPackages(data.filter(p => p.isVisible !== false))
+  }
+
+  const toggleBranch = (id) => {
+    setExpandedBranchIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   useEffect(() => {
@@ -338,138 +356,160 @@ export default function ShopSettingsPage() {
           </div>
         )}
 
-        {/* Branch Management */}
+        {/* Branches & Members (Unified) */}
         {user?.role === 'owner' && (
           <div className="bg-white rounded-2xl border border-slate-100 p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
-                <MapPin size={20} className="text-primary-600" />
-                <h3 className="font-semibold text-slate-800">สาขา ({branches.length})</h3>
+                <Building2 size={20} className="text-primary-600" />
+                <div>
+                  <h3 className="font-semibold text-slate-800">สาขาและสมาชิก</h3>
+                  <p className="text-xs text-slate-400">{branches.length} สาขา · {staff.length + 1} คน (รวมเจ้าของ)</p>
+                </div>
               </div>
               <button
                 onClick={() => setShowAddBranch(true)}
                 className="flex items-center space-x-1 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-xl text-sm font-medium"
               >
                 <Plus size={16} />
-                <span>เพิ่ม</span>
-              </button>
-            </div>
-            <div className="space-y-2">
-              {branches.map(b => (
-                <div key={b.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
-                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                    <Store size={18} className="text-primary-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{b.name}</p>
-                    <p className="text-xs text-slate-400 truncate">{b.address || '-'}</p>
-                    <p className="text-xs text-slate-400 truncate">
-                      บัญชี: {bankAccounts.find(a => a.id === b.bankAccountId)?.name || 'ไม่ระบุ'}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => setEditingBranch(b)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-300 hover:text-primary-500"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                    {branches.length > 1 && (
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`ลบ ${b.name}?`)) return
-                          try {
-                            await branchService.remove(b.id)
-                            await authService.logActivity('DELETE_BRANCH', `ลบสาขา ${b.name}`)
-                            await refreshBranches()
-                          } catch (err) {
-                            alert('ลบสาขาไม่สำเร็จ: ' + err.message)
-                          }
-                        }}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Staff Management */}
-        {user?.role === 'owner' && (
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <Users size={20} className="text-primary-600" />
-                <h3 className="font-semibold text-slate-800">พนักงาน ({staff.length})</h3>
-              </div>
-              <button
-                onClick={() => setShowAddStaff(true)}
-                className="flex items-center space-x-1 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-xl text-sm font-medium"
-              >
-                <Plus size={16} />
-                <span>เพิ่ม</span>
+                <span>เพิ่มสาขา</span>
               </button>
             </div>
 
-            <div className="space-y-2">
-              {/* Owner */}
+            <div className="space-y-3">
+              {/* Owner card (always visible) */}
               <div className="flex items-center space-x-3 p-3 bg-primary-50 rounded-xl border border-primary-100">
                 <div className="w-10 h-10 bg-primary-200 rounded-full flex items-center justify-center">
                   <Shield size={18} className="text-primary-700" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800">{user.name}</p>
-                  <p className="text-xs text-slate-400">เจ้าของร้าน · {user.email}</p>
+                  <p className="text-xs text-slate-400 truncate">{user.email}</p>
                 </div>
                 <span className="px-2.5 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded-lg">Owner</span>
               </div>
 
-              {staff.map(s => (
-                <div key={s.id} className="p-3 bg-slate-50 rounded-xl space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
-                      <User size={18} className="text-slate-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
-                      <p className="text-xs text-slate-400 truncate">{s.email}</p>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={() => setEditingStaff(s)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-300 hover:text-primary-500"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleRemoveStaff(s.id, s.name)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+              {/* Branch cards with grouped staff */}
+              {branches.map(b => {
+                const branchStaff = staff.filter(s => s.branchId === b.id)
+                const isOpen = expandedBranchIds.has(b.id)
+                const bank = bankAccounts.find(a => a.id === b.bankAccountId)
+                return (
+                  <div key={b.id} className="border border-slate-100 rounded-2xl overflow-hidden">
+                    {/* Branch Header */}
+                    <button
+                      onClick={() => toggleBranch(b.id)}
+                      className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                    >
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div className="w-9 h-9 bg-primary-100 rounded-lg flex items-center justify-center shrink-0">
+                          <Store size={18} className="text-primary-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate">{b.name}</p>
+                          <p className="text-xs text-slate-400 truncate">{branchStaff.length} คน · {b.address || 'ไม่มีที่อยู่'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1 shrink-0 ml-2">
+                        <button
+                          onClick={e => { e.stopPropagation(); setEditingBranch(b) }}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-300 hover:text-primary-500"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        {branches.length > 1 && (
+                          <button
+                            onClick={async e => {
+                              e.stopPropagation()
+                              if (!confirm(`ลบสาขา "${b.name}"?\nพนักงาน ${branchStaff.length} คนจะยังคงอยู่แต่ต้องย้ายสาขาใหม่`)) return
+                              try {
+                                await branchService.remove(b.id)
+                                await authService.logActivity('DELETE_BRANCH', `ลบสาขา ${b.name}`)
+                                await refreshBranches()
+                              } catch (err) {
+                                alert('ลบสาขาไม่สำเร็จ: ' + err.message)
+                              }
+                            }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-300 hover:text-red-500"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                        {isOpen ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+                      </div>
+                    </button>
+
+                    {/* Expanded Content */}
+                    {isOpen && (
+                      <div className="p-4 space-y-3 border-t border-slate-50">
+                        {/* Branch info */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                          {b.phone && <span>📞 {b.phone}</span>}
+                          {bank && <span>🏦 บัญชี: {bank.name}</span>}
+                        </div>
+
+                        {/* Add staff button */}
+                        <button
+                          onClick={() => {
+                            setNewStaff({ name: '', email: '', password: '', branchId: b.id })
+                            setShowAddStaff(true)
+                          }}
+                          className="flex items-center space-x-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium"
+                        >
+                          <UserPlus size={16} />
+                          <span>เพิ่มสมาชิกในสาขานี้</span>
+                        </button>
+
+                        {/* Staff list */}
+                        {branchStaff.length === 0 ? (
+                          <p className="text-sm text-slate-300 text-center py-2">ยังไม่มีสมาชิกในสาขานี้</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {branchStaff.map(s => (
+                              <div key={s.id} className="bg-slate-50 rounded-xl p-3 space-y-2">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-9 h-9 bg-slate-200 rounded-full flex items-center justify-center">
+                                    <User size={16} className="text-slate-500" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
+                                    <p className="text-xs text-slate-400 truncate">{s.email}</p>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <button
+                                      onClick={() => setEditingStaff(s)}
+                                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-300 hover:text-primary-500"
+                                    >
+                                      <Edit3 size={16} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleRemoveStaff(s.id, s.name)}
+                                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-300 hover:text-red-500"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2 ml-12">
+                                  <label className="flex items-center space-x-2 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={s.canManageInventory ?? true}
+                                      onChange={() => toggleStaffPermission(s, 'canManageInventory')}
+                                      className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                                    />
+                                    <span className="text-xs text-slate-600">จัดการสินค้า/สต็อก</span>
+                                  </label>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center space-x-2 pl-13">
-                    <span className="text-xs text-slate-400">
-                      สาขา: {branches.find(b => b.id === s.branchId)?.name || '-'}
-                    </span>
-                    <span className="text-slate-300">·</span>
-                    <label className="flex items-center space-x-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={s.canManageInventory ?? true}
-                        onChange={() => toggleStaffPermission(s, 'canManageInventory')}
-                        className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                      />
-                      <span className="text-xs text-slate-600">จัดการสินค้า/สต็อก</span>
-                    </label>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
