@@ -57,6 +57,31 @@ export default function InventoryPage() {
     }
   }, [user?.branchId])
 
+  const handleBarcodeInput = useCallback(async (code) => {
+    setForm(prev => ({ ...prev, barcode: code }))
+    if (!code || code.length < 3) {
+      setCentralProduct(null)
+      return
+    }
+    if (isStandardBarcode(code)) {
+      const central = await productService.getByBarcode(code)
+      if (central) {
+        setCentralProduct(central)
+        setForm(prev => ({
+          ...prev,
+          name: prev.name || central.name,
+          category: prev.category || central.category,
+          unit: prev.unit || central.unit,
+          imageUrl: prev.imageUrl || central.imageUrl,
+        }))
+      } else {
+        setCentralProduct(null)
+      }
+    } else {
+      setCentralProduct(null)
+    }
+  }, [])
+
   useEffect(() => {
     if (!showScanner) return
     let stream = null
@@ -214,31 +239,6 @@ export default function InventoryPage() {
       alert('เกิดข้อผิดพลาด: ' + err.message)
     }
   }
-
-  const handleBarcodeInput = useCallback(async (code) => {
-    setForm(prev => ({ ...prev, barcode: code }))
-    if (!code || code.length < 3) {
-      setCentralProduct(null)
-      return
-    }
-    if (isStandardBarcode(code)) {
-      const central = await productService.getByBarcode(code)
-      if (central) {
-        setCentralProduct(central)
-        setForm(prev => ({
-          ...prev,
-          name: prev.name || central.name,
-          category: prev.category || central.category,
-          unit: prev.unit || central.unit,
-          imageUrl: prev.imageUrl || central.imageUrl,
-        }))
-      } else {
-        setCentralProduct(null)
-      }
-    } else {
-      setCentralProduct(null)
-    }
-  }, [])
 
   const handleDelete = async (id) => {
     if (!confirm('ยืนยันลบสินค้านี้?')) return
