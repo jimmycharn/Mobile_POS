@@ -167,6 +167,20 @@ export default function ShopSettingsPage() {
           </div>
         </div>
 
+        {/* Owner card — below shop info */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-primary-200 rounded-full flex items-center justify-center">
+              <Shield size={18} className="text-primary-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-800">{user.name}</p>
+              <p className="text-xs text-slate-400 truncate">{user.email}</p>
+            </div>
+            <span className="px-2.5 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded-lg">เจ้าของร้าน</span>
+          </div>
+        </div>
+
         {/* Edit Shop Modal */}
         {editingShop && (
           <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
@@ -377,18 +391,6 @@ export default function ShopSettingsPage() {
             </div>
 
             <div className="space-y-3">
-              {/* Owner card (always visible) */}
-              <div className="flex items-center space-x-3 p-3 bg-primary-50 rounded-xl border border-primary-100">
-                <div className="w-10 h-10 bg-primary-200 rounded-full flex items-center justify-center">
-                  <Shield size={18} className="text-primary-700" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800">{user.name}</p>
-                  <p className="text-xs text-slate-400 truncate">{user.email}</p>
-                </div>
-                <span className="px-2.5 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded-lg">Owner</span>
-              </div>
-
               {/* Branch cards with grouped staff */}
               {branches.map(b => {
                 const branchStaff = staff.filter(s => s.branchId === b.id)
