@@ -216,7 +216,8 @@ export const productService = {
     return toCamel(data)
   },
   async create(product) {
-    const { data } = await supabase.from('products').insert(toSnake(product)).select().single()
+    const { data, error } = await supabase.from('products').insert(toSnake(product)).select().single()
+    if (error) throw new Error(error.message)
     return toCamel(data)
   },
   async update(id, changes) {

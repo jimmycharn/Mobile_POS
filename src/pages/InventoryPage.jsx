@@ -176,14 +176,8 @@ export default function InventoryPage() {
           // Standard product: link to central
           let central = centralProduct || await productService.getByBarcode(form.barcode)
           if (!central) {
-            // Create in central first
-            central = await productService.create({
-              barcode: form.barcode,
-              name: form.name,
-              category: form.category || 'ทั่วไป',
-              unit: form.unit || 'ชิ้น',
-              imageUrl: form.imageUrl || '',
-            })
+            alert('สินค้านี้ยังไม่มีในคลังกลาง กรุณาติดต่อผู้ดูแลระบบให้เพิ่มสินค้าก่อน')
+            return
           }
 
           const payload = {
