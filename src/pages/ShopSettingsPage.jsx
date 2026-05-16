@@ -372,8 +372,8 @@ export default function ShopSettingsPage() {
 
         {/* Branches & Members (Unified) */}
         {user?.role === 'owner' && (
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-2xl border border-slate-100 px-2 py-5">
+            <div className="flex items-center justify-between mb-4 px-3">
               <div className="flex items-center space-x-3">
                 <Building2 size={20} className="text-primary-600" />
                 <div>
