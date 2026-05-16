@@ -587,10 +587,26 @@ export default function InventoryPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">หมวดหมู่</label>
-                  <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} list="cats" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
-                  <datalist id="cats">
-                    {categories.map(c => <option key={c} value={c} />)}
-                  </datalist>
+                  <select
+                    value={form.category}
+                    onChange={e => {
+                      const val = e.target.value
+                      if (val === '__add_new__') {
+                        setShowCategoryModal(true)
+                        setNewCategoryName('')
+                      } else {
+                        setForm({...form, category: val})
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white appearance-none"
+                  >
+                    <option value="">เลือกหมวดหมู่</option>
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    {form.category && !categories.includes(form.category) && (
+                      <option value={form.category}>{form.category}</option>
+                    )}
+                    <option value="__add_new__">+ เพิ่มหมวดหมู่ใหม่</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">หน่วย</label>
@@ -747,8 +763,8 @@ export default function InventoryPage() {
 
       {/* Category Management Modal */}
       {showCategoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col animate-scale-in my-auto">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-800">จัดการหมวดหมู่</h2>
               <button onClick={() => setShowCategoryModal(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
@@ -795,20 +811,22 @@ export default function InventoryPage() {
                   className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
                   onKeyDown={e => {
                     if (e.key === 'Enter' && newCategoryName.trim()) {
-                      setForm(prev => ({ ...prev, category: newCategoryName.trim() }))
+                      const trimmed = newCategoryName.trim()
+                      setCategories(prev => [...new Set([...prev, trimmed])])
+                      setForm(prev => ({ ...prev, category: trimmed }))
                       setNewCategoryName('')
                       setShowCategoryModal(false)
-                      setShowForm(true)
                     }
                   }}
                 />
                 <button
                   onClick={() => {
                     if (!newCategoryName.trim()) return
-                    setForm(prev => ({ ...prev, category: newCategoryName.trim() }))
+                    const trimmed = newCategoryName.trim()
+                    setCategories(prev => [...new Set([...prev, trimmed])])
+                    setForm(prev => ({ ...prev, category: trimmed }))
                     setNewCategoryName('')
                     setShowCategoryModal(false)
-                    setShowForm(true)
                   }}
                   disabled={!newCategoryName.trim()}
                   className="px-4 py-2.5 rounded-xl bg-primary-600 disabled:bg-slate-200 text-white text-sm font-medium transition-colors"
@@ -816,7 +834,7 @@ export default function InventoryPage() {
                   เพิ่ม
                 </button>
               </div>
-              <p className="text-xs text-slate-400 text-center">กด Enter หรือปุ่ม "เพิ่ม" เพื่อสร้างหมวดหมู่และไปเพิ่มสินค้า</p>
+              <p className="text-xs text-slate-400 text-center">กด Enter หรือปุ่ม "เพิ่ม" เพื่อสร้างหมวดหมู่ใหม่</p>
             </div>
           </div>
         </div>
