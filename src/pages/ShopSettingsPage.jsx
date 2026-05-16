@@ -377,7 +377,7 @@ export default function ShopSettingsPage() {
               <div className="flex items-center space-x-3">
                 <Building2 size={20} className="text-primary-600" />
                 <div>
-                  <h3 className="font-semibold text-slate-800">สาขาและสมาชิก</h3>
+                  <h3 className="font-semibold text-slate-800">สาขาและพนักงาน</h3>
                   <p className="text-xs text-slate-400">{branches.length} สาขา · {staff.length + 1} คน (รวมเจ้าของ)</p>
                 </div>
               </div>
@@ -459,12 +459,12 @@ export default function ShopSettingsPage() {
                           className="flex items-center space-x-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium"
                         >
                           <UserPlus size={16} />
-                          <span>เพิ่มสมาชิกในสาขานี้</span>
+                          <span>เพิ่มพนักงานในสาขานี้</span>
                         </button>
 
                         {/* Staff list */}
                         {branchStaff.length === 0 ? (
-                          <p className="text-sm text-slate-300 text-center py-2">ยังไม่มีสมาชิกในสาขานี้</p>
+                          <p className="text-sm text-slate-300 text-center py-2">ยังไม่มีพนักงานในสาขานี้</p>
                         ) : (
                           <div className="space-y-2">
                             {branchStaff.map(s => (
