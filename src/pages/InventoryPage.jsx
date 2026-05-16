@@ -427,7 +427,7 @@ export default function InventoryPage() {
       )}
 
       {/* Product List */}
-      <div className="p-4 md:p-6">
+      <div className="p-4 md:p-6 pb-20 md:pb-6">
         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
