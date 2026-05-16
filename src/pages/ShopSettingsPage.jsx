@@ -32,6 +32,11 @@ export default function ShopSettingsPage() {
     if (user?.shopId) setBankAccounts(await bankAccountService.getByShop(user.shopId))
   }
 
+  const refreshPackages = async () => {
+    const data = await packageService.getAll()
+    setAllPackages(data.filter(p => p.isVisible !== false))
+  }
+
   useEffect(() => {
     const load = async () => {
       if (user?.shopId) {
@@ -45,8 +50,15 @@ export default function ShopSettingsPage() {
       }
     }
     load()
-    packageService.getAll().then(data => setAllPackages(data.filter(p => p.isVisible !== false)))
+    refreshPackages()
+    const onFocus = () => refreshPackages()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [user])
+
+  useEffect(() => {
+    if (showPackageSelector) refreshPackages()
+  }, [showPackageSelector])
 
   const handleAddStaff = async () => {
     try {

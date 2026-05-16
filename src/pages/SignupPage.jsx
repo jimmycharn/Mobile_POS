@@ -20,14 +20,23 @@ export default function SignupPage() {
   const { signup } = useAuth()
   const navigate = useNavigate()
 
-  useEffect(() => {
-    packageService.getAll().then(data => {
-      const visible = data.filter(p => p.isVisible !== false)
-      setPackages(visible)
-      if (visible.length > 0) {
-        setForm(prev => ({ ...prev, packageId: visible[0].id }))
+  const refreshPackages = async () => {
+    const data = await packageService.getAll()
+    const visible = data.filter(p => p.isVisible !== false)
+    setPackages(prev => {
+      // only update packageId default if packages list was empty before
+      if (prev.length === 0 && visible.length > 0) {
+        setForm(f => ({ ...f, packageId: visible[0].id }))
       }
+      return visible
     })
+  }
+
+  useEffect(() => {
+    refreshPackages()
+    const onFocus = () => refreshPackages()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
   const handleChange = (e) => {
