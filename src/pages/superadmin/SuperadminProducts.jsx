@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode, Sparkles, FolderOpen, Trash2 } from 'lucide-react'
-import { productService } from '../../services/supabaseApi'
+import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode, Sparkles, FolderOpen, Trash2, Camera as CameraIcon } from 'lucide-react'
+import { productService, shopProductService, storageService } from '../../services/supabaseApi'
 import { lookupProductByBarcode } from '../../services/aiService'
 
 export default function SuperadminProducts() {
@@ -8,7 +8,7 @@ export default function SuperadminProducts() {
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '' })
+  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', imageUrl: '' })
   const [scanningBarcode, setScanningBarcode] = useState(false)
   const [useAi, setUseAi] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
@@ -57,6 +57,31 @@ export default function SuperadminProducts() {
                   setScanningBarcode(false)
                   if (useAi && code.length >= 8) {
                     runAiLookup(code)
+                  } else if (!useAi && code.length >= 8) {
+                    // Fallback: search existing products
+                    (async () => {
+                      const central = await productService.getByBarcode(code)
+                      if (central) {
+                        setForm(f => ({
+                          ...f, barcode: code,
+                          name: central.name || f.name,
+                          category: central.category || f.category,
+                          unit: central.unit || f.unit,
+                          imageUrl: central.imageUrl || f.imageUrl,
+                        }))
+                        return
+                      }
+                      const shopProd = await shopProductService.getByBarcode(code)
+                      if (shopProd) {
+                        setForm(f => ({
+                          ...f, barcode: code,
+                          name: shopProd.name || f.name,
+                          category: shopProd.category || f.category,
+                          unit: shopProd.unit || f.unit,
+                          imageUrl: shopProd.imageUrl || f.imageUrl,
+                        }))
+                      }
+                    })()
                   }
                   return
                 }
@@ -101,10 +126,39 @@ export default function SuperadminProducts() {
     }
   }
 
-  const handleBarcodeChange = (code) => {
+  const handleBarcodeChange = async (code) => {
     setForm(f => ({ ...f, barcode: code }))
     if (useAi && code.length >= 8) {
       runAiLookup(code)
+      return
+    }
+    // Fallback: search existing products when AI is off
+    if (!useAi && code.length >= 8) {
+      // Search central products first
+      const central = await productService.getByBarcode(code)
+      if (central) {
+        setForm(f => ({
+          ...f,
+          barcode: code,
+          name: central.name || f.name,
+          category: central.category || f.category,
+          unit: central.unit || f.unit,
+          imageUrl: central.imageUrl || f.imageUrl,
+        }))
+        return
+      }
+      // Then search shop products
+      const shopProd = await shopProductService.getByBarcode(code)
+      if (shopProd) {
+        setForm(f => ({
+          ...f,
+          barcode: code,
+          name: shopProd.name || f.name,
+          category: shopProd.category || f.category,
+          unit: shopProd.unit || f.unit,
+          imageUrl: shopProd.imageUrl || f.imageUrl,
+        }))
+      }
     }
   }
 
@@ -116,13 +170,13 @@ export default function SuperadminProducts() {
       await productService.create(form)
     }
     setShowForm(false)
-    setForm({ name: '', barcode: '', category: '', unit: '' })
+    setForm({ name: '', barcode: '', category: '', unit: '', imageUrl: '' })
     await refresh()
   }
 
   const handleEdit = (p) => {
     setEditingId(p.id)
-    setForm({ name: p.name, barcode: p.barcode, category: p.category, unit: p.unit })
+    setForm({ name: p.name, barcode: p.barcode, category: p.category, unit: p.unit, imageUrl: p.imageUrl || '' })
     setShowForm(true)
   }
 
@@ -226,9 +280,13 @@ export default function SuperadminProducts() {
                   <tr key={p.id} className="hover:bg-slate-50/50">
                     <td className="px-5 py-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center">
-                          <Package size={16} className="text-slate-400" />
-                        </div>
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="w-9 h-9 rounded-lg object-cover border border-slate-100" />
+                        ) : (
+                          <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center">
+                            <Package size={16} className="text-slate-400" />
+                          </div>
+                        )}
                         <p className="text-sm font-medium text-slate-800">{p.name}</p>
                       </div>
                     </td>
@@ -299,9 +357,55 @@ export default function SuperadminProducts() {
               <input placeholder="ชื่อสินค้า" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
               <input placeholder="หมวดหมู่" value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
               <input placeholder="หน่วย (เช่น ขวด, ซอง)" value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+              {/* Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">รูปสินค้า</label>
+                <div className="flex items-center space-x-3">
+                  {form.imageUrl && form.imageUrl !== 'uploading...' && (
+                    <div className="relative shrink-0">
+                      <img src={form.imageUrl} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                      <button
+                        onClick={() => setForm({ ...form, imageUrl: '' })}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px]"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  )}
+                  {form.imageUrl === 'uploading...' && (
+                    <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <span className="text-xs text-slate-400">กำลังอัปโหลด...</span>
+                    </div>
+                  )}
+                  <label className="flex-1 cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async e => {
+                        const file = e.target.files[0]
+                        if (!file) return
+                        try {
+                          setForm(prev => ({ ...prev, imageUrl: 'uploading...' }))
+                          const url = await storageService.uploadProductImage(file, 'central')
+                          setForm(prev => ({ ...prev, imageUrl: url }))
+                        } catch (err) {
+                          console.error('upload error:', err)
+                          alert('อัปโหลดรูปไม่สำเร็จ: ' + err.message)
+                          setForm(prev => ({ ...prev, imageUrl: '' }))
+                        }
+                      }}
+                    />
+                    <div className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 hover:border-primary-400 hover:bg-primary-50 transition-colors">
+                      <CameraIcon size={18} className="text-slate-400" />
+                      <span className="text-sm text-slate-500">เลือกรูป</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
             <div className="flex space-x-3 mt-5">
-              <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '' }); setScanningBarcode(false) }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+              <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '', imageUrl: '' }); setScanningBarcode(false) }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
               <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm">บันทึก</button>
             </div>
           </div>

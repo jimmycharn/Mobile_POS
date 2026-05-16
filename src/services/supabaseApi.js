@@ -222,6 +222,10 @@ export const productService = {
   async remove(id) {
     await supabase.from('products').delete().eq('id', id)
   },
+  async getByBarcode(barcode) {
+    const { data } = await supabase.from('products').select('*').eq('barcode', barcode).maybeSingle()
+    return toCamel(data)
+  },
 }
 
 // ============================================================
@@ -260,6 +264,10 @@ export const shopProductService = {
       .eq('shop_id', shopId)
       .ilike('name', `%${query}%`)
     return toCamel(data) || []
+  },
+  async getByBarcode(barcode) {
+    const { data } = await supabase.from('shop_products').select('*').eq('barcode', barcode).limit(1)
+    return toCamel(data?.[0])
   },
 }
 
