@@ -22,9 +22,10 @@ export default function SignupPage() {
 
   useEffect(() => {
     packageService.getAll().then(data => {
-      setPackages(data)
-      if (data.length > 0) {
-        setForm(prev => ({ ...prev, packageId: data[0].id }))
+      const visible = data.filter(p => p.isVisible !== false)
+      setPackages(visible)
+      if (visible.length > 0) {
+        setForm(prev => ({ ...prev, packageId: visible[0].id }))
       }
     })
   }, [])

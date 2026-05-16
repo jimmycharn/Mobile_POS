@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2, TrendingUp, ShoppingBag, DollarSign, Calendar, CreditCard, Wallet } from 'lucide-react'
+import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2, TrendingUp, ShoppingBag, DollarSign, Calendar, CreditCard, Wallet, X, Eye } from 'lucide-react'
 import { logService, shopService, branchService, packageService, saleService } from '../../services/supabaseApi'
 import { format, parseISO, startOfDay, endOfDay, subDays, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
 
@@ -31,6 +31,8 @@ export default function SuperadminShopDetail() {
   const [selectedBranchId, setSelectedBranchId] = useState('all')
   const [branchOpen, setBranchOpen] = useState(false)
   const [pkgName, setPkgName] = useState('-')
+  const [packages, setPackages] = useState([])
+  const [showPackageSelector, setShowPackageSelector] = useState(false)
   const [sales, setSales] = useState([])
   const [reportRange, setReportRange] = useState('7') // 'today', '7', 'month', 'custom'
   const [customStart, setCustomStart] = useState(format(subDays(new Date(), 6), 'yyyy-MM-dd'))
@@ -57,10 +59,14 @@ export default function SuperadminShopDetail() {
 
   useEffect(() => {
     const load = async () => {
-      const s = await shopService.getById(shopId)
+      const [s, pkgList] = await Promise.all([
+        shopService.getById(shopId),
+        packageService.getAll(),
+      ])
       setShop(s)
+      setPackages(pkgList)
       if (s?.packageId) {
-        const pkg = await packageService.getById(s.packageId)
+        const pkg = pkgList.find(p => p.id === s.packageId)
         setPkgName(pkg?.name || '-')
       }
       const branchList = await branchService.getByShop(shopId)
@@ -225,10 +231,14 @@ export default function SuperadminShopDetail() {
             <p className="text-slate-400 text-xs mb-1">วันที่สมัคร</p>
             <p className="font-bold text-slate-800">{shop?.createdAt ? format(parseISO(shop.createdAt), 'dd MMM yyyy') : '-'}</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-100 p-4">
+          <button
+            onClick={() => setShowPackageSelector(true)}
+            className="bg-white rounded-xl border border-slate-100 p-4 text-left hover:border-primary-200 transition-colors"
+          >
             <p className="text-slate-400 text-xs mb-1">แพ็คเกจ</p>
             <p className="font-bold text-primary-600">{pkgName}</p>
-          </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">กดเพื่อเปลี่ยน</p>
+          </button>
         </div>
 
         {/* Sales Report Summary */}
@@ -467,6 +477,54 @@ export default function SuperadminShopDetail() {
               >
                 ยืนยัน
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Package Selector Modal */}
+      {showPackageSelector && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-5 animate-scale-in my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800">เลือกแพ็คเกจ</h3>
+              <button onClick={() => setShowPackageSelector(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {packages.map(p => {
+                const isCurrent = p.id === shop?.packageId
+                return (
+                  <div key={p.id} className={`border-2 rounded-2xl p-4 ${isCurrent ? 'border-primary-500 bg-primary-50/50' : 'border-slate-100'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-bold text-slate-800">{p.name}</h4>
+                      <span className="text-lg font-bold text-primary-600">
+                        {p.price === 0 ? 'ฟรี' : `฿${p.price.toLocaleString()}/เดือน`}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-4 text-xs text-slate-500 mb-3">
+                      <span>พนักงานสูงสุด {p.maxUsers || '-'} คน</span>
+                      <span>สินค้าสูงสุด {p.maxProducts || '-'} รายการ</span>
+                    </div>
+                    {isCurrent ? (
+                      <span className="inline-block px-4 py-2 rounded-xl bg-primary-100 text-primary-700 text-sm font-medium">แพ็คเกจปัจจุบัน</span>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          await shopService.update(shopId, { packageId: p.id })
+                          setPkgName(p.name)
+                          setShop(prev => ({ ...prev, packageId: p.id }))
+                          setShowPackageSelector(false)
+                        }}
+                        className="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium"
+                      >
+                        เลือกแพ็คเกจนี้
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>

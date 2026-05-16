@@ -421,6 +421,20 @@ export const packageService = {
     const { data } = await supabase.from('packages').select('*').eq('id', id).single()
     return toCamel(data)
   },
+  async create(pkg) {
+    const { data, error } = await supabase.from('packages').insert(toSnake(pkg)).select().single()
+    if (error) throw new Error(error.message)
+    return toCamel(data)
+  },
+  async update(id, changes) {
+    const { data, error } = await supabase.from('packages').update(toSnake(changes)).eq('id', id).select().single()
+    if (error) throw new Error(error.message)
+    return toCamel(data)
+  },
+  async remove(id) {
+    const { error } = await supabase.from('packages').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+  },
 }
 
 // ============================================================

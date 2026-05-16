@@ -45,7 +45,7 @@ export default function ShopSettingsPage() {
       }
     }
     load()
-    packageService.getAll().then(setAllPackages)
+    packageService.getAll().then(data => setAllPackages(data.filter(p => p.isVisible !== false)))
   }, [user])
 
   const handleAddStaff = async () => {
