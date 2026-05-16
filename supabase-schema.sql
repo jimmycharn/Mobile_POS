@@ -274,30 +274,66 @@ DROP POLICY IF EXISTS "Branches delete policy" ON branches;
 CREATE POLICY "Branches delete policy" ON branches
   FOR DELETE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
--- Products (global)
+-- Products (global / central warehouse)
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Products read all" ON products;
 CREATE POLICY "Products read all" ON products FOR SELECT USING (true);
+-- Drop legacy combined policy if exists
 DROP POLICY IF EXISTS "Products superadmin write" ON products;
-CREATE POLICY "Products superadmin write" ON products
-  FOR ALL USING (get_my_role() = 'superadmin');
+-- Allow any authenticated user to contribute new standard products to central warehouse
+DROP POLICY IF EXISTS "Products insert authenticated" ON products;
+CREATE POLICY "Products insert authenticated" ON products
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() IS NOT NULL);
+-- Only superadmin can edit central products
+DROP POLICY IF EXISTS "Products superadmin update" ON products;
+CREATE POLICY "Products superadmin update" ON products
+  FOR UPDATE USING (get_my_role() = 'superadmin')
+  WITH CHECK (get_my_role() = 'superadmin');
+DROP POLICY IF EXISTS "Products superadmin delete" ON products;
+CREATE POLICY "Products superadmin delete" ON products
+  FOR DELETE USING (get_my_role() = 'superadmin');
 
 -- Shop products
 ALTER TABLE shop_products ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Shop products read policy" ON shop_products;
 CREATE POLICY "Shop products read policy" ON shop_products
-  FOR SELECT USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+  FOR SELECT USING (
+    shop_id = get_my_shop_id()
+    OR branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR get_my_role() = 'superadmin'
+  );
 DROP POLICY IF EXISTS "Shop products write policy" ON shop_products;
 DROP POLICY IF EXISTS "Shop products insert policy" ON shop_products;
 CREATE POLICY "Shop products insert policy" ON shop_products
-  FOR INSERT WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+  FOR INSERT WITH CHECK (
+    shop_id = get_my_shop_id()
+    OR branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR auth.uid() = (SELECT owner_id FROM shops WHERE id = shop_id)
+    OR get_my_role() = 'superadmin'
+  );
 DROP POLICY IF EXISTS "Shop products update policy" ON shop_products;
 CREATE POLICY "Shop products update policy" ON shop_products
-  FOR UPDATE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin')
-  WITH CHECK (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+  FOR UPDATE USING (
+    shop_id = get_my_shop_id()
+    OR branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR auth.uid() = (SELECT owner_id FROM shops WHERE id = shop_id)
+    OR get_my_role() = 'superadmin'
+  )
+  WITH CHECK (
+    shop_id = get_my_shop_id()
+    OR branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR auth.uid() = (SELECT owner_id FROM shops WHERE id = shop_id)
+    OR get_my_role() = 'superadmin'
+  );
 DROP POLICY IF EXISTS "Shop products delete policy" ON shop_products;
 CREATE POLICY "Shop products delete policy" ON shop_products
-  FOR DELETE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
+  FOR DELETE USING (
+    shop_id = get_my_shop_id()
+    OR branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR auth.uid() = (SELECT owner_id FROM shops WHERE id = shop_id)
+    OR get_my_role() = 'superadmin'
+  );
 
 -- Sales
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;

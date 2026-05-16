@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag } from 'lucide-react'
+import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, productService, authService, branchService, storageService } from '../services/supabaseApi'
 import { isStandardBarcode } from '../utils/barcode'
@@ -27,6 +27,9 @@ export default function InventoryPage() {
   const [branchName, setBranchName] = useState('สาขาหลัก')
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
+  const [catDropdownOpen, setCatDropdownOpen] = useState(false)
+  const [newCategory, setNewCategory] = useState('')
+  const catDropdownRef = useRef(null)
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
 
@@ -56,6 +59,16 @@ export default function InventoryPage() {
       branchService.getById(user.branchId).then(b => { if (b?.name) setBranchName(b.name) })
     }
   }, [user?.branchId])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (catDropdownRef.current && !catDropdownRef.current.contains(e.target)) {
+        setCatDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleBarcodeInput = useCallback(async (code) => {
     setForm(prev => ({ ...prev, barcode: code }))
@@ -140,6 +153,14 @@ export default function InventoryPage() {
 
   const handleSave = async () => {
     try {
+      if (!user?.shopId) {
+        alert('ไม่พบข้อมูลร้านค้า กรุณาออกจากระบบและเข้าสู่ระบบใหม่')
+        return
+      }
+      if (!user?.branchId) {
+        alert('ไม่พบข้อมูลสาขา กรุณาเลือกสาขาก่อน')
+        return
+      }
       if (selectedProduct) {
         // Editing existing shop product
         const updates = {
@@ -173,11 +194,25 @@ export default function InventoryPage() {
         const std = isStandardBarcode(form.barcode)
 
         if (std) {
-          // Standard product: link to central
+          // Standard product: link to central, auto-contribute if not exists
           let central = centralProduct || await productService.getByBarcode(form.barcode)
           if (!central) {
-            alert('สินค้านี้ยังไม่มีในคลังกลาง กรุณาติดต่อผู้ดูแลระบบให้เพิ่มสินค้าก่อน')
-            return
+            // Auto-add to central warehouse so other shops can reuse this barcode
+            try {
+              central = await productService.create({
+                barcode: form.barcode,
+                name: form.name,
+                category: form.category || 'ทั่วไป',
+                unit: form.unit || 'ชิ้น',
+                imageUrl: form.imageUrl || null,
+                isStandard: true,
+              })
+              await authService.logActivity('CONTRIBUTE_CENTRAL', `เพิ่มสินค้ามาตรฐานเข้าคลังกลาง ${form.name} (${form.barcode})`)
+            } catch (err) {
+              console.error('contribute central error:', err)
+              alert('ไม่สามารถบันทึกสินค้าเข้าคลังกลางได้: ' + err.message)
+              return
+            }
           }
 
           const payload = {
@@ -269,6 +304,10 @@ export default function InventoryPage() {
   }
 
   const handleStockIn = async () => {
+    if (!user?.shopId || !user?.branchId) {
+      alert('ไม่พบข้อมูลร้านค้าหรือสาขา กรุณาออกจากระบบและเข้าสู่ระบบใหม่')
+      return
+    }
     if (!selectedProduct || !stockInQty) return
     const inQty = Number(stockInQty)
     const newStock = selectedProduct.stock + inQty
@@ -291,6 +330,10 @@ export default function InventoryPage() {
   }
 
   const handleStockOut = async () => {
+    if (!user?.shopId || !user?.branchId) {
+      alert('ไม่พบข้อมูลร้านค้าหรือสาขา กรุณาออกจากระบบและเข้าสู่ระบบใหม่')
+      return
+    }
     if (!selectedProduct || !stockOutQty) return
     const qty = Number(stockOutQty)
     if (qty <= 0 || qty > selectedProduct.stock) {
@@ -581,26 +624,102 @@ export default function InventoryPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">หมวดหมู่</label>
-                  <select
-                    value={form.category}
-                    onChange={e => {
-                      const val = e.target.value
-                      if (val === '__add_new__') {
-                        setShowCategoryModal(true)
-                        setNewCategoryName('')
-                      } else {
-                        setForm({...form, category: val})
-                      }
-                    }}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white appearance-none"
-                  >
-                    <option value="">เลือกหมวดหมู่</option>
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                    {form.category && !categories.includes(form.category) && (
-                      <option value={form.category}>{form.category}</option>
+                  <div className="relative" ref={catDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => { setCatDropdownOpen(o => !o); if (!catDropdownOpen) setNewCategory('') }}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm flex items-center justify-between bg-white"
+                    >
+                      <span className={form.category ? 'text-slate-800' : 'text-slate-400'}>
+                        {form.category || 'เลือกหมวดหมู่'}
+                      </span>
+                      <ChevronDown size={16} className={`text-slate-400 transition-transform ${catDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {catDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 shadow-lg z-10 max-h-72 overflow-y-auto animate-scale-in">
+                        {categories.length === 0 ? (
+                          <div className="px-4 py-6 text-center">
+                            <FolderOpen size={32} className="text-slate-200 mx-auto mb-2" />
+                            <p className="text-sm text-slate-400">ยังไม่มีหมวดหมู่</p>
+                          </div>
+                        ) : (
+                          <div className="py-1">
+                            {categories.map(cat => {
+                              const count = products.filter(p => p.category === cat).length
+                              return (
+                                <div key={cat} className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 mx-1 rounded-lg">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setForm({...form, category: cat}); setCatDropdownOpen(false) }}
+                                    className="flex-1 text-left text-sm text-slate-700"
+                                  >
+                                    {cat}
+                                  </button>
+                                  <span className="text-xs text-slate-400 mr-2">{count}</span>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (!confirm(`ลบหมวดหมู่ "${cat}"?\nสินค้าในหมวดหมู่นี้จะถูกย้ายไปหมวดหมู่ "ทั่วไป"`)) return
+                                      const all = await shopProductService.getByBranch(user.branchId)
+                                      for (const p of all.filter(p => p.category === cat)) {
+                                        await shopProductService.update(p.id, { category: 'ทั่วไป' })
+                                      }
+                                      setCategories(prev => prev.filter(c => c !== cat))
+                                      if (form.category === cat) setForm({...form, category: ''})
+                                      await refresh()
+                                    }}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                        <div className="p-2 border-t border-slate-100 space-y-2">
+                          <div className="flex space-x-2">
+                            <input
+                              placeholder="หมวดหมู่ใหม่"
+                              value={newCategory}
+                              onChange={e => setNewCategory(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && newCategory.trim()) {
+                                  const trimmed = newCategory.trim()
+                                  setCategories(prev => [...new Set([...prev, trimmed])])
+                                  setForm({...form, category: trimmed})
+                                  setNewCategory('')
+                                  setCatDropdownOpen(false)
+                                }
+                              }}
+                              className="flex-1 px-3 py-2 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!newCategory.trim()) return
+                                const trimmed = newCategory.trim()
+                                setCategories(prev => [...new Set([...prev, trimmed])])
+                                setForm({...form, category: trimmed})
+                                setNewCategory('')
+                                setCatDropdownOpen(false)
+                              }}
+                              className="px-3 py-2 rounded-xl bg-primary-600 text-white"
+                            >
+                              <Plus size={16} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setShowCategoryModal(true); setCatDropdownOpen(false); setNewCategoryName('') }}
+                            className="w-full text-center text-xs text-primary-600 hover:text-primary-700 font-medium py-1"
+                          >
+                            จัดการหมวดหมู่
+                          </button>
+                        </div>
+                      </div>
                     )}
-                    <option value="__add_new__">+ เพิ่มหมวดหมู่ใหม่</option>
-                  </select>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">หน่วย</label>

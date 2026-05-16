@@ -333,6 +333,10 @@ export default function PosPage() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return
+    if (!user?.shopId || !user?.branchId) {
+      alert('ไม่พบข้อมูลร้านค้าหรือสาขา กรุณาออกจากระบบและเข้าสู่ระบบใหม่')
+      return
+    }
 
     // Validate cash payment has enough received amount
     if (paymentMethod === 'cash' && change < 0) {
@@ -1202,6 +1206,10 @@ export default function PosPage() {
                   />
                   <button
                     onClick={async () => {
+                      if (!user?.shopId || !user?.branchId) {
+                        alert('ไม่พบข้อมูลร้านค้าหรือสาขา กรุณาออกจากระบบและเข้าสู่ระบบใหม่')
+                        return
+                      }
                       const price = parseFloat(globalPrice)
                       if (!price || price <= 0) return
                       try {
