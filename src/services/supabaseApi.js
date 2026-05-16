@@ -238,7 +238,10 @@ export const productService = {
 // Merge helper: override fields from shop_products, fallback to products
 function mergeShopProduct(sp) {
   if (!sp) return null
-  const p = sp.products || {}
+  // Supabase may return the FK relation as an array; normalize to a single object
+  let p = sp.products
+  if (Array.isArray(p)) p = p[0] || null
+  p = p || {}
   const merged = {
     ...sp,
     name: sp.name || p.name,

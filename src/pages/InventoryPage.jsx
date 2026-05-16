@@ -30,28 +30,32 @@ export default function InventoryPage() {
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
 
-  useEffect(() => {
-    if (user?.branchId) {
-      refresh()
-      branchService.getById(user.branchId).then(b => { if (b?.name) setBranchName(b.name) })
+  const refresh = useCallback(async () => {
+    if (!user?.branchId) return
+    try {
+      let list = await shopProductService.getByBranch(user.branchId)
+      if (search.trim()) list = list.filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.barcode || '').includes(search))
+      if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
+      if (filter === 'standard') list = list.filter(p => p.isStandard)
+      if (filter === 'custom') list = list.filter(p => !p.isStandard)
+      setProducts(list)
+      setCategories([...new Set(list.map(p => p.category))])
+      setColors([...new Set(list.map(p => p.color).filter(Boolean))])
+      setSizes([...new Set(list.map(p => p.size).filter(Boolean))])
+    } catch (err) {
+      console.error('refresh error:', err)
     }
-  }, [user])
-
-  const refresh = async () => {
-    let list = await shopProductService.getByBranch(user.branchId)
-    if (search.trim()) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
-    if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
-    if (filter === 'standard') list = list.filter(p => p.isStandard)
-    if (filter === 'custom') list = list.filter(p => !p.isStandard)
-    setProducts(list)
-    setCategories([...new Set(list.map(p => p.category))])
-    setColors([...new Set(list.map(p => p.color).filter(Boolean))])
-    setSizes([...new Set(list.map(p => p.size).filter(Boolean))])
-  }
+  }, [user?.branchId, search, filter])
 
   useEffect(() => {
     refresh()
-  }, [search, filter])
+  }, [refresh])
+
+  useEffect(() => {
+    if (user?.branchId) {
+      branchService.getById(user.branchId).then(b => { if (b?.name) setBranchName(b.name) })
+    }
+  }, [user?.branchId])
 
   useEffect(() => {
     if (!showScanner) return
