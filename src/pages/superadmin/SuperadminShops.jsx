@@ -1,22 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Store, Search } from 'lucide-react'
-import { shopService, packageService } from '../../services/supabaseApi'
+import { shopService } from '../../services/supabaseApi'
 
 export default function SuperadminShops() {
   const navigate = useNavigate()
   const [shops, setShops] = useState([])
-  const [packages, setPackages] = useState([])
   const [search, setSearch] = useState('')
 
   useEffect(() => {
     const load = async () => {
-      const [data, pkgs] = await Promise.all([
-        shopService.getAll(),
-        packageService.getAll(),
-      ])
+      const data = await shopService.getAll()
       setShops(data)
-      setPackages(pkgs)
     }
     load()
   }, [])
@@ -55,49 +50,40 @@ export default function SuperadminShops() {
                 <tr>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">ร้านค้า</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">ติดต่อ</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">แพ็คเกจ</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">สถานะ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map(shop => {
-                  const pkg = packages.find(p => p.id === shop.packageId)
-                  return (
-                    <tr
-                      key={shop.id}
-                      onClick={() => navigate(`/superadmin/shops/${shop.id}`)}
-                      className="hover:bg-slate-50/50 cursor-pointer"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
-                            <Store size={18} className="text-primary-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-slate-800">{shop.name}</p>
-                            <p className="text-xs text-slate-400">{formatDate(shop.createdAt)}</p>
-                          </div>
+                {filtered.map(shop => (
+                  <tr
+                    key={shop.id}
+                    onClick={() => navigate(`/superadmin/shops/${shop.id}`)}
+                    className="hover:bg-slate-50/50 cursor-pointer"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+                          <Store size={18} className="text-primary-600" />
                         </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="text-sm text-slate-600">{shop.email}</div>
-                        <div className="text-xs text-slate-400">{shop.phone || '-'}</div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="inline-flex items-center px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-medium rounded-lg">
-                          {pkg?.name || '-'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg ${
-                          shop.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
-                        }`}>
-                          {shop.isActive ? 'ใช้งาน' : 'ปิดการใช้งาน'}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">{shop.name}</p>
+                          <p className="text-xs text-slate-400">{formatDate(shop.createdAt)}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="text-sm text-slate-600">{shop.email}</div>
+                      <div className="text-xs text-slate-400">{shop.phone || '-'}</div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg ${
+                        shop.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                      }`}>
+                        {shop.isActive ? 'ใช้งาน' : 'ปิดการใช้งาน'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

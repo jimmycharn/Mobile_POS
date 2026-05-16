@@ -9,10 +9,9 @@ export default function ShopSettingsPage() {
   const [staff, setStaff] = useState([])
   const [showAddStaff, setShowAddStaff] = useState(false)
   const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', branchId: '' })
-  const [pkg, setPkg] = useState(null)
   const [branches, setBranches] = useState([])
   const [showAddBranch, setShowAddBranch] = useState(false)
-  const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '' })
+  const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', packageId: '' })
   const [editingStaff, setEditingStaff] = useState(null)
   const [bankAccounts, setBankAccounts] = useState([])
   const [showAddBank, setShowAddBank] = useState(false)
@@ -20,9 +19,8 @@ export default function ShopSettingsPage() {
   const [newBank, setNewBank] = useState({ name: '', bankName: '', accountNo: '', accountHolder: '', type: 'bank' })
   const [editingBranch, setEditingBranch] = useState(null)
   const [editingShop, setEditingShop] = useState(false)
-  const [shopForm, setShopForm] = useState({ name: '', phone: '', packageId: '' })
+  const [shopForm, setShopForm] = useState({ name: '', phone: '' })
   const [allPackages, setAllPackages] = useState([])
-  const [showPackageSelector, setShowPackageSelector] = useState(false)
   const [expandedBranchIds, setExpandedBranchIds] = useState(new Set())
 
   const refreshBranches = async () => {
@@ -62,7 +60,6 @@ export default function ShopSettingsPage() {
         setShop(s)
         const staffList = await userService.getByShop(user.shopId)
         setStaff(staffList.filter(u => u.id !== user.id))
-        if (s) setPkg(await packageService.getById(s.packageId))
         await refreshBranches()
         await refreshBankAccounts()
       }
@@ -73,10 +70,6 @@ export default function ShopSettingsPage() {
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [user])
-
-  useEffect(() => {
-    if (showPackageSelector) refreshPackages()
-  }, [showPackageSelector])
 
   const handleAddStaff = async () => {
     try {
@@ -145,7 +138,6 @@ export default function ShopSettingsPage() {
                 setShopForm({
                   name: shop?.name || '',
                   phone: shop?.phone || '',
-                  packageId: shop?.packageId || '',
                 })
                 setEditingShop(true)
               }}
@@ -159,10 +151,9 @@ export default function ShopSettingsPage() {
               <p className="text-slate-400 text-xs mb-1">เบอร์โทร</p>
               <p className="font-medium text-slate-700">{shop?.phone || '-'}</p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3 cursor-pointer hover:bg-primary-50 transition-colors"
-                 onClick={() => setShowPackageSelector(true)}>
-              <p className="text-slate-400 text-xs mb-1">แพ็คเกจ</p>
-              <p className="font-medium text-primary-600">{pkg?.name || '-'} <span className="text-xs text-primary-400">(ดูรายละเอียด)</span></p>
+            <div className="bg-slate-50 rounded-xl p-3">
+              <p className="text-slate-400 text-xs mb-1">จำนวนสาขา</p>
+              <p className="font-medium text-slate-700">{branches.length} สาขา</p>
             </div>
           </div>
         </div>
@@ -208,19 +199,6 @@ export default function ShopSettingsPage() {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">แพ็คเกจ</label>
-                  <select
-                    value={shopForm.packageId}
-                    onChange={e => setShopForm({ ...shopForm, packageId: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
-                  >
-                    <option value="">เลือกแพ็คเกจ</option>
-                    {allPackages.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setEditingShop(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
@@ -230,80 +208,16 @@ export default function ShopSettingsPage() {
                     await shopService.update(user.shopId, {
                       name: shopForm.name.trim(),
                       phone: shopForm.phone,
-                      packageId: shopForm.packageId || null,
                     })
                     await authService.logActivity('EDIT_SHOP', `แก้ไขข้อมูลร้าน ${shopForm.name}`)
                     const s = await shopService.getById(user.shopId)
                     setShop(s)
-                    if (s) setPkg(await packageService.getById(s.packageId))
                     setEditingShop(false)
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
                 >
                   บันทึก
                 </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Package Selector Modal */}
-        {showPackageSelector && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
-            <div className="bg-white rounded-2xl w-full max-w-lg p-6 animate-scale-in my-auto">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-lg font-bold text-slate-800">เลือกแพ็คเกจ</h3>
-                <button onClick={() => setShowPackageSelector(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
-                  <X size={18} />
-                </button>
-              </div>
-              <p className="text-sm text-slate-400 mb-4">เปรียบเทียบและเลือกแพ็คเกจที่เหมาะกับร้านคุณ</p>
-              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-                {allPackages.map(p => {
-                  const isCurrent = p.id === shop?.packageId
-                  return (
-                    <div key={p.id} className={`border-2 rounded-2xl p-4 ${isCurrent ? 'border-primary-500 bg-primary-50/50' : 'border-slate-100'}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-slate-800">{p.name}</h4>
-                        <span className="text-lg font-bold text-primary-600">
-                          {p.price === 0 ? 'ฟรี' : `฿${p.price.toLocaleString()}/เดือน`}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-4 text-xs text-slate-500 mb-3">
-                        <span>พนักงานสูงสุด {p.maxUsers || '-'} คน</span>
-                        <span>สินค้าสูงสุด {p.maxProducts || '-'} รายการ</span>
-                      </div>
-                      <ul className="space-y-1 mb-4">
-                        {(p.features || []).map((f, i) => (
-                          <li key={i} className="flex items-center space-x-2 text-sm text-slate-600">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                            <span>{f}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {isCurrent ? (
-                        <span className="inline-block px-4 py-2 rounded-xl bg-primary-100 text-primary-700 text-sm font-medium">แพ็คเกจปัจจุบัน</span>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            await shopService.update(user.shopId, { packageId: p.id })
-                            await authService.logActivity('EDIT_SHOP', `เปลี่ยนแพ็คเกจเป็น ${p.name}`)
-                            const s = await shopService.getById(user.shopId)
-                            setShop(s)
-                            if (s) setPkg(await packageService.getById(s.packageId))
-                            setShowPackageSelector(false)
-                          }}
-                          className="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium"
-                        >
-                          เลือกแพ็คเกจนี้
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="flex space-x-3 mt-5">
-                <button onClick={() => setShowPackageSelector(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ปิด</button>
               </div>
             </div>
           </div>
@@ -382,7 +296,11 @@ export default function ShopSettingsPage() {
                 </div>
               </div>
               <button
-                onClick={() => setShowAddBranch(true)}
+                onClick={() => {
+                  const defaultPkg = allPackages.find(p => p.isDefault) || allPackages[0]
+                  setNewBranch({ name: '', address: '', phone: '', packageId: defaultPkg?.id || '' })
+                  setShowAddBranch(true)
+                }}
                 className="flex items-center space-x-1 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-xl text-sm font-medium"
               >
                 <Plus size={16} />
@@ -396,6 +314,7 @@ export default function ShopSettingsPage() {
                 const branchStaff = staff.filter(s => s.branchId === b.id)
                 const isOpen = expandedBranchIds.has(b.id)
                 const bank = bankAccounts.find(a => a.id === b.bankAccountId)
+                const branchPkg = allPackages.find(p => p.id === b.packageId)
                 return (
                   <div key={b.id} className="border border-slate-100 rounded-2xl overflow-hidden">
                     {/* Branch Header */}
@@ -411,6 +330,11 @@ export default function ShopSettingsPage() {
                           <p className="text-sm font-semibold text-slate-800 truncate">{b.name}</p>
                           <p className="text-xs text-slate-400 truncate">{branchStaff.length} คน · {b.address || 'ไม่มีที่อยู่'}</p>
                         </div>
+                        {branchPkg && (
+                          <span className="shrink-0 px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-medium rounded-md">
+                            {branchPkg.name}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center space-x-1 shrink-0 ml-2">
                         <button
@@ -448,6 +372,9 @@ export default function ShopSettingsPage() {
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                           {b.phone && <span>📞 {b.phone}</span>}
                           {bank && <span>🏦 บัญชี: {bank.name}</span>}
+                          {branchPkg && (
+                            <span>📦 แพ็คเกจ: {branchPkg.name} · พนักงาน {branchPkg.maxUsers} คน · สินค้า {branchPkg.maxProducts} รายการ</span>
+                          )}
                         </div>
 
                         {/* Add staff button */}
@@ -664,6 +591,19 @@ export default function ShopSettingsPage() {
                   onChange={e => setNewBranch({...newBranch, phone: e.target.value})}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
                 />
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">แพ็คเกจ</label>
+                  <select
+                    value={newBranch.packageId}
+                    onChange={e => setNewBranch({...newBranch, packageId: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                  >
+                    <option value="">เลือกแพ็คเกจ</option>
+                    {allPackages.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} {p.price === 0 ? '(ฟรี)' : `(฿${p.price.toLocaleString()}/เดือน)`}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setShowAddBranch(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
@@ -671,9 +611,9 @@ export default function ShopSettingsPage() {
                   onClick={async () => {
                     if (!newBranch.name.trim()) return
                     try {
-                      await branchService.create({ shopId: user.shopId, name: newBranch.name.trim(), address: newBranch.address, phone: newBranch.phone })
+                      await branchService.create({ shopId: user.shopId, name: newBranch.name.trim(), address: newBranch.address, phone: newBranch.phone, packageId: newBranch.packageId || null })
                       await authService.logActivity('CREATE_BRANCH', `เพิ่มสาขา ${newBranch.name}`)
-                      setNewBranch({ name: '', address: '', phone: '' })
+                      setNewBranch({ name: '', address: '', phone: '', packageId: '' })
                       setShowAddBranch(false)
                       await refreshBranches()
                     } catch (err) {
@@ -879,6 +819,19 @@ export default function ShopSettingsPage() {
                     <option key={a.id} value={a.id}>{a.name} ({a.type === 'promptpay' ? 'PromptPay' : a.bankName})</option>
                   ))}
                 </select>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">แพ็คเกจ</label>
+                  <select
+                    value={editingBranch.packageId || ''}
+                    onChange={e => setEditingBranch({...editingBranch, packageId: e.target.value || null})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                  >
+                    <option value="">เลือกแพ็คเกจ</option>
+                    {allPackages.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} {p.price === 0 ? '(ฟรี)' : `(฿${p.price.toLocaleString()}/เดือน)`}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="flex space-x-3 mt-5">
                 <button onClick={() => setEditingBranch(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
@@ -890,6 +843,7 @@ export default function ShopSettingsPage() {
                         address: editingBranch.address,
                         phone: editingBranch.phone,
                         bankAccountId: editingBranch.bankAccountId || null,
+                        packageId: editingBranch.packageId || null,
                       })
                       await authService.logActivity('EDIT_BRANCH', `แก้ไขสาขา ${editingBranch.name}`)
                       setEditingBranch(null)

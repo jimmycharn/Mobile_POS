@@ -54,10 +54,19 @@ CREATE TABLE IF NOT EXISTS branches (
   address TEXT,
   phone TEXT,
   bank_account_id UUID,
+  package_id UUID REFERENCES packages(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE branches ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS package_id UUID REFERENCES packages(id) ON DELETE SET NULL;
+
+-- Migrate existing shop-level packages to default branch
+-- UPDATE branches SET package_id = s.package_id
+-- FROM shops s
+-- WHERE branches.shop_id = s.id
+--   AND branches.package_id IS NULL
+--   AND s.package_id IS NOT NULL;
 
 -- Bank accounts table
 CREATE TABLE IF NOT EXISTS bank_accounts (

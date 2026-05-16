@@ -97,15 +97,15 @@ export const authService = {
     // 3. Create shop
     const { data: shop, error: shopError } = await supabase
       .from('shops')
-      .insert({ name: shopName, owner_id: userId, phone, package_id: packageId })
+      .insert({ name: shopName, owner_id: userId, phone })
       .select()
       .single()
     if (shopError) return { error: 'สร้างร้านไม่สำเร็จ: ' + shopError.message }
 
-    // 4. Create default branch
+    // 4. Create default branch (package assigned at branch level)
     const { data: branch, error: branchError } = await supabase
       .from('branches')
-      .insert({ shop_id: shop.id, name: 'สาขาหลัก' })
+      .insert({ shop_id: shop.id, name: 'สาขาหลัก', package_id: packageId })
       .select()
       .single()
     if (branchError) return { error: 'สร้างสาขาไม่สำเร็จ: ' + branchError.message }
