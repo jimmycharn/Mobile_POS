@@ -346,6 +346,16 @@ CREATE POLICY "Bank accounts delete policy" ON bank_accounts
   FOR DELETE USING (shop_id = get_my_shop_id() OR get_my_role() = 'superadmin');
 
 -- ============================================================
+-- Migration: support standard vs non-standard product separation
+-- ============================================================
+-- Allow shop_products to link to central products optionally
+-- and override fields when product_id is set
+ALTER TABLE shop_products ALTER COLUMN name DROP NOT NULL;
+
+-- Index for fast barcode lookup across shop_products (including internal codes)
+CREATE INDEX IF NOT EXISTS idx_shop_products_barcode ON shop_products(barcode);
+CREATE INDEX IF NOT EXISTS idx_shop_products_product_id ON shop_products(product_id);
+
 -- Seed data: packages (for new installs)
 -- ============================================================
 INSERT INTO packages (name, price, max_users, max_products, features)

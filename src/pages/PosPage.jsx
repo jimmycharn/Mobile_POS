@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import BranchSwitcher from '../components/BranchSwitcher'
 import { shopProductService, productService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService } from '../services/supabaseApi'
 import { generatePromptPayQrUrl, isPromptPayId } from '../utils/promptpay'
+import { isStandardBarcode } from '../utils/barcode'
 
 export default function PosPage() {
   const { user } = useAuth()
@@ -30,6 +31,7 @@ export default function PosPage() {
   const [scanMsg, setScanMsg] = useState('')
   const [scannedGlobal, setScannedGlobal] = useState(null)
   const [globalPrice, setGlobalPrice] = useState('')
+  const [globalStock, setGlobalStock] = useState('')
   const [showSearchInput, setShowSearchInput] = useState(false)
   const [qrUrl, setQrUrl] = useState(null)
   const videoRef = useRef(null)
@@ -156,11 +158,11 @@ export default function PosPage() {
                 setScanMsg(`${product.name} หมดสต็อก`)
               }
             } else {
-              const globalList = await productService.getAll()
-              const globalProd = globalList.find(p => p.barcode === code)
-              if (globalProd) {
+              const globalProd = await productService.getByBarcode(code)
+              if (globalProd && isStandardBarcode(code)) {
                 setScannedGlobal(globalProd)
                 setGlobalPrice('')
+                setGlobalStock('')
                 setScanMsg(`เจอในคลังกลาง: ${globalProd.name}`)
                 playBeep()
                 if (navigator.vibrate) navigator.vibrate(150)
@@ -1108,7 +1110,7 @@ export default function PosPage() {
         <div className="fixed inset-0 z-50 flex flex-col bg-black">
           <div className="shrink-0 flex items-center justify-between p-4 bg-black/50">
             <h3 className="text-white font-bold text-lg">สแกนบาร์โค้ด / QR Code</h3>
-            <button onClick={() => { setShowScanner(false); setScannedGlobal(null); setGlobalPrice(''); setScanMsg('') }} className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white">
+            <button onClick={() => { setShowScanner(false); setScannedGlobal(null); setGlobalPrice(''); setGlobalStock(''); setScanMsg('') }} className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white">
               <X size={22} />
             </button>
           </div>
@@ -1157,11 +1159,11 @@ export default function PosPage() {
                     } else if (product) {
                       setScanMsg(`${product.name} หมดสต็อก`)
                     } else {
-                      const globalList = await productService.getAll()
-                      const globalProd = globalList.find(p => p.barcode === code)
-                      if (globalProd) {
+                      const globalProd = await productService.getByBarcode(code)
+                      if (globalProd && isStandardBarcode(code)) {
                         setScannedGlobal(globalProd)
                         setGlobalPrice('')
+                        setGlobalStock('')
                         setScanMsg(`เจอในคลังกลาง: ${globalProd.name}`)
                         playBeep()
                         if (navigator.vibrate) navigator.vibrate(150)
@@ -1191,33 +1193,49 @@ export default function PosPage() {
                     onChange={e => setGlobalPrice(e.target.value)}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 text-white placeholder-white/50 outline-none text-sm"
                   />
+                  <input
+                    type="number"
+                    placeholder="สต็อกเริ่มต้น"
+                    value={globalStock}
+                    onChange={e => setGlobalStock(e.target.value)}
+                    className="w-28 px-3 py-2.5 rounded-xl bg-white/10 text-white placeholder-white/50 outline-none text-sm"
+                  />
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const price = parseFloat(globalPrice)
                       if (!price || price <= 0) return
-                      const cartProduct = {
-                        id: 'global-' + scannedGlobal.barcode + '-' + Date.now(),
-                        name: scannedGlobal.name,
-                        barcode: scannedGlobal.barcode,
-                        category: scannedGlobal.category,
-                        unit: scannedGlobal.unit,
-                        salePrice: price,
-                        stock: 9999,
-                        isStandard: true,
+                      try {
+                        const newSp = await shopProductService.create({
+                          shopId: user.shopId,
+                          branchId: user.branchId,
+                          productId: scannedGlobal.id,
+                          salePrice: price,
+                          costPrice: 0,
+                          stock: Number(globalStock) || 9999,
+                          minStock: 5,
+                          isStandard: true,
+                        })
+                        const data = await shopProductService.getByBranch(user.branchId)
+                        setAllProducts(data || [])
+                        const merged = data.find(p => p.id === newSp.id)
+                        if (merged) addToCart(merged)
+                        setScanMsg(`+ ${scannedGlobal.name} ฿${price}`)
+                        setScannedGlobal(null)
+                        setGlobalPrice('')
+                        setGlobalStock('')
+                        playBeep()
+                        if (navigator.vibrate) navigator.vibrate(150)
+                      } catch (err) {
+                        console.error('import error:', err)
+                        setScanMsg('นำเข้าไม่สำเร็จ: ' + err.message)
                       }
-                      addToCart(cartProduct)
-                      setScanMsg(`+ ${scannedGlobal.name} ฿${price}`)
-                      setScannedGlobal(null)
-                      setGlobalPrice('')
-                      playBeep()
-                      if (navigator.vibrate) navigator.vibrate(150)
                     }}
                     className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-medium"
                   >
-                    เพิ่ม
+                    นำเข้าและเพิ่ม
                   </button>
                   <button
-                    onClick={() => { setScannedGlobal(null); setGlobalPrice('') }}
+                    onClick={() => { setScannedGlobal(null); setGlobalPrice(''); setGlobalStock('') }}
                     className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-sm"
                   >
                     ยกเลิก

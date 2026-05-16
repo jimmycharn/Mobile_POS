@@ -211,6 +211,10 @@ export const productService = {
     const { data } = await supabase.from('products').select('*').order('name')
     return toCamel(data) || []
   },
+  async getById(id) {
+    const { data } = await supabase.from('products').select('*').eq('id', id).single()
+    return toCamel(data)
+  },
   async create(product) {
     const { data } = await supabase.from('products').insert(toSnake(product)).select().single()
     return toCamel(data)
@@ -231,18 +235,59 @@ export const productService = {
 // ============================================================
 // Shop Products (branch inventory)
 // ============================================================
+// Merge helper: override fields from shop_products, fallback to products
+function mergeShopProduct(sp) {
+  if (!sp) return null
+  const p = sp.products || {}
+  const merged = {
+    ...sp,
+    name: sp.name || p.name,
+    category: sp.category || p.category,
+    unit: sp.unit || p.unit,
+    imageUrl: sp.imageUrl || p.imageUrl,
+    barcode: sp.barcode || p.barcode,
+  }
+  delete merged.products
+  return merged
+}
+
 export const shopProductService = {
   async getByShop(shopId) {
-    const { data } = await supabase.from('shop_products').select('*').eq('shop_id', shopId)
-    return toCamel(data) || []
+    const { data } = await supabase
+      .from('shop_products')
+      .select(`
+        id, shop_id, branch_id, product_id,
+        name, category, unit, image_url, barcode,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        products:product_id(name, category, unit, image_url, barcode)
+      `)
+      .eq('shop_id', shopId)
+    return (toCamel(data) || []).map(mergeShopProduct)
   },
   async getByBranch(branchId) {
-    const { data } = await supabase.from('shop_products').select('*').eq('branch_id', branchId)
-    return toCamel(data) || []
+    const { data } = await supabase
+      .from('shop_products')
+      .select(`
+        id, shop_id, branch_id, product_id,
+        name, category, unit, image_url, barcode,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        products:product_id(name, category, unit, image_url, barcode)
+      `)
+      .eq('branch_id', branchId)
+    return (toCamel(data) || []).map(mergeShopProduct)
   },
   async getById(id) {
-    const { data } = await supabase.from('shop_products').select('*').eq('id', id).single()
-    return toCamel(data)
+    const { data } = await supabase
+      .from('shop_products')
+      .select(`
+        id, shop_id, branch_id, product_id,
+        name, category, unit, image_url, barcode,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        products:product_id(name, category, unit, image_url, barcode)
+      `)
+      .eq('id', id)
+      .single()
+    return mergeShopProduct(toCamel(data))
   },
   async create(sp) {
     const { data, error } = await supabase.from('shop_products').insert(toSnake(sp)).select()
@@ -260,14 +305,32 @@ export const shopProductService = {
   async search(shopId, query) {
     const { data } = await supabase
       .from('shop_products')
-      .select('*')
+      .select(`
+        id, shop_id, branch_id, product_id,
+        name, category, unit, image_url, barcode,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        products:product_id(name, category, unit, image_url, barcode)
+      `)
       .eq('shop_id', shopId)
-      .ilike('name', `%${query}%`)
-    return toCamel(data) || []
+      .or(`name.ilike.%${query}%,products.name.ilike.%${query}%`)
+    return (toCamel(data) || []).map(mergeShopProduct)
   },
-  async getByBarcode(barcode) {
-    const { data } = await supabase.from('shop_products').select('*').eq('barcode', barcode).limit(1)
-    return toCamel(data?.[0])
+  async getByBarcode(barcode, branchId) {
+    let query = supabase
+      .from('shop_products')
+      .select(`
+        id, shop_id, branch_id, product_id,
+        name, category, unit, image_url, barcode,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        products:product_id(name, category, unit, image_url, barcode)
+      `)
+    if (branchId) query = query.eq('branch_id', branchId)
+    const { data } = await query
+    const results = toCamel(data) || []
+    const matched = results.find(sp =>
+      (sp.barcode || '') === barcode || (sp.products?.barcode || '') === barcode
+    )
+    return mergeShopProduct(matched)
   },
 }
 

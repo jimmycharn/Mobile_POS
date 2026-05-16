@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode, Sparkles, FolderOpen, Trash2, Camera as CameraIcon } from 'lucide-react'
 import { productService, shopProductService, storageService } from '../../services/supabaseApi'
+import { isStandardBarcode } from '../../utils/barcode'
 import { lookupProductByBarcode } from '../../services/aiService'
 
 export default function SuperadminProducts() {
@@ -16,6 +17,7 @@ export default function SuperadminProducts() {
   const [categoryList, setCategoryList] = useState([])
   const [newCategory, setNewCategory] = useState('')
   const [editingCategory, setEditingCategory] = useState(null)
+  const [barcodeWarning, setBarcodeWarning] = useState('')
   const scanVideoRef = useRef(null)
   const scanAnimRef = useRef(null)
   const aiAbortRef = useRef(null)
@@ -54,6 +56,11 @@ export default function SuperadminProducts() {
                 if (barcodes.length > 0) {
                   const code = barcodes[0].rawValue
                   setForm(f => ({ ...f, barcode: code }))
+                  if (isStandardBarcode(code)) {
+                    setBarcodeWarning('')
+                  } else {
+                    setBarcodeWarning('บาร์โค้ดนี้ไม่ใช่มาตรฐาน ควรใช้เฉพาะในร้าน ไม่ควรบันทึกในส่วนกลาง')
+                  }
                   setScanningBarcode(false)
                   if (useAi && code.length >= 8) {
                     runAiLookup(code)
@@ -128,6 +135,18 @@ export default function SuperadminProducts() {
 
   const handleBarcodeChange = async (code) => {
     setForm(f => ({ ...f, barcode: code }))
+
+    // Check barcode standard
+    if (code.length >= 3) {
+      if (isStandardBarcode(code)) {
+        setBarcodeWarning('')
+      } else {
+        setBarcodeWarning('บาร์โค้ดนี้ไม่ใช่มาตรฐาน ควรใช้เฉพาะในร้าน ไม่ควรบันทึกในส่วนกลาง')
+      }
+    } else {
+      setBarcodeWarning('')
+    }
+
     if (useAi && code.length >= 8) {
       runAiLookup(code)
       return
@@ -163,6 +182,9 @@ export default function SuperadminProducts() {
   }
 
   const handleSave = async () => {
+    if (form.barcode && !isStandardBarcode(form.barcode)) {
+      if (!confirm('บาร์โค้ดนี้ไม่ใช่มาตรฐาน ยืนยันบันทึกในคลังกลาง?')) return
+    }
     if (editingId) {
       await productService.update(editingId, form)
       setEditingId(null)
@@ -170,6 +192,7 @@ export default function SuperadminProducts() {
       await productService.create(form)
     }
     setShowForm(false)
+    setBarcodeWarning('')
     setForm({ name: '', barcode: '', category: '', unit: '', imageUrl: '' })
     await refresh()
   }
@@ -177,6 +200,11 @@ export default function SuperadminProducts() {
   const handleEdit = (p) => {
     setEditingId(p.id)
     setForm({ name: p.name, barcode: p.barcode, category: p.category, unit: p.unit, imageUrl: p.imageUrl || '' })
+    if (p.barcode && !isStandardBarcode(p.barcode)) {
+      setBarcodeWarning('บาร์โค้ดนี้ไม่ใช่มาตรฐาน ควรใช้เฉพาะในร้าน ไม่ควรบันทึกในส่วนกลาง')
+    } else {
+      setBarcodeWarning('')
+    }
     setShowForm(true)
   }
 
@@ -322,7 +350,7 @@ export default function SuperadminProducts() {
           <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scale-in my-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-800">{editingId ? 'แก้ไขสินค้ากลาง' : 'เพิ่มสินค้ากลาง'}</h3>
-              <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '' }); setScanningBarcode(false) }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+              <button onClick={() => { setShowForm(false); setEditingId(null); setBarcodeWarning(''); setForm({ name: '', barcode: '', category: '', unit: '' }); setScanningBarcode(false) }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
                 <X size={18} />
               </button>
             </div>
@@ -337,12 +365,17 @@ export default function SuperadminProducts() {
                 </label>
                 {aiLoading && <span className="text-xs text-primary-600 animate-pulse">กำลังค้นหา...</span>}
               </div>
+              {barcodeWarning && (
+                <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="text-xs text-amber-600 font-medium">{barcodeWarning}</p>
+                </div>
+              )}
               <div className="flex space-x-2">
                 <input
                   placeholder="บาร์โค้ด"
                   value={form.barcode}
                   onChange={e => handleBarcodeChange(e.target.value)}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                  className={`flex-1 px-4 py-2.5 rounded-xl border ${barcodeWarning ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'} focus:border-primary-500 outline-none text-sm`}
                 />
                 <button onClick={() => setScanningBarcode(s => !s)} className="px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500" title="สแกนบาร์โค้ด">
                   <ScanBarcode size={18} />
@@ -405,7 +438,7 @@ export default function SuperadminProducts() {
               </div>
             </div>
             <div className="flex space-x-3 mt-5">
-              <button onClick={() => { setShowForm(false); setEditingId(null); setForm({ name: '', barcode: '', category: '', unit: '', imageUrl: '' }); setScanningBarcode(false) }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
+              <button onClick={() => { setShowForm(false); setEditingId(null); setBarcodeWarning(''); setForm({ name: '', barcode: '', category: '', unit: '', imageUrl: '' }); setScanningBarcode(false) }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm">ยกเลิก</button>
               <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm">บันทึก</button>
             </div>
           </div>

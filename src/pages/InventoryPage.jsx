@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, productService, authService, branchService, storageService } from '../services/supabaseApi'
+import { isStandardBarcode } from '../utils/barcode'
 
 export default function InventoryPage() {
   const { user } = useAuth()
@@ -16,6 +17,7 @@ export default function InventoryPage() {
   const [stockOutQty, setStockOutQty] = useState('')
   const [stockOutReason, setStockOutReason] = useState('spoilage')
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
+  const [centralProduct, setCentralProduct] = useState(null)
   const [filter, setFilter] = useState('all') // all, low, standard, custom
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
@@ -90,6 +92,7 @@ export default function InventoryPage() {
             scanCooldownRef.current = now
             const code = barcodes[0].rawValue
             setForm(prev => ({ ...prev, barcode: code }))
+            handleBarcodeInput(code)
             setScanMsg(`บาร์โค้ด: ${code}`)
             if (navigator.vibrate) navigator.vibrate(150)
             setTimeout(() => setShowScanner(false), 800)
@@ -104,48 +107,102 @@ export default function InventoryPage() {
       if (animId) cancelAnimationFrame(animId)
       if (stream) stream.getTracks().forEach(t => t.stop())
     }
-  }, [showScanner])
+  }, [showScanner, handleBarcodeInput])
 
   const handleSave = async () => {
     try {
       if (selectedProduct) {
+        // Editing existing shop product
         const updates = {
-          name: form.name,
-          barcode: form.barcode,
-          category: form.category,
-          unit: form.unit,
           costPrice: Number(form.costPrice),
           salePrice: Number(form.salePrice),
           minStock: Number(form.minStock),
           color: form.color || '',
           size: form.size || '',
         }
-        if (form.imageUrl) updates.imageUrl = form.imageUrl
+
+        // For standard products, save override fields only if they differ from central
+        if (selectedProduct.productId && centralProduct) {
+          updates.name = form.name !== centralProduct.name ? form.name : null
+          updates.category = form.category !== centralProduct.category ? form.category : null
+          updates.unit = form.unit !== centralProduct.unit ? form.unit : null
+          updates.imageUrl = form.imageUrl !== centralProduct.imageUrl ? (form.imageUrl || null) : null
+          // Don't update barcode for standard products (it lives in products table)
+        } else {
+          // Non-standard: save everything
+          updates.name = form.name
+          updates.barcode = form.barcode || 'SHOP' + Date.now()
+          updates.category = form.category || 'ทั่วไป'
+          updates.unit = form.unit || 'ชิ้น'
+          updates.imageUrl = form.imageUrl || null
+        }
+
         await shopProductService.update(selectedProduct.id, updates)
         await authService.logActivity('EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
       } else {
-        const payload = {
-          shopId: user.shopId,
-          branchId: user.branchId,
-          productId: null,
-          name: form.name,
-          barcode: form.barcode || 'SHOP' + Date.now(),
-          category: form.category || 'ทั่วไป',
-          unit: form.unit || 'ชิ้น',
-          costPrice: Number(form.costPrice) || 0,
-          salePrice: Number(form.salePrice) || 0,
-          stock: Number(form.stock) || 0,
-          minStock: Number(form.minStock) || 5,
-          isStandard: false,
-          imageUrl: form.imageUrl || '',
-          color: form.color || '',
-          size: form.size || '',
+        // Creating new product
+        const std = isStandardBarcode(form.barcode)
+
+        if (std) {
+          // Standard product: link to central
+          let central = centralProduct || await productService.getByBarcode(form.barcode)
+          if (!central) {
+            // Create in central first
+            central = await productService.create({
+              barcode: form.barcode,
+              name: form.name,
+              category: form.category || 'ทั่วไป',
+              unit: form.unit || 'ชิ้น',
+              imageUrl: form.imageUrl || '',
+            })
+          }
+
+          const payload = {
+            shopId: user.shopId,
+            branchId: user.branchId,
+            productId: central.id,
+            // Override fields: null if same as central, otherwise the shop's value
+            name: form.name !== central.name ? form.name : null,
+            category: form.category !== central.category ? form.category : null,
+            unit: form.unit !== central.unit ? form.unit : null,
+            imageUrl: form.imageUrl !== central.imageUrl ? (form.imageUrl || null) : null,
+            barcode: null, // standard barcode lives in products table
+            costPrice: Number(form.costPrice) || 0,
+            salePrice: Number(form.salePrice) || 0,
+            stock: Number(form.stock) || 0,
+            minStock: Number(form.minStock) || 5,
+            isStandard: true,
+            color: form.color || '',
+            size: form.size || '',
+          }
+          await shopProductService.create(payload)
+          await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าจากคลังกลาง ${form.name}`)
+        } else {
+          // Non-standard product: create directly in shop_products
+          const payload = {
+            shopId: user.shopId,
+            branchId: user.branchId,
+            productId: null,
+            name: form.name,
+            barcode: form.barcode || 'SHOP' + Date.now(),
+            category: form.category || 'ทั่วไป',
+            unit: form.unit || 'ชิ้น',
+            costPrice: Number(form.costPrice) || 0,
+            salePrice: Number(form.salePrice) || 0,
+            stock: Number(form.stock) || 0,
+            minStock: Number(form.minStock) || 5,
+            isStandard: false,
+            imageUrl: form.imageUrl || '',
+            color: form.color || '',
+            size: form.size || '',
+          }
+          await shopProductService.create(payload)
+          await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
         }
-        await shopProductService.create(payload)
-        await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
       }
       setShowForm(false)
       setSelectedProduct(null)
+      setCentralProduct(null)
       setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
       await refresh()
     } catch (err) {
@@ -154,17 +211,52 @@ export default function InventoryPage() {
     }
   }
 
+  const handleBarcodeInput = useCallback(async (code) => {
+    setForm(prev => ({ ...prev, barcode: code }))
+    if (!code || code.length < 3) {
+      setCentralProduct(null)
+      return
+    }
+    if (isStandardBarcode(code)) {
+      const central = await productService.getByBarcode(code)
+      if (central) {
+        setCentralProduct(central)
+        setForm(prev => ({
+          ...prev,
+          name: prev.name || central.name,
+          category: prev.category || central.category,
+          unit: prev.unit || central.unit,
+          imageUrl: prev.imageUrl || central.imageUrl,
+        }))
+      } else {
+        setCentralProduct(null)
+      }
+    } else {
+      setCentralProduct(null)
+    }
+  }, [])
+
   const handleDelete = async (id) => {
     if (!confirm('ยืนยันลบสินค้านี้?')) return
     await shopProductService.remove(id)
     await refresh()
   }
 
-  const openEdit = (p) => {
+  const openEdit = async (p) => {
     setSelectedProduct(p)
+    if (p.productId) {
+      try {
+        const central = await productService.getById(p.productId)
+        setCentralProduct(central)
+      } catch {
+        setCentralProduct(null)
+      }
+    } else {
+      setCentralProduct(null)
+    }
     setForm({
       name: p.name,
-      barcode: p.barcode,
+      barcode: p.barcode || '',
       category: p.category,
       unit: p.unit,
       costPrice: p.costPrice,
@@ -404,11 +496,33 @@ export default function InventoryPage() {
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 pb-24 md:pb-6 animate-scale-in">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-800">{selectedProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}</h2>
-              <button onClick={() => setShowForm(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+              <button onClick={() => { setShowForm(false); setSelectedProduct(null); setCentralProduct(null); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' }) }} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
                 <X size={18} className="text-slate-500" />
               </button>
             </div>
             <div className="space-y-4">
+              {centralProduct && (
+                <div className="px-3 py-2 bg-primary-50 border border-primary-200 rounded-xl">
+                  <p className="text-xs text-primary-600 font-medium">จากคลังสินค้ากลาง</p>
+                  <p className="text-sm text-slate-700">{centralProduct.name}</p>
+                  <p className="text-xs text-slate-400">{centralProduct.barcode} · {centralProduct.category}</p>
+                </div>
+              )}
+              {selectedProduct?.productId && !centralProduct && (
+                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                  <p className="text-xs text-slate-500 font-medium">สินค้ามาตรฐาน (จากคลังกลาง)</p>
+                </div>
+              )}
+              {!selectedProduct && form.barcode && !centralProduct && isStandardBarcode(form.barcode) && (
+                <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="text-xs text-amber-600 font-medium">บาร์โค้ดมาตรฐาน — ยังไม่มีในคลังกลาง ข้อมูลจะบันทึกในส่วนกลาง</p>
+                </div>
+              )}
+              {form.barcode && !isStandardBarcode(form.barcode) && (
+                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                  <p className="text-xs text-slate-500 font-medium">บาร์โค้ดเฉพาะร้าน (ไม่มาตรฐาน) — บันทึกเฉพาะร้านนี้</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">ชื่อสินค้า</label>
                 <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" required />
@@ -416,7 +530,7 @@ export default function InventoryPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">บาร์โค้ด</label>
                 <div className="relative">
-                  <input value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="w-full pr-12 pl-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                  <input value={form.barcode} onChange={e => handleBarcodeInput(e.target.value)} className="w-full pr-12 pl-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
                   <button
                     type="button"
                     onClick={() => { setShowScanner(true); setScanMsg('') }}
