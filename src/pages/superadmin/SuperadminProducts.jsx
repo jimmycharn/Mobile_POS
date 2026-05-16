@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode, Sparkles, FolderOpen, Trash2, Camera as CameraIcon } from 'lucide-react'
+import { Package, Search, Plus, Barcode, X, Save, Tag, Edit3, ScanBarcode, Sparkles, FolderOpen, Trash2, Camera as CameraIcon, ChevronDown } from 'lucide-react'
 import { productService, shopProductService, storageService } from '../../services/supabaseApi'
 import { isStandardBarcode } from '../../utils/barcode'
 import { lookupProductByBarcode } from '../../services/aiService'
@@ -21,6 +21,8 @@ export default function SuperadminProducts() {
   const scanVideoRef = useRef(null)
   const scanAnimRef = useRef(null)
   const aiAbortRef = useRef(null)
+  const catDropdownRef = useRef(null)
+  const [catDropdownOpen, setCatDropdownOpen] = useState(false)
 
   useEffect(() => {
     refresh()
@@ -109,6 +111,20 @@ export default function SuperadminProducts() {
       if (stream) stream.getTracks().forEach(t => t.stop())
     }
   }, [scanningBarcode])
+
+  useEffect(() => {
+    if (showForm) refreshCategories()
+  }, [showForm])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (catDropdownRef.current && !catDropdownRef.current.contains(e.target)) {
+        setCatDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const runAiLookup = async (barcode) => {
     if (aiAbortRef.current) aiAbortRef.current.abort()
@@ -388,7 +404,91 @@ export default function SuperadminProducts() {
                 </div>
               )}
               <input placeholder="ชื่อสินค้า" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
-              <input placeholder="หมวดหมู่" value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+              {/* Category Dropdown */}
+              <div className="relative" ref={catDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => { setCatDropdownOpen(o => !o); if (!catDropdownOpen) refreshCategories() }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm flex items-center justify-between bg-white"
+                >
+                  <span className={form.category ? 'text-slate-800' : 'text-slate-400'}>
+                    {form.category || 'เลือกหมวดหมู่'}
+                  </span>
+                  <ChevronDown size={16} className={`text-slate-400 transition-transform ${catDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {catDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 shadow-lg z-10 max-h-72 overflow-y-auto animate-scale-in">
+                    {categoryList.length === 0 ? (
+                      <div className="px-4 py-6 text-center">
+                        <FolderOpen size={32} className="text-slate-200 mx-auto mb-2" />
+                        <p className="text-sm text-slate-400">ยังไม่มีหมวดหมู่</p>
+                      </div>
+                    ) : (
+                      <div className="py-1">
+                        {categoryList.map(cat => (
+                          <div key={cat.name} className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 mx-1 rounded-lg">
+                            <button
+                              type="button"
+                              onClick={() => { setForm({...form, category: cat.name}); setCatDropdownOpen(false) }}
+                              className="flex-1 text-left text-sm text-slate-700"
+                            >
+                              {cat.name}
+                            </button>
+                            <span className="text-xs text-slate-400 mr-2">{cat.count}</span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!confirm(`ลบหมวดหมู่ "${cat.name}"? สินค้าในหมวดหมู่นี้จะไม่มีหมวดหมู่`)) return
+                                await handleDeleteCategory(cat.name)
+                                if (form.category === cat.name) setForm({...form, category: ''})
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="p-2 border-t border-slate-100 space-y-2">
+                      <div className="flex space-x-2">
+                        <input
+                          placeholder="หมวดหมู่ใหม่"
+                          value={newCategory}
+                          onChange={e => setNewCategory(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && newCategory.trim()) {
+                              setForm({...form, category: newCategory.trim()})
+                              setNewCategory('')
+                              setCatDropdownOpen(false)
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newCategory.trim()) return
+                            setForm({...form, category: newCategory.trim()})
+                            setNewCategory('')
+                            setCatDropdownOpen(false)
+                          }}
+                          className="px-3 py-2 rounded-xl bg-primary-600 text-white"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setShowCategoryModal(true); setCatDropdownOpen(false) }}
+                        className="w-full text-center text-xs text-primary-600 hover:text-primary-700 font-medium py-1"
+                      >
+                        จัดการหมวดหมู่
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <input placeholder="หน่วย (เช่น ขวด, ซอง)" value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
               {/* Image Upload */}
               <div>
