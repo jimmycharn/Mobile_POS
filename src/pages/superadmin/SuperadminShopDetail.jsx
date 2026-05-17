@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2, TrendingUp, ShoppingBag, DollarSign, Calendar, CreditCard, Wallet, X, Eye } from 'lucide-react'
-import { logService, branchService, saleService } from '../../services/supabaseApi'
+import { logService, branchService, saleService, shopService, packageService } from '../../services/supabaseApi'
 import { format, parseISO, startOfDay, endOfDay, subDays, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
 
 const actionConfig = {
@@ -382,7 +382,7 @@ export default function SuperadminShopDetail() {
                           <span>{config.label}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{log.detail}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{log.details}</td>
                     </tr>
                   )
                 })}
@@ -405,7 +405,7 @@ export default function SuperadminShopDetail() {
                       <p className="text-sm font-medium text-slate-800">{config.label}</p>
                       <span className="text-xs text-slate-400">{format(parseISO(log.createdAt), 'HH:mm')}</span>
                     </div>
-                    <p className="text-sm text-slate-600 mt-0.5">{log.detail}</p>
+                    <p className="text-sm text-slate-600 mt-0.5">{log.details}</p>
                     <p className="text-xs text-slate-400 mt-1">โดย {log.profiles?.name || '—'}</p>
                   </div>
                 </div>
