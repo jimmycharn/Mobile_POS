@@ -33,6 +33,7 @@ export default function InventoryPage() {
   const [transferAllProducts, setTransferAllProducts] = useState([])
   const [transferBarcodeMatches, setTransferBarcodeMatches] = useState([])
   const [transferNameMatches, setTransferNameMatches] = useState([])
+  const [transferCreateSource, setTransferCreateSource] = useState(null)
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
   const [centralProduct, setCentralProduct] = useState(null)
   const [filter, setFilter] = useState('all') // all, low, standard, custom, ingredient
@@ -210,6 +211,15 @@ export default function InventoryPage() {
         return
       }
 
+      // When creating from transfer, stock must not exceed source stock
+      if (!selectedProduct && transferCreateSource) {
+        const transferStock = Number(form.stock) || 0
+        if (transferStock > transferCreateSource.stock) {
+          alert(`จำนวนสต็อกไม่สามารถเกิน ${transferCreateSource.stock} ${transferCreateSource.unit} (สินค้าต้นทาง)`)
+          return
+        }
+      }
+
       if (selectedProduct) {
         // Editing existing shop product
         const updates = {
@@ -329,6 +339,17 @@ export default function InventoryPage() {
             })
           }
           await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าจากคลังกลาง ${form.name}`)
+
+          // Auto-transfer if creating from transfer flow
+          if (transferCreateSource) {
+            const transferStock = Number(form.stock) || 0
+            if (transferStock > 0) {
+              await shopProductService.update(transferCreateSource.id, {
+                stock: Math.max(0, transferCreateSource.stock - transferStock),
+              })
+              await authService.logActivity('TRANSFER_STOCK', `โอนสต็อก ${transferStock} ${transferCreateSource.unit} จาก ${transferCreateSource.name} → ${form.name} (สร้างสินค้าใหม่)`)
+            }
+          }
         } else {
           // Non-standard product: create directly in shop_products
           const payload = {
@@ -363,12 +384,24 @@ export default function InventoryPage() {
             })
           }
           await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
+
+          // Auto-transfer if creating from transfer flow
+          if (transferCreateSource) {
+            const transferStock = Number(form.stock) || 0
+            if (transferStock > 0) {
+              await shopProductService.update(transferCreateSource.id, {
+                stock: Math.max(0, transferCreateSource.stock - transferStock),
+              })
+              await authService.logActivity('TRANSFER_STOCK', `โอนสต็อก ${transferStock} ${transferCreateSource.unit} จาก ${transferCreateSource.name} → ${form.name} (สร้างสินค้าใหม่)`)
+            }
+          }
         }
       }
       setShowForm(false)
       setSelectedProduct(null)
       setCentralProduct(null)
       setRecipeItems([])
+      setTransferCreateSource(null)
       setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
       await refresh()
     } catch (err) {
@@ -1367,6 +1400,9 @@ export default function InventoryPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">สต็อกเริ่มต้น</label>
                     <input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                    {transferCreateSource && (
+                      <p className="text-[11px] text-amber-600 mt-1">ไม่เกิน {transferCreateSource.stock} {transferCreateSource.unit} (สินค้าต้นทาง)</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">สต็อกขั้นต่ำ</label>
@@ -1921,6 +1957,7 @@ export default function InventoryPage() {
                   setSelectedProduct(null)
                   setRecipeItems([])
                   setProductUnitsMap({})
+                  setTransferCreateSource(transferSource)
                   setForm({
                     name: transferSource.name || '',
                     barcode: transferSource.barcode || '',
@@ -1928,7 +1965,7 @@ export default function InventoryPage() {
                     unit: transferSource.unit || '',
                     costPrice: String(transferSource.costPrice || ''),
                     salePrice: '',
-                    stock: '',
+                    stock: String(transferSource.stock || ''),
                     minStock: '5',
                     imageUrl: transferSource.imageUrl || '',
                     color: '',
