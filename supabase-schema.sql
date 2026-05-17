@@ -118,8 +118,8 @@ CREATE TABLE IF NOT EXISTS shop_products (
   unit TEXT,
   cost_price NUMERIC(12,2) DEFAULT 0,
   sale_price NUMERIC(12,2) DEFAULT 0,
-  stock INTEGER DEFAULT 0,
-  min_stock INTEGER DEFAULT 0,
+  stock NUMERIC(12,3) DEFAULT 0,
+  min_stock NUMERIC(12,3) DEFAULT 0,
   color TEXT,
   size TEXT,
   image_url TEXT,
@@ -129,6 +129,16 @@ CREATE TABLE IF NOT EXISTS shop_products (
 
 -- Add image_url to existing shop_products (safe migration)
 ALTER TABLE shop_products ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- Migration: change stock/min_stock to numeric for fractional recipe tracking
+DO $$
+BEGIN
+  ALTER TABLE shop_products ALTER COLUMN stock TYPE NUMERIC(12,3);
+  ALTER TABLE shop_products ALTER COLUMN min_stock TYPE NUMERIC(12,3);
+EXCEPTION WHEN others THEN
+  -- columns may already be numeric or do not exist; ignore errors
+  NULL;
+END $$;
 
 -- Sales / transactions
 CREATE TABLE IF NOT EXISTS sales (

@@ -491,7 +491,7 @@ export default function PosPage() {
 
       // Deduct stock in parallel (regular products + recipe ingredients)
       await Promise.all(
-        deductions.map(d => shopProductService.update(d.id, { stock: Math.round(d.stock) }))
+        deductions.map(d => shopProductService.update(d.id, { stock: d.stock }))
       )
 
       await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดสุทธิ ฿${finalTotal.toLocaleString()}`)
