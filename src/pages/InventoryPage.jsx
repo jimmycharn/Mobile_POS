@@ -72,6 +72,7 @@ export default function InventoryPage() {
       let list = await shopProductService.getByBranch(user.branchId)
       setAllProducts(list)
       if (search) list = list.filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()))
+      if (filter === 'all') list = list.filter(p => p.category !== 'วัตถุดิบ')
       if (filter === 'low') list = list.filter(p => p.stock <= (p.minStock || 0) && p.stock > 0)
       if (filter === 'standard') list = list.filter(p => p.isStandard && p.category !== 'วัตถุดิบ')
       if (filter === 'custom') list = list.filter(p => !p.isStandard && p.category !== 'วัตถุดิบ')
