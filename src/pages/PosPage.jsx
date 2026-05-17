@@ -194,8 +194,7 @@ export default function PosPage() {
     const load = async () => {
       if (!user?.branchId) { setAllProducts([]); return }
       const data = await shopProductService.getByBranch(user.branchId)
-      // Hide ingredient-only products from POS; show only sellable items
-      setAllProducts((data || []).filter(p => p.category !== 'วัตถุดิบ'))
+      setAllProducts(data || [])
     }
     load()
   }, [user?.branchId])
@@ -240,7 +239,7 @@ export default function PosPage() {
   }, [allProducts, user?.branchId])
 
   const categories = useMemo(() => {
-    const cats = [...new Set(allProducts.map(p => p.category))]
+    const cats = [...new Set(allProducts.filter(p => p.category !== 'วัตถุดิบ').map(p => p.category))]
     return ['all', ...cats]
   }, [allProducts])
 
@@ -248,7 +247,7 @@ export default function PosPage() {
   const sizes = useMemo(() => [...new Set(allProducts.map(p => p.size).filter(Boolean))], [allProducts])
 
   const products = useMemo(() => {
-    let list = allProducts
+    let list = allProducts.filter(p => p.category !== 'วัตถุดิบ')
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(p =>
@@ -510,7 +509,7 @@ export default function PosPage() {
       setStats(newStats)
       // Refresh products so recipe availability recomputes
       const refreshed = await shopProductService.getByBranch(user.branchId)
-      setAllProducts((refreshed || []).filter(p => p.category !== 'วัตถุดิบ'))
+      setAllProducts(refreshed || [])
       // Close active cart after checkout
       const filtered = carts.filter(c => c.id !== activeCartId)
       if (filtered.length === 0) {
