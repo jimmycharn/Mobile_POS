@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen } from 'lucide-react'
+import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen, Settings, Calculator } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopProductService, productService, authService, branchService, storageService, recipeService, productUnitService } from '../services/supabaseApi'
+import { shopProductService, productService, authService, branchService, storageService, recipeService, productUnitService, convertToBaseUnit } from '../services/supabaseApi'
 import { isStandardBarcode } from '../utils/barcode'
 
 export default function InventoryPage() {
@@ -186,6 +186,12 @@ export default function InventoryPage() {
         alert('ไม่พบข้อมูลสาขา กรุณาเลือกสาขาก่อน')
         return
       }
+      // Validate recipe must have at least 1 item
+      if (form.isRecipe && recipeItems.length === 0) {
+        alert('กรุณาเพิ่มวัตถุดิบในสูตรอย่างน้อย 1 รายการ')
+        return
+      }
+
       if (selectedProduct) {
         // Editing existing shop product
         const updates = {
@@ -892,6 +898,20 @@ export default function InventoryPage() {
                               <p className="text-sm text-slate-700 truncate">{ing?.name || 'วัตถุดิบ'}</p>
                               <p className="text-xs text-slate-400">{item.quantity} {item.unit}</p>
                             </div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!ing) return
+                                setCurrentProductForUnits(ing)
+                                const units = await productUnitService.getByProduct(ing.id)
+                                setProductUnitsMap(prev => ({ ...prev, [ing.id]: units }))
+                                setShowUnitManager(true)
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                              title="จัดการหน่วยแปลง"
+                            >
+                              <Settings size={14} />
+                            </button>
                             <button onClick={() => setRecipeItems(prev => prev.filter((_, i) => i !== idx))} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500">
                               <Trash2 size={14} />
                             </button>
@@ -919,7 +939,7 @@ export default function InventoryPage() {
                             onChange={e => setIngredientSearch(e.target.value)}
                             className="w-full px-3 py-2 border-b border-slate-100 text-sm outline-none"
                           />
-                          {products.filter(p => !p.isRecipe && (p.name || '').toLowerCase().includes((ingredientSearch || '').toLowerCase())).map(p => (
+                          {products.filter(p => p.category === 'วัตถุดิบ' && !p.isRecipe && (p.name || '').toLowerCase().includes((ingredientSearch || '').toLowerCase())).map(p => (
                             <button
                               key={p.id}
                               type="button"
@@ -1013,15 +1033,35 @@ export default function InventoryPage() {
                     )}
                   </div>
                   {recipeItems.length > 0 && (
-                    <div className="bg-primary-50 rounded-lg p-3 border border-primary-100">
-                      <p className="text-xs font-medium text-primary-700 mb-1">สูตรโดยสรุป</p>
-                      <p className="text-xs text-primary-600">
-                        1 {form.unit || 'ชิ้น'} {form.name || 'สินค้า'} = {recipeItems.map(item => {
-                          const ing = products.find(p => p.id === item.ingredientShopProductId)
-                          return `${ing?.name || '?'} ${item.quantity}${item.unit}`
-                        }).join(' + ')}
-                      </p>
-                    </div>
+                    <>
+                      <div className="bg-primary-50 rounded-lg p-3 border border-primary-100">
+                        <p className="text-xs font-medium text-primary-700 mb-1">สูตรโดยสรุป</p>
+                        <p className="text-xs text-primary-600">
+                          1 {form.unit || 'ชิ้น'} {form.name || 'สินค้า'} = {recipeItems.map(item => {
+                            const ing = products.find(p => p.id === item.ingredientShopProductId)
+                            return `${ing?.name || '?'} ${item.quantity}${item.unit}`
+                          }).join(' + ')}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          let total = 0
+                          for (const item of recipeItems) {
+                            const ing = products.find(p => p.id === item.ingredientShopProductId)
+                            if (!ing) continue
+                            const units = productUnitsMap[ing.id] || await productUnitService.getByProduct(ing.id)
+                            const baseQty = convertToBaseUnit(Number(item.quantity), item.unit, units)
+                            total += baseQty * (ing.costPrice || 0)
+                          }
+                          setForm(f => ({ ...f, costPrice: Math.round(total * 100) / 100 }))
+                        }}
+                        className="w-full flex items-center justify-center space-x-2 py-2 rounded-xl bg-white border border-primary-200 text-primary-600 text-sm font-medium hover:bg-primary-50"
+                      >
+                        <Calculator size={14} />
+                        <span>คำนวณต้นทุนจากสูตร</span>
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -1048,6 +1088,95 @@ export default function InventoryPage() {
                 {selectedProduct ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unit Manager Modal */}
+      {showUnitManager && currentProductForUnits && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">จัดการหน่วยแปลง</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{currentProductForUnits.name} (พื้นฐาน: {currentProductForUnits.unit})</p>
+              </div>
+              <button onClick={() => { setShowUnitManager(false); setUnitForm({ unitName: '', conversionRate: '1', isBase: false }) }} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              {(productUnitsMap[currentProductForUnits.id] || []).map(u => (
+                <div key={u.id} className="flex items-center justify-between bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">{u.unitName}</p>
+                    <p className="text-xs text-slate-400">1 {u.unitName} = {u.conversionRate} {currentProductForUnits.unit}</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`ลบหน่วย "${u.unitName}"?`)) return
+                      await productUnitService.remove(u.id)
+                      const units = await productUnitService.getByProduct(currentProductForUnits.id)
+                      setProductUnitsMap(prev => ({ ...prev, [currentProductForUnits.id]: units }))
+                    }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              {(productUnitsMap[currentProductForUnits.id] || []).length === 0 && (
+                <p className="text-xs text-slate-400 text-center py-4">ยังไม่มีหน่วยแปลง</p>
+              )}
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2">
+              <p className="text-xs font-medium text-slate-700">เพิ่มหน่วยใหม่</p>
+              <input
+                type="text"
+                placeholder={`ชื่อหน่วย (เช่น กิโลกรัม)`}
+                value={unitForm.unitName}
+                onChange={e => setUnitForm({ ...unitForm, unitName: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              />
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-slate-500 shrink-0">1 หน่วยนี้ =</span>
+                <input
+                  type="number"
+                  placeholder="1000"
+                  value={unitForm.conversionRate}
+                  onChange={e => setUnitForm({ ...unitForm, conversionRate: e.target.value })}
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                />
+                <span className="text-xs text-slate-500 shrink-0">{currentProductForUnits.unit}</span>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!unitForm.unitName.trim() || !Number(unitForm.conversionRate)) {
+                    alert('กรุณากรอกชื่อหน่วยและอัตราแปลง')
+                    return
+                  }
+                  await productUnitService.create({
+                    shopProductId: currentProductForUnits.id,
+                    unitName: unitForm.unitName.trim(),
+                    conversionRate: Number(unitForm.conversionRate),
+                    isBase: false,
+                  })
+                  const units = await productUnitService.getByProduct(currentProductForUnits.id)
+                  setProductUnitsMap(prev => ({ ...prev, [currentProductForUnits.id]: units }))
+                  setUnitForm({ unitName: '', conversionRate: '1', isBase: false })
+                }}
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 rounded-lg text-sm"
+              >
+                <Plus size={14} className="inline mr-1" />
+                เพิ่มหน่วย
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-3 text-center">
+              ตัวอย่าง: ถ้าหน่วยพื้นฐาน "กรัม" และต้องการเพิ่ม "กิโลกรัม" → ใส่ 1000
+            </p>
           </div>
         </div>
       )}

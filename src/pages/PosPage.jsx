@@ -39,6 +39,7 @@ export default function PosPage() {
   const [showRecipeWarning, setShowRecipeWarning] = useState(false)
   const [recipeShortages, setRecipeShortages] = useState([])
   const [pendingCheckout, setPendingCheckout] = useState(false)
+  const [recipeAvailability, setRecipeAvailability] = useState({}) // { shopProductId: { maxServings, isLow } }
   const loadedBranchId = useRef(null)
   const allProductsRef = useRef([])
   const discountInputRef = useRef(null)
@@ -196,6 +197,42 @@ export default function PosPage() {
     load()
   }, [user?.branchId])
 
+  // Compute max servings for each recipe product based on ingredient stock
+  useEffect(() => {
+    const compute = async () => {
+      const recipeProducts = allProducts.filter(p => p.isRecipe)
+      if (recipeProducts.length === 0) { setRecipeAvailability({}); return }
+      const fullList = await shopProductService.getByBranch(user.branchId)
+      const ingredientMap = Object.fromEntries(fullList.map(p => [p.id, p]))
+      const result = {}
+      for (const dish of recipeProducts) {
+        try {
+          const recipe = await recipeService.getByShopProduct(dish.id)
+          if (!recipe || !recipe.recipeItems || recipe.recipeItems.length === 0) {
+            result[dish.id] = { maxServings: 0, isLow: true, missing: true }
+            continue
+          }
+          let maxServings = Infinity
+          for (const ri of recipe.recipeItems) {
+            const ing = ingredientMap[ri.ingredientShopProductId]
+            if (!ing) { maxServings = 0; break }
+            const units = await productUnitService.getByProduct(ing.id)
+            const baseQty = convertToBaseUnit(ri.quantity, ri.unit, units)
+            if (baseQty <= 0) continue
+            const possible = Math.floor(ing.stock / baseQty)
+            if (possible < maxServings) maxServings = possible
+          }
+          if (maxServings === Infinity) maxServings = 0
+          result[dish.id] = { maxServings, isLow: maxServings <= 5 }
+        } catch (err) {
+          result[dish.id] = { maxServings: 0, isLow: true }
+        }
+      }
+      setRecipeAvailability(result)
+    }
+    compute()
+  }, [allProducts, user?.branchId])
+
   const categories = useMemo(() => {
     const cats = [...new Set(allProducts.map(p => p.category))]
     return ['all', ...cats]
@@ -250,12 +287,19 @@ export default function PosPage() {
   }
 
   const addToCart = (product) => {
-    if (product.stock <= 0) return
+    const isRecipe = product.isRecipe
+    const maxQty = isRecipe ? (recipeAvailability[product.id]?.maxServings ?? 0) : product.stock
+    if (!isRecipe && product.stock <= 0) return
     setActiveCartItems(prev => {
       const existing = prev.find(item => item.id === product.id)
       if (existing) {
-        if (existing.qty >= product.stock) return prev
+        if (maxQty > 0 && existing.qty >= maxQty) {
+          if (!confirm(`${isRecipe ? 'วัตถุดิบ' : 'สต็อก'}อาจไม่พอ ต้องการเพิ่มต่อหรือไม่?`)) return prev
+        }
         return prev.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item)
+      }
+      if (isRecipe && maxQty <= 0) {
+        if (!confirm('วัตถุดิบหมด ต้องการขายต่อหรือไม่?')) return prev
       }
       return [...prev, { ...product, qty: 1 }]
     })
@@ -264,7 +308,8 @@ export default function PosPage() {
   const updateQty = (id, delta) => {
     setActiveCartItems(prev => prev.map(item => {
       if (item.id !== id) return item
-      const newQty = Math.max(1, Math.min(item.qty + delta, item.stock))
+      const cap = item.isRecipe ? Infinity : item.stock
+      const newQty = Math.max(1, Math.min(item.qty + delta, cap))
       return { ...item, qty: newQty }
     }))
   }
@@ -418,6 +463,9 @@ export default function PosPage() {
     setDiscountType('amount')
     const newStats = await getStats(user.shopId, user.branchId)
     setStats(newStats)
+    // Refresh products so recipe availability recomputes
+    const refreshed = await shopProductService.getByBranch(user.branchId)
+    setAllProducts((refreshed || []).filter(p => p.category !== 'วัตถุดิบ'))
     // Close active cart after checkout
     const filtered = carts.filter(c => c.id !== activeCartId)
     if (filtered.length === 0) {
@@ -600,8 +648,10 @@ export default function PosPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {products.map(product => {
               const inCart = cart.find(c => c.id === product.id)
-              const isLowStock = product.stock <= product.minStock
-              const isOut = product.stock <= 0
+              const recipeAvail = product.isRecipe ? recipeAvailability[product.id] : null
+              const effectiveStock = product.isRecipe ? (recipeAvail?.maxServings ?? 0) : product.stock
+              const isLowStock = product.isRecipe ? (recipeAvail?.isLow ?? true) : (product.stock <= product.minStock)
+              const isOut = product.isRecipe ? (effectiveStock <= 0) : (product.stock <= 0)
               return (
                 <div
                   key={product.id}
@@ -620,11 +670,14 @@ export default function PosPage() {
                     )}
                     {isOut && (
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                        <span className="px-3 py-1 bg-black/60 text-white text-xs font-medium rounded-full">หมด</span>
+                        <span className="px-3 py-1 bg-black/60 text-white text-xs font-medium rounded-full">{product.isRecipe ? 'วัตถุดิบหมด' : 'หมด'}</span>
                       </div>
                     )}
                     {isLowStock && !isOut && (
-                      <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-400 text-white text-[10px] font-bold rounded-md">ใกล้หมด</span>
+                      <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-400 text-white text-[10px] font-bold rounded-md">{product.isRecipe ? 'วัตถุดิบใกล้หมด' : 'ใกล้หมด'}</span>
+                    )}
+                    {product.isRecipe && (
+                      <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-purple-500 text-white text-[10px] font-bold rounded-md">สูตร</span>
                     )}
                     {inCart && (
                       <span className="absolute top-2 right-2 w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-sm">
@@ -643,7 +696,9 @@ export default function PosPage() {
                     )}
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-base font-bold text-primary-600">฿{product.salePrice.toLocaleString()}</span>
-                      <span className="text-xs text-slate-400">{product.stock} {product.unit}</span>
+                      <span className="text-xs text-slate-400">
+                        {product.isRecipe ? `~${effectiveStock} ที่` : `${product.stock} ${product.unit}`}
+                      </span>
                     </div>
                     {/* Add Button */}
                     <button
