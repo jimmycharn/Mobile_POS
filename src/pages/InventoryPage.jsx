@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen, Settings, Calculator, Copy, ChefHat } from 'lucide-react'
+import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen, Settings, Calculator, Copy, ChefHat, ArrowLeftRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, productService, authService, branchService, storageService, recipeService, productUnitService, convertToBaseUnit } from '../services/supabaseApi'
 import { isStandardBarcode } from '../utils/barcode'
@@ -23,6 +23,14 @@ export default function InventoryPage() {
   const [showIngredientUsage, setShowIngredientUsage] = useState(false)
   const [usageIngredient, setUsageIngredient] = useState(null)
   const [usageRecipes, setUsageRecipes] = useState([])
+  const [showTransfer, setShowTransfer] = useState(false)
+  const [transferSource, setTransferSource] = useState(null)
+  const [transferTargetId, setTransferTargetId] = useState('')
+  const [transferQty, setTransferQty] = useState('')
+  const [transferSourceUnit, setTransferSourceUnit] = useState('')
+  const [transferSourceUnits, setTransferSourceUnits] = useState([])
+  const [transferSearch, setTransferSearch] = useState('')
+  const [transferAllProducts, setTransferAllProducts] = useState([])
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
   const [centralProduct, setCentralProduct] = useState(null)
   const [filter, setFilter] = useState('all') // all, low, standard, custom, ingredient
@@ -424,6 +432,78 @@ export default function InventoryPage() {
     }
   }
 
+  const openTransfer = async (p) => {
+    setTransferSource(p)
+    setTransferTargetId('')
+    setTransferQty('')
+    setTransferSearch('')
+    setTransferSourceUnit(p.unit || '')
+    try {
+      const [units, fullList] = await Promise.all([
+        productUnitService.getByProduct(p.id),
+        shopProductService.getByBranch(user.branchId),
+      ])
+      setTransferSourceUnits(units || [])
+      setTransferAllProducts(fullList || [])
+    } catch {
+      setTransferSourceUnits([])
+      setTransferAllProducts([])
+    }
+    setShowTransfer(true)
+  }
+
+  const handleTransfer = async () => {
+    if (!transferSource || !transferTargetId || !transferQty) return
+    const target = transferAllProducts.find(p => p.id === transferTargetId) || products.find(p => p.id === transferTargetId)
+    if (!target) {
+      alert('ไม่พบสินค้าปลายทาง')
+      return
+    }
+    const inputQty = Number(transferQty)
+    if (inputQty <= 0) return
+    // Convert input qty (source unit) → source base
+    const sourceBaseQty = transferSourceUnit && transferSourceUnit !== transferSource.unit
+      ? convertToBaseUnit(inputQty, transferSourceUnit, transferSourceUnits)
+      : inputQty
+    if (sourceBaseQty > transferSource.stock) {
+      alert(`สต็อกไม่พอ: ${transferSource.name} มีเพียง ${transferSource.stock} ${transferSource.unit}`)
+      return
+    }
+    // Compute destination qty:
+    // If same base unit (e.g. both grams), 1:1 transfer.
+    // Otherwise, ask user — for now, transfer 1:1 in source base unit and warn if units mismatch
+    let destQty = sourceBaseQty
+    if (transferSource.unit !== target.unit) {
+      const ok = confirm(`หน่วยไม่ตรงกัน: ต้นทาง ${transferSource.unit} → ปลายทาง ${target.unit}\n\nระบบจะโอนแบบ 1 ${transferSource.unit} = 1 ${target.unit}\nดำเนินการต่อหรือไม่?`)
+      if (!ok) return
+    }
+    // Cost transfer: move proportional cost value
+    const costPerBase = transferSource.costPrice || 0
+    const transferredCost = costPerBase * sourceBaseQty
+    // Update source: reduce stock
+    await shopProductService.update(transferSource.id, {
+      stock: Math.max(0, transferSource.stock - sourceBaseQty),
+    })
+    // Update target: increase stock + recompute avg cost
+    const targetOldStock = target.stock || 0
+    const targetOldCost = (target.costPrice || 0) * targetOldStock
+    const newTargetStock = targetOldStock + destQty
+    const newTargetCost = newTargetStock > 0 ? (targetOldCost + transferredCost) / newTargetStock : 0
+    await shopProductService.update(target.id, {
+      stock: newTargetStock,
+      costPrice: Number(newTargetCost.toFixed(2)),
+    })
+    await authService.logActivity(
+      'TRANSFER_STOCK',
+      `โอนสต็อก ${inputQty} ${transferSourceUnit} (${sourceBaseQty} ${transferSource.unit}) จาก ${transferSource.name} → ${target.name}`
+    )
+    setShowTransfer(false)
+    setTransferSource(null)
+    setTransferTargetId('')
+    setTransferQty('')
+    await refresh()
+  }
+
   const openEdit = async (p) => {
     setSelectedProduct(p)
     if (p.productId) {
@@ -734,6 +814,14 @@ export default function InventoryPage() {
                               <Ban size={16} />
                             </button>
                             <button
+                              onClick={() => openTransfer(product)}
+                              disabled={product.stock <= 0}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="โอนสต็อกไปสินค้าอื่น"
+                            >
+                              <ArrowLeftRight size={16} />
+                            </button>
+                            <button
                               onClick={() => openEdit(product)}
                               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-primary-50 text-slate-400 hover:text-primary-600"
                               title="แก้ไข"
@@ -750,13 +838,27 @@ export default function InventoryPage() {
                               </button>
                             )}
                             {product.category === 'วัตถุดิบ' && (
-                              <button
-                                onClick={() => showUsage(product)}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600"
-                                title="ใช้ในเมนูใดบ้าง"
-                              >
-                                <ChefHat size={16} />
-                              </button>
+                              <>
+                                <button
+                                  onClick={async () => {
+                                    setCurrentProductForUnits(product)
+                                    const units = await productUnitService.getByProduct(product.id)
+                                    setProductUnitsMap(prev => ({ ...prev, [product.id]: units }))
+                                    setShowUnitManager(true)
+                                  }}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+                                  title="จัดการหน่วยแปลง"
+                                >
+                                  <Settings size={16} />
+                                </button>
+                                <button
+                                  onClick={() => showUsage(product)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600"
+                                  title="ใช้ในเมนูใดบ้าง"
+                                >
+                                  <ChefHat size={16} />
+                                </button>
+                              </>
                             )}
                             {!product.isStandard && (
                               <button
@@ -1657,6 +1759,99 @@ export default function InventoryPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Stock Modal */}
+      {showTransfer && transferSource && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center space-x-2">
+                <ArrowLeftRight size={20} className="text-blue-600" />
+                <h2 className="text-lg font-bold text-slate-800">โอนสต็อก</h2>
+              </div>
+              <button onClick={() => setShowTransfer(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-4 mb-4">
+              <p className="text-xs text-slate-400">จาก</p>
+              <p className="text-sm font-medium text-slate-800">{transferSource.name}</p>
+              <p className="text-xs text-slate-400 mt-0.5">สต็อกปัจจุบัน: {transferSource.stock} {transferSource.unit}</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">ปลายทาง</label>
+              <input
+                type="text"
+                value={transferSearch}
+                onChange={e => setTransferSearch(e.target.value)}
+                placeholder="ค้นหาสินค้าปลายทาง..."
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm mb-2"
+              />
+              <div className="max-h-40 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-50">
+                {transferAllProducts
+                  .filter(p => p.id !== transferSource.id && !p.isRecipe && (p.name || '').toLowerCase().includes(transferSearch.toLowerCase()))
+                  .slice(0, 20)
+                  .map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setTransferTargetId(p.id)}
+                      className={`w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors ${
+                        transferTargetId === p.id ? 'bg-primary-50' : ''
+                      }`}
+                    >
+                      <p className="text-sm text-slate-800">{p.name}</p>
+                      <p className="text-xs text-slate-400">{p.category} · มี {p.stock} {p.unit}</p>
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">จำนวนที่โอน</label>
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  value={transferQty}
+                  onChange={e => setTransferQty(e.target.value)}
+                  placeholder="ระบุจำนวน"
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-lg font-semibold text-center"
+                />
+                {transferSourceUnits.length > 0 ? (
+                  <select
+                    value={transferSourceUnit}
+                    onChange={e => setTransferSourceUnit(e.target.value)}
+                    className="px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
+                  >
+                    <option value={transferSource.unit}>{transferSource.unit}</option>
+                    {transferSourceUnits.map(u => (
+                      <option key={u.id} value={u.unitName}>{u.unitName}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{transferSource.unit}</span>
+                )}
+              </div>
+              {transferSourceUnit && transferSourceUnit !== transferSource.unit && transferQty && (
+                <p className="text-xs text-blue-500 mt-1.5">
+                  = {convertToBaseUnit(Number(transferQty), transferSourceUnit, transferSourceUnits).toLocaleString()} {transferSource.unit}
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={handleTransfer}
+              disabled={!transferTargetId || !transferQty || Number(transferQty) <= 0}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white font-semibold py-3.5 rounded-xl transition-colors"
+            >
+              ยืนยันโอนสต็อก
+            </button>
+            <p className="text-xs text-slate-400 text-center mt-3">ระบบจะลดสต็อกต้นทางและเพิ่มที่ปลายทาง พร้อมปรับต้นทุนเฉลี่ย</p>
           </div>
         </div>
       )}
