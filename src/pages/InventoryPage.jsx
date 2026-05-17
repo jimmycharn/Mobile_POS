@@ -730,12 +730,12 @@ export default function InventoryPage() {
       </div>
 
       {/* Alerts */}
-      {products.some(p => p.stock <= p.minStock) && filter !== 'low' && (
+      {products.some(p => !p.isRecipe && p.stock <= p.minStock) && filter !== 'low' && (
         <div className="mx-4 md:mx-6 mt-4 bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-center space-x-3">
           <AlertTriangle size={20} className="text-amber-500 shrink-0" />
           <div>
             <p className="text-sm font-medium text-amber-800">สินค้าใกล้หมดสต็อก</p>
-            <p className="text-xs text-amber-600">มี {products.filter(p => p.stock <= p.minStock).length} รายการที่เหลือน้อยกว่าจำนวนขั้นต่ำ</p>
+            <p className="text-xs text-amber-600">มี {products.filter(p => !p.isRecipe && p.stock <= p.minStock).length} รายการที่เหลือน้อยกว่าจำนวนขั้นต่ำ</p>
           </div>
         </div>
       )}
