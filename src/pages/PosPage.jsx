@@ -190,7 +190,8 @@ export default function PosPage() {
     const load = async () => {
       if (!user?.branchId) { setAllProducts([]); return }
       const data = await shopProductService.getByBranch(user.branchId)
-      setAllProducts(data || [])
+      // Hide ingredient-only products from POS; show only sellable items
+      setAllProducts((data || []).filter(p => p.category !== 'วัตถุดิบ'))
     }
     load()
   }, [user?.branchId])
