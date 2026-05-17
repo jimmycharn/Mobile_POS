@@ -324,23 +324,6 @@ export default function SuperadminShopDetail() {
             </div>
           </div>
 
-          {/* Trend Chart */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
-            <h3 className="font-semibold text-slate-800 mb-4">แนวโน้มยอดขาย</h3>
-            <div className="flex items-end space-x-2 h-48 overflow-x-auto no-scrollbar">
-              {dailyData.map((d, i) => (
-                <div key={i} className="flex-1 min-w-[40px] flex flex-col items-center justify-end h-full">
-                  <div className="text-xs text-slate-400 mb-1">{d.revenue > 0 ? `฿${(d.revenue/1000).toFixed(1)}k` : ''}</div>
-                  <div
-                    className="w-full max-w-[40px] bg-primary-500 rounded-t-lg transition-all"
-                    style={{ height: `${(d.revenue / maxRevenue) * 100}%`, minHeight: d.revenue > 0 ? 4 : 0 }}
-                  />
-                  <div className="text-[10px] text-slate-400 mt-2">{d.date}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Payment Methods */}
           <div className="bg-white rounded-2xl border border-slate-100 p-5">
             <h3 className="font-semibold text-slate-800 mb-4">วิธีชำระเงิน</h3>
@@ -369,6 +352,23 @@ export default function SuperadminShopDetail() {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Trend Chart */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <h3 className="font-semibold text-slate-800 mb-4">แนวโน้มยอดขาย</h3>
+            <div className="flex items-end space-x-2 h-48 overflow-x-auto no-scrollbar">
+              {dailyData.map((d, i) => (
+                <div key={i} className="flex-1 min-w-[40px] flex flex-col items-center justify-end h-full">
+                  <div className="text-xs text-slate-400 mb-1">{d.revenue > 0 ? `฿${(d.revenue/1000).toFixed(1)}k` : ''}</div>
+                  <div
+                    className="w-full max-w-[40px] bg-primary-500 rounded-t-lg transition-all"
+                    style={{ height: `${(d.revenue / maxRevenue) * 100}%`, minHeight: d.revenue > 0 ? 4 : 0 }}
+                  />
+                  <div className="text-[10px] text-slate-400 mt-2">{d.date}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
