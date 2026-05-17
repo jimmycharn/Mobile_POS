@@ -500,7 +500,7 @@ export default function InventoryPage() {
   const canManage = user.role === 'owner' || (user.role === 'staff' && (user.canManageInventory ?? true))
 
   return (
-    <div className="h-full">
+    <div className="h-full overflow-y-auto pb-20 md:pb-0">
       {/* Header */}
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
