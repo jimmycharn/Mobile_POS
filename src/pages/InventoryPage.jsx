@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen, Settings, Calculator } from 'lucide-react'
+import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen, Settings, Calculator, Copy, ChefHat } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopProductService, productService, authService, branchService, storageService, recipeService, productUnitService, convertToBaseUnit } from '../services/supabaseApi'
 import { isStandardBarcode } from '../utils/barcode'
@@ -18,6 +18,11 @@ export default function InventoryPage() {
   const [stockInUnits, setStockInUnits] = useState([])
   const [stockOutQty, setStockOutQty] = useState('')
   const [stockOutReason, setStockOutReason] = useState('spoilage')
+  const [stockOutUnit, setStockOutUnit] = useState('')
+  const [stockOutUnits, setStockOutUnits] = useState([])
+  const [showIngredientUsage, setShowIngredientUsage] = useState(false)
+  const [usageIngredient, setUsageIngredient] = useState(null)
+  const [usageRecipes, setUsageRecipes] = useState([])
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
   const [centralProduct, setCentralProduct] = useState(null)
   const [filter, setFilter] = useState('all') // all, low, standard, custom, ingredient
@@ -362,6 +367,63 @@ export default function InventoryPage() {
     await refresh()
   }
 
+  const cloneRecipe = async (p) => {
+    try {
+      const recipe = await recipeService.getByShopProduct(p.id)
+      if (!recipe || !recipe.recipeItems) {
+        alert('ไม่พบสูตรอาหารต้นฉบับ')
+        return
+      }
+      setSelectedProduct(null)
+      setCentralProduct(null)
+      setRecipeItems(recipe.recipeItems.map(item => ({
+        ingredientShopProductId: item.ingredientShopProductId,
+        quantity: item.quantity,
+        unit: item.unit,
+      })))
+      setForm({
+        name: p.name + ' (สำเนา)',
+        barcode: '',
+        category: p.category || '',
+        unit: p.unit || 'จาน',
+        costPrice: String(p.costPrice || 0),
+        salePrice: String(p.salePrice || 0),
+        stock: '0',
+        minStock: '0',
+        imageUrl: p.imageUrl || '',
+        color: p.color || '',
+        size: p.size || '',
+        isRecipe: true,
+      })
+      setShowForm(true)
+    } catch (err) {
+      console.error('clone recipe error:', err)
+      alert('ไม่สามารถ clone สูตรอาหาร: ' + err.message)
+    }
+  }
+
+  const showUsage = async (ingredient) => {
+    try {
+      // Find all recipes that include this ingredient (query unfiltered list)
+      const fullList = await shopProductService.getByBranch(user.branchId)
+      const recipeProducts = fullList.filter(p => p.isRecipe)
+      const used = []
+      for (const rp of recipeProducts) {
+        const recipe = await recipeService.getByShopProduct(rp.id)
+        if (!recipe || !recipe.recipeItems) continue
+        const match = recipe.recipeItems.find(ri => ri.ingredientShopProductId === ingredient.id)
+        if (match) {
+          used.push({ dish: rp, qty: match.quantity, unit: match.unit })
+        }
+      }
+      setUsageIngredient(ingredient)
+      setUsageRecipes(used)
+      setShowIngredientUsage(true)
+    } catch (err) {
+      console.error('show usage error:', err)
+    }
+  }
+
   const openEdit = async (p) => {
     setSelectedProduct(p)
     if (p.productId) {
@@ -480,7 +542,10 @@ export default function InventoryPage() {
       return
     }
     if (!selectedProduct || !stockOutQty) return
-    const qty = Number(stockOutQty)
+    const inputQty = Number(stockOutQty)
+    const qty = stockOutUnit && stockOutUnit !== selectedProduct.unit
+      ? convertToBaseUnit(inputQty, stockOutUnit, stockOutUnits)
+      : inputQty
     if (qty <= 0 || qty > selectedProduct.stock) {
       alert(`จำนวนตัดสต็อกต้องไม่เกิน ${selectedProduct.stock} ${selectedProduct.unit}`)
       return
@@ -488,12 +553,29 @@ export default function InventoryPage() {
     const newStock = selectedProduct.stock - qty
     await shopProductService.update(selectedProduct.id, { stock: newStock })
     const reasonLabels = { spoilage: 'เน่าเสีย', expiry: 'หมดอายุ', damage: 'เสียหาย', loss: 'สูญหาย' }
-    await authService.logActivity('STOCK_OUT', `ตัดสต็อก ${selectedProduct.name} ${qty} ${selectedProduct.unit} (${reasonLabels[stockOutReason]}) (คงเหลือ ${newStock})`)
+    const unitLabel = stockOutUnit || selectedProduct.unit
+    await authService.logActivity('STOCK_OUT', `ตัดสต็อก ${selectedProduct.name} ${inputQty} ${unitLabel} = ${qty} ${selectedProduct.unit} (${reasonLabels[stockOutReason]}) (คงเหลือ ${newStock})`)
     setShowStockOut(false)
     setSelectedProduct(null)
     setStockOutQty('')
     setStockOutReason('spoilage')
+    setStockOutUnit('')
+    setStockOutUnits([])
     await refresh()
+  }
+
+  const openStockOut = async (product) => {
+    setSelectedProduct(product)
+    setShowStockOut(true)
+    setStockOutQty('')
+    setStockOutReason('spoilage')
+    setStockOutUnit(product.unit || '')
+    try {
+      const units = await productUnitService.getByProduct(product.id)
+      setStockOutUnits(units || [])
+    } catch {
+      setStockOutUnits([])
+    }
   }
 
   // Permission check: owner always can manage, staff needs canManageInventory flag
@@ -645,7 +727,7 @@ export default function InventoryPage() {
                               <ArrowUpDown size={16} />
                             </button>
                             <button
-                              onClick={() => { setSelectedProduct(product); setShowStockOut(true); setStockOutQty(''); setStockOutReason('spoilage') }}
+                              onClick={() => openStockOut(product)}
                               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
                               title="ตัดสต็อกสูญเสีย"
                             >
@@ -658,6 +740,24 @@ export default function InventoryPage() {
                             >
                               <Edit3 size={16} />
                             </button>
+                            {product.isRecipe && (
+                              <button
+                                onClick={() => cloneRecipe(product)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 text-slate-400 hover:text-purple-600"
+                                title="ทำสำเนาสูตร"
+                              >
+                                <Copy size={16} />
+                              </button>
+                            )}
+                            {product.category === 'วัตถุดิบ' && (
+                              <button
+                                onClick={() => showUsage(product)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600"
+                                title="ใช้ในเมนูใดบ้าง"
+                              >
+                                <ChefHat size={16} />
+                              </button>
+                            )}
                             {!product.isStandard && (
                               <button
                                 onClick={() => handleDelete(product.id)}
@@ -1467,22 +1567,96 @@ export default function InventoryPage() {
             </div>
             <div className="mb-5">
               <label className="block text-sm font-medium text-slate-700 mb-1.5">จำนวนที่ตัดสต็อก</label>
-              <input
-                type="number"
-                value={stockOutQty}
-                onChange={e => setStockOutQty(e.target.value)}
-                placeholder="ระบุจำนวน"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none text-lg font-semibold text-center"
-                autoFocus
-              />
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  value={stockOutQty}
+                  onChange={e => setStockOutQty(e.target.value)}
+                  placeholder="ระบุจำนวน"
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none text-lg font-semibold text-center"
+                  autoFocus
+                />
+                {stockOutUnits.length > 0 ? (
+                  <select
+                    value={stockOutUnit}
+                    onChange={e => setStockOutUnit(e.target.value)}
+                    className="px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
+                  >
+                    <option value={selectedProduct.unit}>{selectedProduct.unit}</option>
+                    {stockOutUnits.map(u => (
+                      <option key={u.id} value={u.unitName}>{u.unitName}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{selectedProduct.unit}</span>
+                )}
+              </div>
+              {stockOutUnit && stockOutUnit !== selectedProduct.unit && stockOutQty && (
+                <p className="text-xs text-red-500 mt-1.5">
+                  = {convertToBaseUnit(Number(stockOutQty), stockOutUnit, stockOutUnits).toLocaleString()} {selectedProduct.unit}
+                </p>
+              )}
             </div>
             <button
               onClick={handleStockOut}
-              disabled={!stockOutQty || Number(stockOutQty) <= 0 || Number(stockOutQty) > selectedProduct.stock}
+              disabled={(() => {
+                if (!stockOutQty || Number(stockOutQty) <= 0) return true
+                const baseQty = stockOutUnit && stockOutUnit !== selectedProduct.unit
+                  ? convertToBaseUnit(Number(stockOutQty), stockOutUnit, stockOutUnits)
+                  : Number(stockOutQty)
+                return baseQty > selectedProduct.stock
+              })()}
               className="w-full bg-red-500 hover:bg-red-600 disabled:bg-slate-200 text-white font-semibold py-3.5 rounded-xl transition-colors"
             >
               ยืนยันตัดสต็อกสูญเสีย
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Ingredient Usage Modal */}
+      {showIngredientUsage && usageIngredient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setShowIngredientUsage(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <ChefHat size={20} className="text-amber-600" />
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">ใช้ในเมนู</h2>
+                  <p className="text-xs text-slate-400">{usageIngredient.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowIngredientUsage(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            {usageRecipes.length === 0 ? (
+              <div className="text-center py-8">
+                <ChefHat size={32} className="text-slate-200 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">ยังไม่มีเมนูใดใช้วัตถุดิบนี้</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {usageRecipes.map(u => (
+                  <div key={u.dish.id} className="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      {u.dish.imageUrl ? (
+                        <img src={u.dish.imageUrl} alt={u.dish.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
+                          <Package size={16} className="text-slate-400" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{u.dish.name}</p>
+                        <p className="text-xs text-slate-400">ราคาขาย ฿{u.dish.salePrice}</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-amber-600 shrink-0">{u.qty} {u.unit}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
