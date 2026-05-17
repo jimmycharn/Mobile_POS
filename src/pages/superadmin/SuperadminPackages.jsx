@@ -203,7 +203,7 @@ export default function SuperadminPackages() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-5 animate-scale-in my-auto">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-5 animate-scale-in my-auto max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-slate-800">{editing ? 'แก้ไขแพ็คเกจ' : 'เพิ่มแพ็คเกจ'}</h3>
               <button onClick={() => setShowForm(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
@@ -232,7 +232,7 @@ export default function SuperadminPackages() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">รายการขาย/เดือน</label>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <input
                       type="number"
                       value={form.isUnlimited ? '' : form.salesLimit}
