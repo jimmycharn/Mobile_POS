@@ -421,7 +421,9 @@ INSERT INTO storage.buckets (id, name, public, avif_autodetection, file_size_lim
 VALUES ('product-images', 'product-images', true, false, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg'])
 ON CONFLICT (id) DO NOTHING;
 
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- Note: storage.objects already has RLS enabled by default in Supabase.
+-- If CREATE POLICY below also fails with "must be owner", use Supabase Dashboard:
+-- Storage > product-images > Policies > New Policy (For full customization)
 
 -- Public read access to product images
 DROP POLICY IF EXISTS "Product images public read" ON storage.objects;
