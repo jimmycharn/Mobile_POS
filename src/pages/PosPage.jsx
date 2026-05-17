@@ -39,6 +39,7 @@ export default function PosPage() {
   const [showRecipeWarning, setShowRecipeWarning] = useState(false)
   const [recipeShortages, setRecipeShortages] = useState([])
   const [pendingCheckout, setPendingCheckout] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [recipeAvailability, setRecipeAvailability] = useState({}) // { shopProductId: { maxServings, isLow } }
   const [lowIngredients, setLowIngredients] = useState([]) // [{ id, name, stock, unit, minStock }]
   const [showLowIngredientList, setShowLowIngredientList] = useState(false)
@@ -399,42 +400,72 @@ export default function PosPage() {
         return
       }
 
+      setIsProcessing(true)
+
+      // Build lookup map from already-loaded products (avoids repeated getById calls)
+      const productMap = Object.fromEntries(allProducts.map(p => [p.id, p]))
+
+      // Identify recipe items in cart
+      const recipeCartItems = cart.filter(item => productMap[item.id]?.isRecipe)
+      const regularCartItems = cart.filter(item => !productMap[item.id]?.isRecipe)
+
+      // Fetch all recipes in parallel
+      const recipeResults = await Promise.all(
+        recipeCartItems.map(item =>
+          recipeService.getByShopProduct(item.id).then(r => ({ item, recipe: r }))
+        )
+      )
+
+      // Collect unique ingredient IDs to fetch units in parallel
+      const ingredientIds = new Set()
+      recipeResults.forEach(({ recipe }) => {
+        if (recipe?.recipeItems) {
+          recipe.recipeItems.forEach(ri => ingredientIds.add(ri.ingredientShopProductId))
+        }
+      })
+
+      // Fetch all units in parallel
+      const unitEntries = await Promise.all(
+        Array.from(ingredientIds).map(id =>
+          productUnitService.getByProduct(id).then(units => [id, units])
+        )
+      )
+      const unitsMap = Object.fromEntries(unitEntries)
+
       // Check recipe ingredient availability
       const shortages = []
       const deductions = [] // { id, stock }
 
-      for (const item of cart) {
-        const sp = await shopProductService.getById(item.id)
-        if (!sp) continue
-
-        if (sp.isRecipe) {
-          const recipe = await recipeService.getByShopProduct(item.id)
-          if (recipe && recipe.recipeItems) {
-            for (const ri of recipe.recipeItems) {
-              const ingredient = await shopProductService.getById(ri.ingredientShopProductId)
-              if (!ingredient) continue
-              const units = await productUnitService.getByProduct(ingredient.id)
-              const baseQty = convertToBaseUnit(ri.quantity * item.qty, ri.unit, units)
-              const newStock = ingredient.stock - baseQty
-              if (newStock < 0 && !force) {
-                shortages.push({
-                  dish: sp.name,
-                  ingredient: ingredient.name,
-                  required: Math.abs(newStock),
-                  unit: ingredient.unit,
-                })
-              }
-              deductions.push({ id: ingredient.id, stock: newStock })
-            }
+      for (const { item, recipe } of recipeResults) {
+        if (!recipe?.recipeItems) continue
+        for (const ri of recipe.recipeItems) {
+          const ingredient = productMap[ri.ingredientShopProductId]
+          if (!ingredient) continue
+          const units = unitsMap[ingredient.id] || []
+          const baseQty = convertToBaseUnit(ri.quantity * item.qty, ri.unit, units)
+          const newStock = ingredient.stock - baseQty
+          if (newStock < 0 && !force) {
+            shortages.push({
+              dish: productMap[item.id]?.name || 'สินค้า',
+              ingredient: ingredient.name,
+              required: Math.abs(newStock),
+              unit: ingredient.unit,
+            })
           }
-        } else {
-          deductions.push({ id: item.id, stock: sp.stock - item.qty })
+          deductions.push({ id: ingredient.id, stock: newStock })
         }
+      }
+
+      // Add regular product deductions
+      for (const item of regularCartItems) {
+        const sp = productMap[item.id]
+        if (sp) deductions.push({ id: item.id, stock: sp.stock - item.qty })
       }
 
       if (shortages.length > 0 && !force) {
         setRecipeShortages(shortages)
         setShowRecipeWarning(true)
+        setIsProcessing(false)
         return
       }
 
@@ -459,10 +490,10 @@ export default function PosPage() {
         staff_id: user.id,
       })
 
-      // Deduct stock (regular products + recipe ingredients)
-      for (const d of deductions) {
-        await shopProductService.update(d.id, { stock: Math.round(d.stock) })
-      }
+      // Deduct stock in parallel (regular products + recipe ingredients)
+      await Promise.all(
+        deductions.map(d => shopProductService.update(d.id, { stock: Math.round(d.stock) }))
+      )
 
       await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดสุทธิ ฿${finalTotal.toLocaleString()}`)
 
@@ -495,6 +526,8 @@ export default function PosPage() {
     } catch (err) {
       console.error('checkout error:', err)
       alert('เกิดข้อผิดพลาด: ' + (err.message || 'ไม่สามารถบันทึกการขายได้'))
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -1233,9 +1266,21 @@ export default function PosPage() {
                 </button>
                 <button
                   onClick={() => handleCheckout(false)}
-                  className="flex-1 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm"
+                  disabled={isProcessing}
+                  className={`flex-1 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center space-x-2 ${
+                    isProcessing
+                      ? 'bg-emerald-400 cursor-not-allowed'
+                      : 'bg-emerald-500 hover:bg-emerald-600'
+                  } text-white`}
                 >
-                  ยืนยันชำระเงิน
+                  {isProcessing ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <span>ยืนยันชำระเงิน</span>
+                  )}
                 </button>
               </div>
             </div>
@@ -1426,9 +1471,14 @@ export default function PosPage() {
                   setShowRecipeWarning(false)
                   handleCheckout(true)
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm"
+                disabled={isProcessing}
+                className={`flex-1 py-2.5 rounded-xl text-white font-medium text-sm ${
+                  isProcessing
+                    ? 'bg-amber-400 cursor-not-allowed'
+                    : 'bg-amber-600 hover:bg-amber-700'
+                }`}
               >
-                ขายต่อ (ติดลบ)
+                {isProcessing ? 'กำลังบันทึก...' : 'ขายต่อ (ติดลบ)'}
               </button>
             </div>
           </div>
