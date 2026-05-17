@@ -1468,14 +1468,14 @@ export default function InventoryPage() {
                   value={stockInQty}
                   onChange={e => setStockInQty(e.target.value)}
                   placeholder="ระบุจำนวน"
-                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none text-lg font-semibold text-center"
+                  className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none text-lg font-semibold text-center"
                   autoFocus
                 />
                 {stockInUnits.length > 0 ? (
                   <select
                     value={stockInUnit}
                     onChange={e => setStockInUnit(e.target.value)}
-                    className="px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
+                    className="shrink-0 max-w-[110px] px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
                   >
                     <option value={selectedProduct.unit}>{selectedProduct.unit}</option>
                     {stockInUnits.map(u => (
@@ -1483,7 +1483,7 @@ export default function InventoryPage() {
                     ))}
                   </select>
                 ) : (
-                  <span className="px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{selectedProduct.unit}</span>
+                  <span className="shrink-0 px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{selectedProduct.unit}</span>
                 )}
               </div>
               {stockInUnit && stockInUnit !== selectedProduct.unit && stockInQty && (
@@ -1678,14 +1678,14 @@ export default function InventoryPage() {
                   value={stockOutQty}
                   onChange={e => setStockOutQty(e.target.value)}
                   placeholder="ระบุจำนวน"
-                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none text-lg font-semibold text-center"
+                  className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none text-lg font-semibold text-center"
                   autoFocus
                 />
                 {stockOutUnits.length > 0 ? (
                   <select
                     value={stockOutUnit}
                     onChange={e => setStockOutUnit(e.target.value)}
-                    className="px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
+                    className="shrink-0 max-w-[110px] px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
                   >
                     <option value={selectedProduct.unit}>{selectedProduct.unit}</option>
                     {stockOutUnits.map(u => (
@@ -1693,7 +1693,7 @@ export default function InventoryPage() {
                     ))}
                   </select>
                 ) : (
-                  <span className="px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{selectedProduct.unit}</span>
+                  <span className="shrink-0 px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{selectedProduct.unit}</span>
                 )}
               </div>
               {stockOutUnit && stockOutUnit !== selectedProduct.unit && stockOutQty && (
@@ -1823,13 +1823,13 @@ export default function InventoryPage() {
                   value={transferQty}
                   onChange={e => setTransferQty(e.target.value)}
                   placeholder="ระบุจำนวน"
-                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-lg font-semibold text-center"
+                  className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-lg font-semibold text-center"
                 />
                 {transferSourceUnits.length > 0 ? (
                   <select
                     value={transferSourceUnit}
                     onChange={e => setTransferSourceUnit(e.target.value)}
-                    className="px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
+                    className="shrink-0 max-w-[110px] px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
                   >
                     <option value={transferSource.unit}>{transferSource.unit}</option>
                     {transferSourceUnits.map(u => (
@@ -1837,7 +1837,7 @@ export default function InventoryPage() {
                     ))}
                   </select>
                 ) : (
-                  <span className="px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{transferSource.unit}</span>
+                  <span className="shrink-0 px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{transferSource.unit}</span>
                 )}
               </div>
               {transferSourceUnit && transferSourceUnit !== transferSource.unit && transferQty && (
