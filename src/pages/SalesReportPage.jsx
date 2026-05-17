@@ -139,6 +139,21 @@ export default function SalesReportPage() {
     return { cash, transfer }
   }, [sales])
 
+  const topProducts = useMemo(() => {
+    const map = {} // { id: { name, qty, revenue, isRecipe } }
+    for (const s of sales) {
+      if (!Array.isArray(s.items)) continue
+      for (const item of s.items) {
+        if (!map[item.id]) {
+          map[item.id] = { id: item.id, name: item.name, qty: 0, revenue: 0, isRecipe: !!item.isRecipe }
+        }
+        map[item.id].qty += item.qty || 0
+        map[item.id].revenue += (item.salePrice || 0) * (item.qty || 0)
+      }
+    }
+    return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 10)
+  }, [sales])
+
   const maxRevenue = Math.max(...dailyData.map(d => d.revenue), 1)
 
   const exportCSV = () => {
@@ -339,6 +354,40 @@ export default function SalesReportPage() {
             </div>
           </div>
         </div>
+
+        {/* Top Selling Products */}
+        {topProducts.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="flex items-center space-x-2 mb-4">
+              <ShoppingBag size={18} className="text-primary-600" />
+              <h3 className="font-semibold text-slate-800">สินค้าขายดี (Top 10)</h3>
+            </div>
+            <div className="space-y-2">
+              {topProducts.map((p, idx) => {
+                const maxQty = topProducts[0]?.qty || 1
+                return (
+                  <div key={p.id} className="flex items-center space-x-3">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                      idx === 0 ? 'bg-amber-100 text-amber-700' : idx < 3 ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-400'
+                    }`}>{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-slate-800 truncate">
+                          {p.name}
+                          {p.isRecipe && <span className="ml-1 text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded">สูตร</span>}
+                        </p>
+                        <span className="text-xs text-slate-500 shrink-0 ml-2">{p.qty} ชิ้น · ฿{p.revenue.toLocaleString()}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-primary-500 rounded-full" style={{ width: `${(p.qty / maxQty) * 100}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Ingredient Consumption (only if any) */}
         {ingredientUsage.length > 0 && (
