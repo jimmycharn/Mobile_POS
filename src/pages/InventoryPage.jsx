@@ -767,20 +767,22 @@ export default function InventoryPage() {
                   </label>
                 </div>
               </div>
-              {/* Recipe toggle */}
-              <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">สินค้าสูตรอาหาร</p>
-                  <p className="text-xs text-slate-400">ไม่มีสต็อกตัวเอง ตัดวัตถุดิบตามสูตร</p>
+              {/* Recipe toggle - hidden for ingredients */}
+              {form.category !== 'วัตถุดิบ' && (
+                <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">สินค้าสูตรอาหาร</p>
+                    <p className="text-xs text-slate-400">ไม่มีสต็อกตัวเอง ตัดวัตถุดิบตามสูตร</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, isRecipe: !form.isRecipe })}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${form.isRecipe ? 'bg-primary-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.isRecipe ? 'translate-x-6' : ''}`} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, isRecipe: !form.isRecipe })}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${form.isRecipe ? 'bg-primary-600' : 'bg-slate-300'}`}
-                >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.isRecipe ? 'translate-x-6' : ''}`} />
-                </button>
-              </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">หมวดหมู่</label>
@@ -902,16 +904,24 @@ export default function InventoryPage() {
                   </datalist>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              {form.category === 'วัตถุดิบ' ? (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">ราคาต้นทุน</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">ราคาต้นทุนต่อ{form.unit || 'หน่วย'} (บาท)</label>
                   <input type="number" value={form.costPrice} onChange={e => setForm({...form, costPrice: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                  <p className="text-xs text-slate-400 mt-1.5">วัตถุดิบไม่ขายตรง จึงไม่ต้องกำหนดราคาขาย ต้นทุนนี้จะถูกใช้คำนวณต้นทุนของสูตรอาหาร</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">ราคาขาย</label>
-                  <input type="number" value={form.salePrice} onChange={e => setForm({...form, salePrice: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">ราคาต้นทุน</label>
+                    <input type="number" value={form.costPrice} onChange={e => setForm({...form, costPrice: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">ราคาขาย</label>
+                    <input type="number" value={form.salePrice} onChange={e => setForm({...form, salePrice: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                  </div>
                 </div>
-              </div>
+              )}
               {/* Recipe Builder */}
               {form.isRecipe && (
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
