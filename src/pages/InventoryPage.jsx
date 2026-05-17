@@ -233,6 +233,9 @@ export default function InventoryPage() {
           updates.imageUrl = form.imageUrl || null
         }
 
+        // Recipe flag (shop-level, always saved)
+        updates.isRecipe = form.isRecipe || false
+
         // Recipe products have no stock of their own
         if (form.isRecipe) {
           updates.stock = 0
@@ -305,6 +308,7 @@ export default function InventoryPage() {
             stock: form.isRecipe ? 0 : (Number(form.stock) || 0),
             minStock: form.isRecipe ? 0 : (Number(form.minStock) || 5),
             isStandard: true,
+            isRecipe: form.isRecipe || false,
             color: form.color || '',
             size: form.size || '',
           }
@@ -337,6 +341,7 @@ export default function InventoryPage() {
             stock: form.isRecipe ? 0 : (Number(form.stock) || 0),
             minStock: form.isRecipe ? 0 : (Number(form.minStock) || 5),
             isStandard: false,
+            isRecipe: form.isRecipe || false,
             imageUrl: form.imageUrl || '',
             color: form.color || '',
             size: form.size || '',
