@@ -31,6 +31,8 @@ export default function InventoryPage() {
   const [transferSourceUnits, setTransferSourceUnits] = useState([])
   const [transferSearch, setTransferSearch] = useState('')
   const [transferAllProducts, setTransferAllProducts] = useState([])
+  const [transferBarcodeMatches, setTransferBarcodeMatches] = useState([])
+  const [transferNameMatches, setTransferNameMatches] = useState([])
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
   const [centralProduct, setCentralProduct] = useState(null)
   const [filter, setFilter] = useState('all') // all, low, standard, custom, ingredient
@@ -444,6 +446,8 @@ export default function InventoryPage() {
     setTransferQty('')
     setTransferSearch('')
     setTransferSourceUnit(p.unit || '')
+    setTransferBarcodeMatches([])
+    setTransferNameMatches([])
     try {
       const [units, fullList] = await Promise.all([
         productUnitService.getByProduct(p.id),
@@ -451,11 +455,34 @@ export default function InventoryPage() {
       ])
       setTransferSourceUnits(units || [])
       setTransferAllProducts(fullList || [])
+
+      // Find matches by barcode/QR first, then by name
+      const others = (fullList || []).filter(x => x.id !== p.id)
+      const barcodeMatches = others.filter(x => x.barcode && p.barcode && x.barcode === p.barcode)
+      const nameMatches = others.filter(x => {
+        if (barcodeMatches.some(b => b.id === x.id)) return false
+        return x.name && p.name && x.name.trim() === p.name.trim()
+      })
+      setTransferBarcodeMatches(barcodeMatches)
+      setTransferNameMatches(nameMatches)
+
+      // Auto-select if exactly one barcode match
+      if (barcodeMatches.length === 1) {
+        setTransferTargetId(barcodeMatches[0].id)
+      }
     } catch {
       setTransferSourceUnits([])
       setTransferAllProducts([])
+      setTransferBarcodeMatches([])
+      setTransferNameMatches([])
     }
     setShowTransfer(true)
+  }
+
+  function transferDirectionLabel(source, target) {
+    const s = source?.category === 'วัตถุดิบ' ? 'วัตถุดิบ' : (source?.category || 'คลัง')
+    const t = target?.category === 'วัตถุดิบ' ? 'วัตถุดิบ' : (target?.category || 'คลัง')
+    return `${s} → ${t}`
   }
 
   const handleTransfer = async () => {
@@ -1794,8 +1821,60 @@ export default function InventoryPage() {
               <p className="text-xs text-slate-400 mt-0.5">สต็อกปัจจุบัน: {transferSource.stock} {transferSource.unit}</p>
             </div>
 
+            {/* Auto-matched products */}
+            {(transferBarcodeMatches.length > 0 || transferNameMatches.length > 0) && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">สินค้าที่ตรงกัน</label>
+                <div className="space-y-1.5">
+                  {transferBarcodeMatches.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setTransferTargetId(p.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
+                        transferTargetId === p.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-slate-800">{p.name}</p>
+                        <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">บาร์โค้ดตรงกัน</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {transferDirectionLabel(transferSource, p)} · มี {p.stock} {p.unit}
+                      </p>
+                    </button>
+                  ))}
+                  {transferNameMatches.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setTransferTargetId(p.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
+                        transferTargetId === p.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-slate-800">{p.name}</p>
+                        <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">ชื่อตรงกัน</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {transferDirectionLabel(transferSource, p)} · มี {p.stock} {p.unit}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Search fallback */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">ปลายทาง</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                {transferBarcodeMatches.length > 0 || transferNameMatches.length > 0 ? 'หรือเลือกจากสินค้าอื่น' : 'ปลายทาง'}
+              </label>
               <input
                 type="text"
                 value={transferSearch}
@@ -1803,24 +1882,64 @@ export default function InventoryPage() {
                 placeholder="ค้นหาสินค้าปลายทาง..."
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm mb-2"
               />
-              <div className="max-h-40 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-50">
-                {transferAllProducts
-                  .filter(p => p.id !== transferSource.id && !p.isRecipe && (p.name || '').toLowerCase().includes(transferSearch.toLowerCase()))
-                  .slice(0, 20)
-                  .map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setTransferTargetId(p.id)}
-                      className={`w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors ${
-                        transferTargetId === p.id ? 'bg-primary-50' : ''
-                      }`}
-                    >
-                      <p className="text-sm text-slate-800">{p.name}</p>
-                      <p className="text-xs text-slate-400">{p.category} · มี {p.stock} {p.unit}</p>
-                    </button>
-                  ))}
-              </div>
+              {transferSearch.trim() && (
+                <div className="max-h-40 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-50">
+                  {transferAllProducts
+                    .filter(p => p.id !== transferSource.id && !p.isRecipe && (p.name || '').toLowerCase().includes(transferSearch.toLowerCase()))
+                    .slice(0, 20)
+                    .map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setTransferTargetId(p.id)}
+                        className={`w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors ${
+                          transferTargetId === p.id ? 'bg-primary-50' : ''
+                        }`}
+                      >
+                        <p className="text-sm text-slate-800">{p.name}</p>
+                        <p className="text-xs text-slate-400">{p.category} · มี {p.stock} {p.unit}</p>
+                      </button>
+                    ))}
+                </div>
+              )}
+              {!transferSearch.trim() && transferTargetId && (
+                <div className="px-3 py-2 border border-slate-100 rounded-xl bg-primary-50">
+                  <p className="text-sm text-slate-800">
+                    {(transferAllProducts.find(p => p.id === transferTargetId) || {}).name}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Create new destination option */}
+            <div className="mb-5">
+              <button
+                onClick={() => {
+                  setShowTransfer(false)
+                  setTransferTargetId('')
+                  setShowForm(true)
+                  setSelectedProduct(null)
+                  setRecipeItems([])
+                  setProductUnitsMap({})
+                  setForm({
+                    name: transferSource.name || '',
+                    barcode: transferSource.barcode || '',
+                    category: transferSource.category === 'วัตถุดิบ' ? '' : 'วัตถุดิบ',
+                    unit: transferSource.unit || '',
+                    costPrice: String(transferSource.costPrice || ''),
+                    salePrice: '',
+                    stock: '',
+                    minStock: '5',
+                    imageUrl: transferSource.imageUrl || '',
+                    color: '',
+                    size: '',
+                    isRecipe: false
+                  })
+                }}
+                className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm font-medium hover:bg-slate-50 transition-colors"
+              >
+                + สร้างสินค้าใหม่เป็นปลายทาง
+              </button>
             </div>
 
             <div className="mb-5">
