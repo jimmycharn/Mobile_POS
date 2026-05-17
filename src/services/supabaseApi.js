@@ -262,7 +262,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('shop_id', shopId)
@@ -274,7 +274,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('branch_id', branchId)
@@ -286,7 +286,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('id', id)
@@ -312,7 +312,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('shop_id', shopId)
@@ -325,7 +325,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
         products:product_id(name, category, unit, image_url, barcode)
       `)
     if (branchId) query = query.eq('branch_id', branchId)
@@ -336,6 +336,107 @@ export const shopProductService = {
     )
     return mergeShopProduct(matched)
   },
+}
+
+// ============================================================
+// Product Units
+// ============================================================
+export const productUnitService = {
+  async getByProduct(shopProductId) {
+    const { data } = await supabase
+      .from('product_units')
+      .select('*')
+      .eq('shop_product_id', shopProductId)
+      .order('created_at')
+    return toCamel(data) || []
+  },
+  async create(unit) {
+    const { data, error } = await supabase.from('product_units').insert(toSnake(unit)).select()
+    if (error) throw new Error(error.message)
+    return toCamel(Array.isArray(data) ? data[0] : data)
+  },
+  async update(id, changes) {
+    const { data, error } = await supabase.from('product_units').update(toSnake(changes)).eq('id', id).select()
+    if (error) throw new Error(error.message)
+    return toCamel(Array.isArray(data) ? data[0] : data)
+  },
+  async remove(id) {
+    await supabase.from('product_units').delete().eq('id', id)
+  },
+}
+
+// ============================================================
+// Recipes (BOM)
+// ============================================================
+export const recipeService = {
+  async getByBranch(branchId) {
+    const { data } = await supabase
+      .from('recipes')
+      .select('*, recipe_items(*)')
+      .eq('branch_id', branchId)
+    return toCamel(data) || []
+  },
+  async getByShopProduct(shopProductId) {
+    const { data } = await supabase
+      .from('recipes')
+      .select('*, recipe_items(*)')
+      .eq('shop_product_id', shopProductId)
+      .maybeSingle()
+    return toCamel(data)
+  },
+  async create({ branchId, shopProductId, name, items }) {
+    const { data: recipe, error: rError } = await supabase
+      .from('recipes')
+      .insert({ branch_id: branchId, shop_product_id: shopProductId, name })
+      .select()
+      .single()
+    if (rError) throw new Error(rError.message)
+    const recipeId = recipe.id
+    if (items && items.length > 0) {
+      const payload = items.map(i => ({
+        recipe_id: recipeId,
+        ingredient_shop_product_id: i.ingredientShopProductId,
+        quantity: i.quantity,
+        unit: i.unit,
+      }))
+      const { error: iError } = await supabase.from('recipe_items').insert(payload)
+      if (iError) throw new Error(iError.message)
+    }
+    const { data } = await supabase.from('recipes').select('*, recipe_items(*)').eq('id', recipeId).single()
+    return toCamel(data)
+  },
+  async update(id, { name, items }) {
+    if (name !== undefined) {
+      const { error } = await supabase.from('recipes').update({ name }).eq('id', id)
+      if (error) throw new Error(error.message)
+    }
+    if (items) {
+      await supabase.from('recipe_items').delete().eq('recipe_id', id)
+      if (items.length > 0) {
+        const payload = items.map(i => ({
+          recipe_id: id,
+          ingredient_shop_product_id: i.ingredientShopProductId,
+          quantity: i.quantity,
+          unit: i.unit,
+        }))
+        const { error } = await supabase.from('recipe_items').insert(payload)
+        if (error) throw new Error(error.message)
+      }
+    }
+    const { data } = await supabase.from('recipes').select('*, recipe_items(*)').eq('id', id).single()
+    return toCamel(data)
+  },
+  async remove(id) {
+    await supabase.from('recipes').delete().eq('id', id)
+  },
+}
+
+// Helper: convert quantity from a given unit to the base unit
+export function convertToBaseUnit(qty, unitName, productUnits = []) {
+  if (!unitName || !productUnits.length) return qty
+  const unit = productUnits.find(u => u.unitName === unitName)
+  if (!unit) return qty
+  return qty * (unit.conversionRate || 1)
 }
 
 // ============================================================

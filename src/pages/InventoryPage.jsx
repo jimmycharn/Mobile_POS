@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopProductService, productService, authService, branchService, storageService } from '../services/supabaseApi'
+import { shopProductService, productService, authService, branchService, storageService, recipeService, productUnitService } from '../services/supabaseApi'
 import { isStandardBarcode } from '../utils/barcode'
 
 export default function InventoryPage() {
@@ -16,7 +16,7 @@ export default function InventoryPage() {
   const [stockInCost, setStockInCost] = useState('')
   const [stockOutQty, setStockOutQty] = useState('')
   const [stockOutReason, setStockOutReason] = useState('spoilage')
-  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
+  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
   const [centralProduct, setCentralProduct] = useState(null)
   const [filter, setFilter] = useState('all') // all, low, standard, custom
   const [showScanner, setShowScanner] = useState(false)
@@ -32,6 +32,19 @@ export default function InventoryPage() {
   const catDropdownRef = useRef(null)
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
+
+  // Recipe / BOM states
+  const [recipeItems, setRecipeItems] = useState([])
+  const [showIngredientPicker, setShowIngredientPicker] = useState(false)
+  const [ingredientSearch, setIngredientSearch] = useState('')
+  const [ingredientQty, setIngredientQty] = useState('')
+  const [ingredientUnit, setIngredientUnit] = useState('')
+  const [productUnitsMap, setProductUnitsMap] = useState({})
+  const [showUnitManager, setShowUnitManager] = useState(false)
+  const [unitForm, setUnitForm] = useState({ unitName: '', conversionRate: '1', isBase: false })
+  const [currentProductForUnits, setCurrentProductForUnits] = useState(null)
+  const [ingredientDropdownOpen, setIngredientDropdownOpen] = useState(false)
+  const ingredientDropdownRef = useRef(null)
 
   const refresh = useCallback(async () => {
     if (!user?.branchId) return
@@ -64,6 +77,16 @@ export default function InventoryPage() {
     const handleClickOutside = (e) => {
       if (catDropdownRef.current && !catDropdownRef.current.contains(e.target)) {
         setCatDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ingredientDropdownRef.current && !ingredientDropdownRef.current.contains(e.target)) {
+        setIngredientDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -187,7 +210,36 @@ export default function InventoryPage() {
           updates.imageUrl = form.imageUrl || null
         }
 
+        // Recipe products have no stock of their own
+        if (form.isRecipe) {
+          updates.stock = 0
+          updates.minStock = 0
+        }
+
         await shopProductService.update(selectedProduct.id, updates)
+
+        // Handle recipe update
+        const existingRecipe = await recipeService.getByShopProduct(selectedProduct.id)
+        if (form.isRecipe) {
+          const itemsPayload = recipeItems.map(i => ({
+            ingredientShopProductId: i.ingredientShopProductId,
+            quantity: Number(i.quantity),
+            unit: i.unit,
+          }))
+          if (existingRecipe) {
+            await recipeService.update(existingRecipe.id, { name: form.name, items: itemsPayload })
+          } else {
+            await recipeService.create({
+              branchId: user.branchId,
+              shopProductId: selectedProduct.id,
+              name: form.name,
+              items: itemsPayload,
+            })
+          }
+        } else if (existingRecipe) {
+          await recipeService.remove(existingRecipe.id)
+        }
+
         await authService.logActivity('EDIT_PRODUCT', `แก้ไขสินค้า ${form.name}`)
       } else {
         // Creating new product
@@ -227,13 +279,25 @@ export default function InventoryPage() {
             barcode: null, // standard barcode lives in products table
             costPrice: Number(form.costPrice) || 0,
             salePrice: Number(form.salePrice) || 0,
-            stock: Number(form.stock) || 0,
-            minStock: Number(form.minStock) || 5,
+            stock: form.isRecipe ? 0 : (Number(form.stock) || 0),
+            minStock: form.isRecipe ? 0 : (Number(form.minStock) || 5),
             isStandard: true,
             color: form.color || '',
             size: form.size || '',
           }
-          await shopProductService.create(payload)
+          const created = await shopProductService.create(payload)
+          if (form.isRecipe) {
+            await recipeService.create({
+              branchId: user.branchId,
+              shopProductId: created.id,
+              name: form.name,
+              items: recipeItems.map(i => ({
+                ingredientShopProductId: i.ingredientShopProductId,
+                quantity: Number(i.quantity),
+                unit: i.unit,
+              })),
+            })
+          }
           await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าจากคลังกลาง ${form.name}`)
         } else {
           // Non-standard product: create directly in shop_products
@@ -247,21 +311,34 @@ export default function InventoryPage() {
             unit: form.unit || 'ชิ้น',
             costPrice: Number(form.costPrice) || 0,
             salePrice: Number(form.salePrice) || 0,
-            stock: Number(form.stock) || 0,
-            minStock: Number(form.minStock) || 5,
+            stock: form.isRecipe ? 0 : (Number(form.stock) || 0),
+            minStock: form.isRecipe ? 0 : (Number(form.minStock) || 5),
             isStandard: false,
             imageUrl: form.imageUrl || '',
             color: form.color || '',
             size: form.size || '',
           }
-          await shopProductService.create(payload)
+          const created = await shopProductService.create(payload)
+          if (form.isRecipe) {
+            await recipeService.create({
+              branchId: user.branchId,
+              shopProductId: created.id,
+              name: form.name,
+              items: recipeItems.map(i => ({
+                ingredientShopProductId: i.ingredientShopProductId,
+                quantity: Number(i.quantity),
+                unit: i.unit,
+              })),
+            })
+          }
           await authService.logActivity('ADD_PRODUCT', `เพิ่มสินค้าใหม่ ${form.name}`)
         }
       }
       setShowForm(false)
       setSelectedProduct(null)
       setCentralProduct(null)
-      setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' })
+      setRecipeItems([])
+      setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
       await refresh()
     } catch (err) {
       console.error('handleSave error:', err)
@@ -299,7 +376,39 @@ export default function InventoryPage() {
       imageUrl: p.imageUrl || '',
       color: p.color || '',
       size: p.size || '',
+      isRecipe: p.isRecipe || false,
     })
+
+    // Load recipe if product is a recipe
+    if (p.isRecipe) {
+      try {
+        const recipe = await recipeService.getByShopProduct(p.id)
+        if (recipe && recipe.recipeItems) {
+          setRecipeItems(recipe.recipeItems.map(item => ({
+            ingredientShopProductId: item.ingredientShopProductId,
+            quantity: item.quantity,
+            unit: item.unit,
+            id: item.id,
+          })))
+          // Load units for each ingredient
+          const unitMap = {}
+          for (const item of recipe.recipeItems) {
+            const units = await productUnitService.getByProduct(item.ingredientShopProductId)
+            unitMap[item.ingredientShopProductId] = units
+          }
+          setProductUnitsMap(unitMap)
+        } else {
+          setRecipeItems([])
+        }
+      } catch (err) {
+        console.error('load recipe error:', err)
+        setRecipeItems([])
+      }
+    } else {
+      setRecipeItems([])
+      setProductUnitsMap({})
+    }
+
     setShowForm(true)
   }
 
@@ -373,7 +482,7 @@ export default function InventoryPage() {
                 <span>หมวดหมู่</span>
               </button>
               <button
-                onClick={() => { setShowForm(true); setSelectedProduct(null); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' }) }}
+                onClick={() => { setShowForm(true); setSelectedProduct(null); setRecipeItems([]); setProductUnitsMap({}); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false }) }}
                 className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
               >
                 <Plus size={18} />
@@ -537,7 +646,7 @@ export default function InventoryPage() {
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 pb-24 md:pb-6 animate-scale-in">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-800">{selectedProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}</h2>
-              <button onClick={() => { setShowForm(false); setSelectedProduct(null); setCentralProduct(null); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '' }) }} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+              <button onClick={() => { setShowForm(false); setSelectedProduct(null); setCentralProduct(null); setRecipeItems([]); setProductUnitsMap({}); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false }) }} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
                 <X size={18} className="text-slate-500" />
               </button>
             </div>
@@ -620,6 +729,20 @@ export default function InventoryPage() {
                     </div>
                   </label>
                 </div>
+              </div>
+              {/* Recipe toggle */}
+              <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">สินค้าสูตรอาหาร</p>
+                  <p className="text-xs text-slate-400">ไม่มีสต็อกตัวเอง ตัดวัตถุดิบตามสูตร</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, isRecipe: !form.isRecipe })}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${form.isRecipe ? 'bg-primary-600' : 'bg-slate-300'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.isRecipe ? 'translate-x-6' : ''}`} />
+                </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -752,7 +875,154 @@ export default function InventoryPage() {
                   <input type="number" value={form.salePrice} onChange={e => setForm({...form, salePrice: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
                 </div>
               </div>
-              {!selectedProduct && (
+              {/* Recipe Builder */}
+              {form.isRecipe && (
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                  <p className="text-sm font-medium text-slate-700">สูตรอาหาร (วัตถุดิบ)</p>
+                  {recipeItems.length > 0 && (
+                    <div className="space-y-2">
+                      {recipeItems.map((item, idx) => {
+                        const ing = products.find(p => p.id === item.ingredientShopProductId)
+                        return (
+                          <div key={idx} className="flex items-center justify-between bg-white rounded-lg p-2 border border-slate-100">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-slate-700 truncate">{ing?.name || 'วัตถุดิบ'}</p>
+                              <p className="text-xs text-slate-400">{item.quantity} {item.unit}</p>
+                            </div>
+                            <button onClick={() => setRecipeItems(prev => prev.filter((_, i) => i !== idx))} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <div className="relative" ref={ingredientDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setIngredientDropdownOpen(o => !o)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm flex items-center justify-between"
+                      >
+                        <span className="text-slate-400">{ingredientSearch || 'เลือกวัตถุดิบ...'}</span>
+                        <ChevronDown size={14} className="text-slate-400" />
+                      </button>
+                      {ingredientDropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 shadow-lg z-[60] max-h-60 overflow-y-auto">
+                          <input
+                            type="text"
+                            placeholder="ค้นหาวัตถุดิบ..."
+                            value={ingredientSearch}
+                            onChange={e => setIngredientSearch(e.target.value)}
+                            className="w-full px-3 py-2 border-b border-slate-100 text-sm outline-none"
+                          />
+                          {products.filter(p => !p.isRecipe && (p.name || '').toLowerCase().includes((ingredientSearch || '').toLowerCase())).map(p => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedIngredientId(p.id)
+                                setIngredientSearch(p.name)
+                                setIngredientUnit(p.unit || 'ชิ้น')
+                                productUnitService.getByProduct(p.id).then(units => {
+                                  setProductUnitsMap(prev => ({ ...prev, [p.id]: units }))
+                                  if (units.length > 0) setIngredientUnit(units[0].unitName)
+                                })
+                                setIngredientDropdownOpen(false)
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-700"
+                            >
+                              {p.name} (คงเหลือ: {p.stock} {p.unit})
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIngredientDropdownOpen(false)
+                              const name = prompt('ชื่อวัตถุดิบใหม่:')
+                              if (!name) return
+                              const unit = prompt('หน่วยพื้นฐาน (เช่น กรัม, ฟอง):') || 'ชิ้น'
+                              shopProductService.create({
+                                shopId: user.shopId,
+                                branchId: user.branchId,
+                                name,
+                                category: 'วัตถุดิบ',
+                                unit,
+                                costPrice: 0,
+                                salePrice: 0,
+                                stock: 0,
+                                minStock: 0,
+                              }).then(newIng => {
+                                refresh().then(() => {
+                                  setSelectedIngredientId(newIng.id)
+                                  setIngredientSearch(newIng.name)
+                                  setIngredientUnit(newIng.unit || 'ชิ้น')
+                                })
+                              })
+                            }}
+                            className="w-full text-left px-3 py-2 text-primary-600 text-sm font-medium border-t border-slate-100"
+                          >
+                            + สร้างวัตถุดิบใหม่
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {selectedIngredientId && (
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          value={ingredientQty}
+                          onChange={e => setIngredientQty(e.target.value)}
+                          placeholder="จำนวน"
+                          className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm"
+                        />
+                        <select
+                          value={ingredientUnit}
+                          onChange={e => setIngredientUnit(e.target.value)}
+                          className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
+                        >
+                          {(productUnitsMap[selectedIngredientId] || []).map(u => (
+                            <option key={u.id} value={u.unitName}>{u.unitName}</option>
+                          ))}
+                          <option value={products.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'}>
+                            {products.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'} (default)
+                          </option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!selectedIngredientId || !ingredientQty) return
+                            setRecipeItems(prev => [...prev, {
+                              ingredientShopProductId: selectedIngredientId,
+                              quantity: Number(ingredientQty),
+                              unit: ingredientUnit,
+                            }])
+                            setSelectedIngredientId('')
+                            setIngredientSearch('')
+                            setIngredientQty('')
+                            setIngredientUnit('')
+                          }}
+                          className="px-3 py-2 rounded-xl bg-primary-600 text-white text-sm"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {recipeItems.length > 0 && (
+                    <div className="bg-primary-50 rounded-lg p-3 border border-primary-100">
+                      <p className="text-xs font-medium text-primary-700 mb-1">สูตรโดยสรุป</p>
+                      <p className="text-xs text-primary-600">
+                        1 {form.unit || 'ชิ้น'} {form.name || 'สินค้า'} = {recipeItems.map(item => {
+                          const ing = products.find(p => p.id === item.ingredientShopProductId)
+                          return `${ing?.name || '?'} ${item.quantity}${item.unit}`
+                        }).join(' + ')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!selectedProduct && !form.isRecipe && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">สต็อกเริ่มต้น</label>
@@ -764,7 +1034,7 @@ export default function InventoryPage() {
                   </div>
                 </div>
               )}
-              {selectedProduct && (
+              {selectedProduct && !form.isRecipe && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">สต็อกขั้นต่ำ</label>
                   <input type="number" value={form.minStock} onChange={e => setForm({...form, minStock: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />

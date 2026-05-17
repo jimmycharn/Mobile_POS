@@ -399,10 +399,152 @@ CREATE POLICY "Bank accounts delete policy" ON bank_accounts
 -- Allow shop_products to link to central products optionally
 -- and override fields when product_id is set
 ALTER TABLE shop_products ALTER COLUMN name DROP NOT NULL;
+ALTER TABLE shop_products ADD COLUMN IF NOT EXISTS is_recipe BOOLEAN DEFAULT false;
 
 -- Index for fast barcode lookup across shop_products (including internal codes)
 CREATE INDEX IF NOT EXISTS idx_shop_products_barcode ON shop_products(barcode);
 CREATE INDEX IF NOT EXISTS idx_shop_products_product_id ON shop_products(product_id);
+
+-- ============================================================
+-- Recipes & Product Units (BOM for F&B)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS recipes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  branch_id UUID REFERENCES branches(id) ON DELETE CASCADE NOT NULL,
+  shop_product_id UUID REFERENCES shop_products(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS recipe_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recipe_id UUID REFERENCES recipes(id) ON DELETE CASCADE NOT NULL,
+  ingredient_shop_product_id UUID REFERENCES shop_products(id) ON DELETE CASCADE NOT NULL,
+  quantity NUMERIC NOT NULL DEFAULT 1,
+  unit TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS product_units (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  shop_product_id UUID REFERENCES shop_products(id) ON DELETE CASCADE NOT NULL,
+  unit_name TEXT NOT NULL,
+  conversion_rate NUMERIC NOT NULL DEFAULT 1,
+  is_base BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_recipes_branch_id ON recipes(branch_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_shop_product_id ON recipes(shop_product_id);
+CREATE INDEX IF NOT EXISTS idx_recipe_items_recipe_id ON recipe_items(recipe_id);
+CREATE INDEX IF NOT EXISTS idx_product_units_shop_product_id ON product_units(shop_product_id);
+
+ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recipe_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_units ENABLE ROW LEVEL SECURITY;
+
+-- Recipes RLS
+CREATE POLICY "Recipes read policy" ON recipes
+  FOR SELECT USING (
+    branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR get_my_role() = 'superadmin'
+  );
+CREATE POLICY "Recipes insert policy" ON recipes
+  FOR INSERT WITH CHECK (
+    branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR get_my_role() = 'superadmin'
+  );
+CREATE POLICY "Recipes update policy" ON recipes
+  FOR UPDATE USING (
+    branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR get_my_role() = 'superadmin'
+  )
+  WITH CHECK (
+    branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR get_my_role() = 'superadmin'
+  );
+CREATE POLICY "Recipes delete policy" ON recipes
+  FOR DELETE USING (
+    branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+    OR get_my_role() = 'superadmin'
+  );
+
+-- Recipe items RLS (through parent recipe)
+CREATE POLICY "Recipe items read policy" ON recipe_items
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
+      r.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  );
+CREATE POLICY "Recipe items insert policy" ON recipe_items
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
+      r.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  );
+CREATE POLICY "Recipe items update policy" ON recipe_items
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
+      r.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
+      r.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  );
+CREATE POLICY "Recipe items delete policy" ON recipe_items
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
+      r.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  );
+
+-- Product units RLS (through parent shop_product)
+CREATE POLICY "Product units read policy" ON product_units
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM shop_products sp WHERE sp.id = shop_product_id AND (
+      sp.shop_id = get_my_shop_id()
+      OR sp.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  );
+CREATE POLICY "Product units insert policy" ON product_units
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM shop_products sp WHERE sp.id = shop_product_id AND (
+      sp.shop_id = get_my_shop_id()
+      OR sp.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  );
+CREATE POLICY "Product units update policy" ON product_units
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM shop_products sp WHERE sp.id = shop_product_id AND (
+      sp.shop_id = get_my_shop_id()
+      OR sp.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM shop_products sp WHERE sp.id = shop_product_id AND (
+      sp.shop_id = get_my_shop_id()
+      OR sp.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  );
+CREATE POLICY "Product units delete policy" ON product_units
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM shop_products sp WHERE sp.id = shop_product_id AND (
+      sp.shop_id = get_my_shop_id()
+      OR sp.branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
+      OR get_my_role() = 'superadmin'
+    ))
+  );
 
 -- Seed data: packages (for new installs)
 -- ============================================================

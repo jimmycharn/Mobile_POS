@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight, Building2 } from 'lucide-react'
+import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight, Building2, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import BranchSwitcher from '../components/BranchSwitcher'
-import { shopProductService, productService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService } from '../services/supabaseApi'
+import { shopProductService, productService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService, recipeService, productUnitService, convertToBaseUnit } from '../services/supabaseApi'
 import { generatePromptPayQrUrl, isPromptPayId } from '../utils/promptpay'
 import { isStandardBarcode } from '../utils/barcode'
 
@@ -36,6 +36,9 @@ export default function PosPage() {
   const [qrUrl, setQrUrl] = useState(null)
   const videoRef = useRef(null)
   const scanCooldownRef = useRef(0)
+  const [showRecipeWarning, setShowRecipeWarning] = useState(false)
+  const [recipeShortages, setRecipeShortages] = useState([])
+  const [pendingCheckout, setPendingCheckout] = useState(false)
   const loadedBranchId = useRef(null)
   const allProductsRef = useRef([])
   const discountInputRef = useRef(null)
@@ -331,7 +334,7 @@ export default function PosPage() {
     generateQr()
   }, [paymentMethod, finalTotal, selectedBankAccount])
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (force = false) => {
     if (cart.length === 0) return
     if (!user?.shopId || !user?.branchId) {
       alert('ไม่พบข้อมูลร้านค้าหรือสาขา กรุณาออกจากระบบและเข้าสู่ระบบใหม่')
@@ -341,6 +344,45 @@ export default function PosPage() {
     // Validate cash payment has enough received amount
     if (paymentMethod === 'cash' && change < 0) {
       alert('เงินที่รับมาไม่พอชำระ')
+      return
+    }
+
+    // Check recipe ingredient availability
+    const shortages = []
+    const deductions = [] // { id, stock }
+
+    for (const item of cart) {
+      const sp = await shopProductService.getById(item.id)
+      if (!sp) continue
+
+      if (sp.isRecipe) {
+        const recipe = await recipeService.getByShopProduct(item.id)
+        if (recipe && recipe.recipeItems) {
+          for (const ri of recipe.recipeItems) {
+            const ingredient = await shopProductService.getById(ri.ingredientShopProductId)
+            if (!ingredient) continue
+            const units = await productUnitService.getByProduct(ingredient.id)
+            const baseQty = convertToBaseUnit(ri.quantity * item.qty, ri.unit, units)
+            const newStock = ingredient.stock - baseQty
+            if (newStock < 0 && !force) {
+              shortages.push({
+                dish: sp.name,
+                ingredient: ingredient.name,
+                required: Math.abs(newStock),
+                unit: ingredient.unit,
+              })
+            }
+            deductions.push({ id: ingredient.id, stock: newStock })
+          }
+        }
+      } else {
+        deductions.push({ id: item.id, stock: sp.stock - item.qty })
+      }
+    }
+
+    if (shortages.length > 0 && !force) {
+      setRecipeShortages(shortages)
+      setShowRecipeWarning(true)
       return
     }
 
@@ -357,11 +399,9 @@ export default function PosPage() {
       staff_id: user.id,
     })
 
-    for (const item of cart) {
-      const sp = await shopProductService.getById(item.id)
-      if (sp) {
-        await shopProductService.update(item.id, { stock: sp.stock - item.qty })
-      }
+    // Deduct stock (regular products + recipe ingredients)
+    for (const d of deductions) {
+      await shopProductService.update(d.id, { stock: d.stock })
     }
 
     await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดสุทธิ ฿${finalTotal.toLocaleString()}`)
@@ -369,6 +409,9 @@ export default function PosPage() {
     setLastSale(sale)
     setShowPayment(false)
     setShowReceipt(true)
+    setShowRecipeWarning(false)
+    setRecipeShortages([])
+    setPendingCheckout(false)
     setReceivedAmount('')
     setDiscountValue('')
     setDiscountType('amount')
@@ -1253,6 +1296,50 @@ export default function PosPage() {
             )}
 
             <p className="text-white/50 text-xs text-center">วางบาร์โค้ดให้อยู่ในกรอบ สแกนต่อเนื่องได้จนกว่าจะกดปิด</p>
+          </div>
+        </div>
+      )}
+
+      {/* Recipe Ingredient Warning Modal */}
+      {showRecipeWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-amber-700 flex items-center gap-2">
+                <AlertTriangle size={20} />
+                วัตถุดิบไม่พอ
+              </h2>
+              <button onClick={() => setShowRecipeWarning(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="space-y-3 mb-5">
+              {recipeShortages.map((s, i) => (
+                <div key={i} className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <p className="text-sm font-medium text-slate-800">{s.dish}</p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    ขาด {s.ingredient} {s.required.toFixed(2)} {s.unit}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setShowRecipeWarning(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setShowRecipeWarning(false)
+                  handleCheckout(true)
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm"
+              >
+                ขายต่อ (ติดลบ)
+              </button>
+            </div>
           </div>
         </div>
       )}
