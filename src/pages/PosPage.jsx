@@ -386,110 +386,115 @@ export default function PosPage() {
   }, [paymentMethod, finalTotal, selectedBankAccount])
 
   const handleCheckout = async (force = false) => {
-    if (cart.length === 0) return
-    if (!user?.shopId || !user?.branchId) {
-      alert('ไม่พบข้อมูลร้านค้าหรือสาขา กรุณาออกจากระบบและเข้าสู่ระบบใหม่')
-      return
-    }
-
-    // Validate cash payment has enough received amount
-    if (paymentMethod === 'cash' && change < 0) {
-      alert('เงินที่รับมาไม่พอชำระ')
-      return
-    }
-
-    // Check recipe ingredient availability
-    const shortages = []
-    const deductions = [] // { id, stock }
-
-    for (const item of cart) {
-      const sp = await shopProductService.getById(item.id)
-      if (!sp) continue
-
-      if (sp.isRecipe) {
-        const recipe = await recipeService.getByShopProduct(item.id)
-        if (recipe && recipe.recipeItems) {
-          for (const ri of recipe.recipeItems) {
-            const ingredient = await shopProductService.getById(ri.ingredientShopProductId)
-            if (!ingredient) continue
-            const units = await productUnitService.getByProduct(ingredient.id)
-            const baseQty = convertToBaseUnit(ri.quantity * item.qty, ri.unit, units)
-            const newStock = ingredient.stock - baseQty
-            if (newStock < 0 && !force) {
-              shortages.push({
-                dish: sp.name,
-                ingredient: ingredient.name,
-                required: Math.abs(newStock),
-                unit: ingredient.unit,
-              })
-            }
-            deductions.push({ id: ingredient.id, stock: newStock })
-          }
-        }
-      } else {
-        deductions.push({ id: item.id, stock: sp.stock - item.qty })
+    try {
+      if (cart.length === 0) return
+      if (!user?.shopId || !user?.branchId) {
+        alert('ไม่พบข้อมูลร้านค้าหรือสาขา กรุณาออกจากระบบและเข้าสู่ระบบใหม่')
+        return
       }
-    }
 
-    if (shortages.length > 0 && !force) {
-      setRecipeShortages(shortages)
-      setShowRecipeWarning(true)
-      return
-    }
+      // Validate cash payment has enough received amount
+      if (paymentMethod === 'cash' && change < 0) {
+        alert('เงินที่รับมาไม่พอชำระ')
+        return
+      }
 
-    const sale = await saleService.create({
-      shop_id: user.shopId,
-      branch_id: user.branchId,
-      items: cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        qty: item.qty,
-        salePrice: item.salePrice,
-        costPrice: item.costPrice,
-        unit: item.unit,
-        isRecipe: item.isRecipe || false,
-      })),
-      total: finalTotal,
-      discount: discountAmount,
-      discount_type: discountType,
-      payment_method: paymentMethod,
-      received: paymentMethod === 'cash' ? (parseFloat(receivedAmount) || 0) : finalTotal,
-      change: paymentMethod === 'cash' ? Math.max(0, change) : 0,
-      staff_id: user.id,
-    })
+      // Check recipe ingredient availability
+      const shortages = []
+      const deductions = [] // { id, stock }
 
-    // Deduct stock (regular products + recipe ingredients)
-    for (const d of deductions) {
-      await shopProductService.update(d.id, { stock: d.stock })
-    }
+      for (const item of cart) {
+        const sp = await shopProductService.getById(item.id)
+        if (!sp) continue
 
-    await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดสุทธิ ฿${finalTotal.toLocaleString()}`)
+        if (sp.isRecipe) {
+          const recipe = await recipeService.getByShopProduct(item.id)
+          if (recipe && recipe.recipeItems) {
+            for (const ri of recipe.recipeItems) {
+              const ingredient = await shopProductService.getById(ri.ingredientShopProductId)
+              if (!ingredient) continue
+              const units = await productUnitService.getByProduct(ingredient.id)
+              const baseQty = convertToBaseUnit(ri.quantity * item.qty, ri.unit, units)
+              const newStock = ingredient.stock - baseQty
+              if (newStock < 0 && !force) {
+                shortages.push({
+                  dish: sp.name,
+                  ingredient: ingredient.name,
+                  required: Math.abs(newStock),
+                  unit: ingredient.unit,
+                })
+              }
+              deductions.push({ id: ingredient.id, stock: newStock })
+            }
+          }
+        } else {
+          deductions.push({ id: item.id, stock: sp.stock - item.qty })
+        }
+      }
 
-    setLastSale(sale)
-    setShowPayment(false)
-    setShowReceipt(true)
-    setShowRecipeWarning(false)
-    setRecipeShortages([])
-    setPendingCheckout(false)
-    setReceivedAmount('')
-    setDiscountValue('')
-    setDiscountType('amount')
-    const newStats = await getStats(user.shopId, user.branchId)
-    setStats(newStats)
-    // Refresh products so recipe availability recomputes
-    const refreshed = await shopProductService.getByBranch(user.branchId)
-    setAllProducts((refreshed || []).filter(p => p.category !== 'วัตถุดิบ'))
-    // Close active cart after checkout
-    const filtered = carts.filter(c => c.id !== activeCartId)
-    if (filtered.length === 0) {
-      const emptyCart = { id: 'cart-1', name: 'บิล 1', items: [] }
-      setCarts([emptyCart])
-      setActiveCartId(emptyCart.id)
-    } else {
-      const idx = carts.findIndex(c => c.id === activeCartId)
-      const nextActive = filtered[Math.min(idx, filtered.length - 1)]
-      setCarts(filtered)
-      setActiveCartId(nextActive.id)
+      if (shortages.length > 0 && !force) {
+        setRecipeShortages(shortages)
+        setShowRecipeWarning(true)
+        return
+      }
+
+      const sale = await saleService.create({
+        shop_id: user.shopId,
+        branch_id: user.branchId,
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          qty: item.qty,
+          salePrice: item.salePrice,
+          costPrice: item.costPrice,
+          unit: item.unit,
+          isRecipe: item.isRecipe || false,
+        })),
+        total: finalTotal,
+        discount: discountAmount,
+        discount_type: discountType,
+        payment_method: paymentMethod,
+        received: paymentMethod === 'cash' ? (parseFloat(receivedAmount) || 0) : finalTotal,
+        change: paymentMethod === 'cash' ? Math.max(0, change) : 0,
+        staff_id: user.id,
+      })
+
+      // Deduct stock (regular products + recipe ingredients)
+      for (const d of deductions) {
+        await shopProductService.update(d.id, { stock: d.stock })
+      }
+
+      await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดสุทธิ ฿${finalTotal.toLocaleString()}`)
+
+      setLastSale(sale)
+      setShowPayment(false)
+      setShowReceipt(true)
+      setShowRecipeWarning(false)
+      setRecipeShortages([])
+      setPendingCheckout(false)
+      setReceivedAmount('')
+      setDiscountValue('')
+      setDiscountType('amount')
+      const newStats = await getStats(user.shopId, user.branchId)
+      setStats(newStats)
+      // Refresh products so recipe availability recomputes
+      const refreshed = await shopProductService.getByBranch(user.branchId)
+      setAllProducts((refreshed || []).filter(p => p.category !== 'วัตถุดิบ'))
+      // Close active cart after checkout
+      const filtered = carts.filter(c => c.id !== activeCartId)
+      if (filtered.length === 0) {
+        const emptyCart = { id: 'cart-1', name: 'บิล 1', items: [] }
+        setCarts([emptyCart])
+        setActiveCartId(emptyCart.id)
+      } else {
+        const idx = carts.findIndex(c => c.id === activeCartId)
+        const nextActive = filtered[Math.min(idx, filtered.length - 1)]
+        setCarts(filtered)
+        setActiveCartId(nextActive.id)
+      }
+    } catch (err) {
+      console.error('checkout error:', err)
+      alert('เกิดข้อผิดพลาด: ' + (err.message || 'ไม่สามารถบันทึกการขายได้'))
     }
   }
 
@@ -1227,7 +1232,7 @@ export default function PosPage() {
                   ยกเลิก
                 </button>
                 <button
-                  onClick={handleCheckout}
+                  onClick={() => handleCheckout(false)}
                   className="flex-1 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm"
                 >
                   ยืนยันชำระเงิน
