@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Settings, Cpu, Palette, Landmark, Globe, Bell, Database, X, Save, Check, AlertTriangle } from 'lucide-react'
+import { Settings, Cpu, Palette, Landmark, Globe, Bell, Database, X, Save, Check, AlertTriangle, LogOut } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { AI_MODELS, getAiSettings, setAiSettings, fetchAiModels } from '../../services/aiService'
 
 export default function SuperadminSettings() {
+  const { logout } = useAuth()
   const [activeCard, setActiveCard] = useState(null)
   const [aiModels, setAiModels] = useState(AI_MODELS)
   const [aiLoading, setAiLoading] = useState(false)
@@ -101,6 +103,17 @@ export default function SuperadminSettings() {
               </button>
             )
           })}
+        </div>
+
+        {/* Logout */}
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={logout}
+            className="flex items-center space-x-2 px-5 py-2.5 rounded-xl border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+          >
+            <LogOut size={18} />
+            <span className="text-sm font-medium">ออกจากระบบ</span>
+          </button>
         </div>
       </div>
 
