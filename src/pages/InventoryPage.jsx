@@ -715,9 +715,17 @@ export default function InventoryPage() {
                 <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" required />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">บาร์โค้ด</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  บาร์โค้ด
+                  {form.category === 'วัตถุดิบ' && <span className="text-xs text-slate-400 font-normal ml-1">(ไม่บังคับ)</span>}
+                </label>
                 <div className="relative">
-                  <input value={form.barcode} onChange={e => handleBarcodeInput(e.target.value)} className="w-full pr-12 pl-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
+                  <input
+                    value={form.barcode}
+                    onChange={e => handleBarcodeInput(e.target.value)}
+                    placeholder={form.category === 'วัตถุดิบ' ? 'ใส่หากต้องการสแกนตอนรับสินค้าเข้า' : ''}
+                    className="w-full pr-12 pl-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                  />
                   <button
                     type="button"
                     onClick={() => { setShowScanner(true); setScanMsg('') }}
