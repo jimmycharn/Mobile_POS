@@ -1373,7 +1373,7 @@ export default function InventoryPage() {
                 <div key={u.id} className="flex items-center justify-between bg-slate-50 rounded-lg p-2.5 border border-slate-100">
                   <div>
                     <p className="text-sm font-medium text-slate-700">{u.unitName}</p>
-                    <p className="text-xs text-slate-400">1 {u.unitName} = {u.conversionRate} {currentProductForUnits.unit}</p>
+                    <p className="text-xs text-slate-400">1 {currentProductForUnits.unit} = {u.conversionRate > 0 ? (1 / u.conversionRate).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—'} {u.unitName}</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -1403,31 +1403,34 @@ export default function InventoryPage() {
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
               />
               <div className="flex items-center space-x-2">
-                <span className="text-xs text-slate-500 shrink-0">1 หน่วยนี้ =</span>
+                <span className="text-xs text-slate-500 shrink-0">1 {currentProductForUnits.unit} =</span>
                 <input
                   type="number"
-                  placeholder="1000"
+                  placeholder="เช่น 1000"
                   value={unitForm.conversionRate}
                   onChange={e => setUnitForm({ ...unitForm, conversionRate: e.target.value })}
                   className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
                 />
-                <span className="text-xs text-slate-500 shrink-0">{currentProductForUnits.unit}</span>
+                <span className="text-xs text-slate-500 shrink-0">{unitForm.unitName || 'หน่วยใหม่'}</span>
               </div>
               <button
                 onClick={async () => {
-                  if (!unitForm.unitName.trim() || !Number(unitForm.conversionRate)) {
+                  const ratio = Number(unitForm.conversionRate)
+                  if (!unitForm.unitName.trim() || !ratio || ratio <= 0) {
                     alert('กรุณากรอกชื่อหน่วยและอัตราแปลง')
                     return
                   }
+                  // User entered: "1 [base] = ratio [new]"
+                  // Stored conversionRate = base per 1 new unit = 1 / ratio
                   await productUnitService.create({
                     shopProductId: currentProductForUnits.id,
                     unitName: unitForm.unitName.trim(),
-                    conversionRate: Number(unitForm.conversionRate),
+                    conversionRate: 1 / ratio,
                     isBase: false,
                   })
                   const units = await productUnitService.getByProduct(currentProductForUnits.id)
                   setProductUnitsMap(prev => ({ ...prev, [currentProductForUnits.id]: units }))
-                  setUnitForm({ unitName: '', conversionRate: '1', isBase: false })
+                  setUnitForm({ unitName: '', conversionRate: '', isBase: false })
                 }}
                 className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 rounded-lg text-sm"
               >
@@ -1437,7 +1440,7 @@ export default function InventoryPage() {
             </div>
 
             <p className="text-xs text-slate-400 mt-3 text-center">
-              ตัวอย่าง: ถ้าหน่วยพื้นฐาน "กรัม" และต้องการเพิ่ม "กิโลกรัม" → ใส่ 1000
+              ตัวอย่าง: 1 กิโลกรัม = 1000 กรัม → ใส่ <span className="font-semibold">1000</span>
             </p>
           </div>
         </div>
