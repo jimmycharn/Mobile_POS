@@ -18,7 +18,7 @@ export default function InventoryPage() {
   const [stockOutReason, setStockOutReason] = useState('spoilage')
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
   const [centralProduct, setCentralProduct] = useState(null)
-  const [filter, setFilter] = useState('all') // all, low, standard, custom
+  const [filter, setFilter] = useState('all') // all, low, standard, custom, ingredient
   const [showScanner, setShowScanner] = useState(false)
   const [scanMsg, setScanMsg] = useState('')
   const [categories, setCategories] = useState([])
@@ -55,6 +55,7 @@ export default function InventoryPage() {
       if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
       if (filter === 'standard') list = list.filter(p => p.isStandard)
       if (filter === 'custom') list = list.filter(p => !p.isStandard)
+      if (filter === 'ingredient') list = list.filter(p => p.category === 'วัตถุดิบ')
       setProducts(list)
       setCategories([...new Set(list.map(p => p.category))])
       setColors([...new Set(list.map(p => p.color).filter(Boolean))])
@@ -510,6 +511,7 @@ export default function InventoryPage() {
               { key: 'low', label: 'ใกล้หมด' },
               { key: 'standard', label: 'มาตรฐาน' },
               { key: 'custom', label: 'เฉพาะร้าน' },
+              { key: 'ingredient', label: 'วัตถุดิบ' },
             ].map(f => (
               <button
                 key={f.key}
