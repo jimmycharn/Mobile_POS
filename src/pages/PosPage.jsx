@@ -1562,14 +1562,30 @@ function printReceipt(sale, shop) {
   const itemCount = Array.isArray(sale.items) ? sale.items.reduce((s, i) => s + (i.qty || 0), 0) : 0
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>ใบเสร็จ #${sale.id.slice(-6)}</title>
     <style>
-      @page { size: 80mm auto; margin: 4mm; }
-      body { font-family: 'Sarabun', 'Tahoma', sans-serif; width: 72mm; margin: 0; color: #000; font-size: 12px; }
-      h1 { font-size: 14px; margin: 4px 0; text-align: center; }
+      @page { size: 80mm auto; margin: 0; }
+      * { box-sizing: border-box; }
+      body {
+        font-family: 'Sarabun', 'Tahoma', 'Segoe UI', sans-serif;
+        width: 72mm;
+        margin: 0 auto;
+        padding: 4mm 3mm;
+        color: #111;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      h1 { font-size: 15px; margin: 2px 0 4px; text-align: center; font-weight: 700; }
       .center { text-align: center; }
-      .muted { color: #666; font-size: 10px; }
+      .muted { color: #555; font-size: 11px; }
       table { width: 100%; border-collapse: collapse; }
-      hr { border: none; border-top: 1px dashed #999; margin: 6px 0; }
-      .total { font-size: 16px; font-weight: bold; }
+      td { padding: 3px 0; vertical-align: top; }
+      hr {
+        border: none;
+        border-top: 1px dashed #888;
+        margin: 8px 0;
+      }
+      .total { font-size: 16px; font-weight: 700; }
+      .summary-row td { padding: 2px 0; }
+      .qty { color: #555; font-size: 11px; }
       @media print { button { display: none; } }
     </style></head><body>
     <h1>${escapeHtml(shop?.name || 'ร้านค้า')}</h1>
@@ -1582,18 +1598,18 @@ function printReceipt(sale, shop) {
     <table>${itemsHtml}</table>
     <hr>
     <table>
-      <tr><td>รายการรวม</td><td style="text-align:right">${itemCount} ชิ้น</td></tr>
-      ${sale.discount > 0 ? `<tr><td>ส่วนลด</td><td style="text-align:right">-฿${sale.discount.toLocaleString()}</td></tr>` : ''}
+      <tr class="summary-row"><td>รายการรวม</td><td style="text-align:right">${itemCount} ชิ้น</td></tr>
+      ${sale.discount > 0 ? `<tr class="summary-row"><td>ส่วนลด</td><td style="text-align:right">-฿${sale.discount.toLocaleString()}</td></tr>` : ''}
       <tr class="total"><td>ยอดสุทธิ</td><td style="text-align:right">฿${sale.total.toLocaleString()}</td></tr>
       ${sale.paymentMethod === 'cash' ? `
-        <tr><td>รับเงิน</td><td style="text-align:right">฿${(sale.received || 0).toLocaleString()}</td></tr>
-        <tr><td>เงินทอน</td><td style="text-align:right">฿${(sale.change || 0).toLocaleString()}</td></tr>
-      ` : `<tr><td colspan="2" class="center">ชำระโดย ${sale.paymentMethod === 'transfer' ? 'โอนเงิน / PromptPay' : sale.paymentMethod}</td></tr>`}
+        <tr class="summary-row"><td>รับเงิน</td><td style="text-align:right">฿${(sale.received || 0).toLocaleString()}</td></tr>
+        <tr class="summary-row"><td>เงินทอน</td><td style="text-align:right">฿${(sale.change || 0).toLocaleString()}</td></tr>
+      ` : `<tr><td colspan="2" class="center muted" style="padding-top:6px">ชำระโดย ${sale.paymentMethod === 'transfer' ? 'โอนเงิน / PromptPay' : sale.paymentMethod}</td></tr>`}
     </table>
     <hr>
-    <div class="center muted">ขอบคุณที่ใช้บริการ</div>
-    <div style="text-align:center; margin-top:10px">
-      <button onclick="window.print()" style="padding:6px 12px;font-size:12px">พิมพ์</button>
+    <div class="center muted" style="margin-top:4px">ขอบคุณที่ใช้บริการ</div>
+    <div style="text-align:center; margin-top:12px">
+      <button onclick="window.print()" style="padding:8px 16px;font-size:13px;border-radius:6px;border:1px solid #ccc;background:#f5f5f5;cursor:pointer">พิมพ์</button>
     </div>
     <script>window.onload = () => setTimeout(() => window.print(), 250);<\/script>
     </body></html>`
