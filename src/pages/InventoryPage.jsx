@@ -215,8 +215,9 @@ export default function InventoryPage() {
       // When creating from transfer, stock must not exceed source stock
       if (!selectedProduct && transferCreateSource) {
         const transferStock = Number(form.stock) || 0
-        if (transferStock > transferCreateSource.stock) {
-          alert(`จำนวนสต็อกไม่สามารถเกิน ${transferCreateSource.stock} ${transferCreateSource.unit} (สินค้าต้นทาง)`)
+        const maxCreateStock = Math.floor(transferCreateSource.stock || 0)
+        if (transferStock > maxCreateStock) {
+          alert(`จำนวนสต็อกไม่สามารถเกิน ${maxCreateStock} ${transferCreateSource.unit} (สินค้าต้นทาง)`)
           return
         }
       }
@@ -1403,7 +1404,7 @@ export default function InventoryPage() {
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">สต็อกเริ่มต้น</label>
                     <input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
                     {transferCreateSource && (
-                      <p className="text-[11px] text-amber-600 mt-1">ไม่เกิน {transferCreateSource.stock} {transferCreateSource.unit} (สินค้าต้นทาง)</p>
+                      <p className="text-[11px] text-amber-600 mt-1">ไม่เกิน {Math.floor(transferCreateSource.stock || 0)} {transferCreateSource.unit} (สินค้าต้นทาง)</p>
                     )}
                   </div>
                   <div>
@@ -1967,7 +1968,7 @@ export default function InventoryPage() {
                     unit: transferSource.unit || '',
                     costPrice: String(transferSource.costPrice || ''),
                     salePrice: '',
-                    stock: String(transferSource.stock || ''),
+                    stock: String(Math.floor(transferSource.stock || 0)),
                     minStock: '5',
                     imageUrl: transferSource.imageUrl || '',
                     color: '',
