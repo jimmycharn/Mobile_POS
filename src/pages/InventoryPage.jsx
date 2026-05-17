@@ -532,8 +532,9 @@ export default function InventoryPage() {
     const sourceBaseQty = transferSourceUnit && transferSourceUnit !== transferSource.unit
       ? convertToBaseUnit(inputQty, transferSourceUnit, transferSourceUnits)
       : inputQty
-    if (sourceBaseQty > transferSource.stock) {
-      alert(`สต็อกไม่พอ: ${transferSource.name} มีเพียง ${transferSource.stock} ${transferSource.unit}`)
+    const maxTransfer = Math.floor(transferSource.stock || 0)
+    if (sourceBaseQty > maxTransfer) {
+      alert(`สต็อกไม่พอ: ${transferSource.name} มี ${transferSource.stock} ${transferSource.unit} (โอนได้สูงสุด ${maxTransfer} ${transferSource.unit})`)
       return
     }
     // Compute destination qty:
@@ -1985,8 +1986,12 @@ export default function InventoryPage() {
               <div className="flex space-x-2">
                 <input
                   type="number"
+                  step="1"
                   value={transferQty}
-                  onChange={e => setTransferQty(e.target.value)}
+                  onChange={e => {
+                    const v = e.target.value
+                    if (v === '' || /^\d+$/.test(v)) setTransferQty(v)
+                  }}
                   placeholder="ระบุจำนวน"
                   className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-lg font-semibold text-center"
                 />
@@ -2005,6 +2010,17 @@ export default function InventoryPage() {
                   <span className="shrink-0 px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{transferSource.unit}</span>
                 )}
               </div>
+              {(() => {
+                const floorStock = Math.floor(transferSource.stock || 0)
+                if (!floorStock) return <p className="text-xs text-red-500 mt-1.5">สต็อกไม่พอสำหรับการโอน</p>
+                if (transferSourceUnit && transferSourceUnit !== transferSource.unit) {
+                  const unit = transferSourceUnits.find(u => u.unitName === transferSourceUnit)
+                  const rate = unit?.conversionRate || 1
+                  const maxAlt = Math.floor(floorStock / rate)
+                  return <p className="text-xs text-amber-600 mt-1.5">โอนได้สูงสุด {maxAlt.toLocaleString()} {transferSourceUnit} ({floorStock} {transferSource.unit})</p>
+                }
+                return <p className="text-xs text-amber-600 mt-1.5">โอนได้สูงสุด {floorStock.toLocaleString()} {transferSource.unit}</p>
+              })()}
               {transferSourceUnit && transferSourceUnit !== transferSource.unit && transferQty && (
                 <p className="text-xs text-blue-500 mt-1.5">
                   = {convertToBaseUnit(Number(transferQty), transferSourceUnit, transferSourceUnits).toLocaleString()} {transferSource.unit}
