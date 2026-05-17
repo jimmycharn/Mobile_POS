@@ -108,7 +108,7 @@ export default function SuperadminPackages() {
   }
 
   return (
-    <div className="h-full">
+    <div className="h-full overflow-y-auto">
       <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800">แพ็คเกจราคา</h1>

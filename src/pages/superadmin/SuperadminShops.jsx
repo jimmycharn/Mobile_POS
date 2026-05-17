@@ -22,7 +22,7 @@ export default function SuperadminShops() {
   )
 
   return (
-    <div className="h-full">
+    <div className="h-full overflow-y-auto">
       <div className="bg-white border-b border-slate-100 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
