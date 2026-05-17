@@ -266,7 +266,6 @@ export default function SuperadminShopDetail() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex space-x-2 overflow-x-auto no-scrollbar">
               {[
-                { value: 'today', label: 'วันนี้' },
                 { value: '7', label: '7 วัน' },
                 { value: 'month', label: 'เดือนนี้' },
                 { value: 'custom', label: 'กำหนดเอง' },
@@ -292,8 +291,8 @@ export default function SuperadminShopDetail() {
           </div>
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 col-span-2">
               <div className="flex items-center space-x-3 mb-3">
                 <div className="w-9 h-9 bg-primary-50 rounded-lg flex items-center justify-center">
                   <DollarSign size={18} className="text-primary-600" />
@@ -323,16 +322,6 @@ export default function SuperadminShopDetail() {
               <p className="text-xl font-bold text-slate-800">฿{reportStats.avgOrder.toLocaleString()}</p>
               <p className="text-xs text-slate-400 mt-1">ต่อบิล</p>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 p-5">
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center">
-                  <CreditCard size={18} className="text-amber-600" />
-                </div>
-                <span className="text-xs font-medium text-slate-400">การชำระเงิน</span>
-              </div>
-              <p className="text-xl font-bold text-slate-800">฿{paymentStats.cash.toLocaleString()}</p>
-              <p className="text-xs text-slate-400 mt-1">เงินสด</p>
-            </div>
           </div>
 
           {/* Trend Chart */}
@@ -352,36 +341,6 @@ export default function SuperadminShopDetail() {
             </div>
           </div>
 
-          {/* Payment Methods */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
-            <h3 className="font-semibold text-slate-800 mb-4">วิธีชำระเงิน</h3>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-600 flex items-center gap-2"><Wallet size={14} /> เงินสด</span>
-                  <span className="font-medium">฿{paymentStats.cash.toLocaleString()}</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-green-500 rounded-full transition-all"
-                    style={{ width: `${reportStats.totalRevenue > 0 ? (paymentStats.cash / reportStats.totalRevenue) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-600 flex items-center gap-2"><CreditCard size={14} /> โอนเงิน / QR</span>
-                  <span className="font-medium">฿{paymentStats.transfer.toLocaleString()}</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary-500 rounded-full transition-all"
-                    style={{ width: `${reportStats.totalRevenue > 0 ? (paymentStats.transfer / reportStats.totalRevenue) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Activity Logs */}
