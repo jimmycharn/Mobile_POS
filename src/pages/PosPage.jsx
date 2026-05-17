@@ -461,7 +461,7 @@ export default function PosPage() {
 
       // Deduct stock (regular products + recipe ingredients)
       for (const d of deductions) {
-        await shopProductService.update(d.id, { stock: d.stock })
+        await shopProductService.update(d.id, { stock: Math.round(d.stock) })
       }
 
       await authService.logActivity('SALE', `ขายสินค้า ${cartItems} รายการ ยอดสุทธิ ฿${finalTotal.toLocaleString()}`)
