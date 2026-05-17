@@ -615,7 +615,17 @@ export default function InventoryPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-500 hidden sm:table-cell">{product.barcode}</td>
                       <td className="px-4 py-3 text-right text-sm font-semibold text-slate-700">฿{product.salePrice.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right text-sm text-slate-500">฿{product.costPrice.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right">
+                        <p className="text-sm text-slate-500">฿{product.costPrice.toLocaleString()}</p>
+                        {product.category !== 'วัตถุดิบ' && product.salePrice > 0 && (
+                          <p className={`text-[10px] font-medium mt-0.5 ${
+                            product.salePrice - product.costPrice > 0 ? 'text-emerald-600' : 'text-red-500'
+                          }`}>
+                            {product.salePrice - product.costPrice > 0 ? '+' : ''}
+                            {Math.round(((product.salePrice - product.costPrice) / product.salePrice) * 100)}%
+                          </p>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
                           isLow ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'

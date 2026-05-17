@@ -40,6 +40,8 @@ export default function PosPage() {
   const [recipeShortages, setRecipeShortages] = useState([])
   const [pendingCheckout, setPendingCheckout] = useState(false)
   const [recipeAvailability, setRecipeAvailability] = useState({}) // { shopProductId: { maxServings, isLow } }
+  const [lowIngredients, setLowIngredients] = useState([]) // [{ id, name, stock, unit, minStock }]
+  const [showLowIngredientList, setShowLowIngredientList] = useState(false)
   const loadedBranchId = useRef(null)
   const allProductsRef = useRef([])
   const discountInputRef = useRef(null)
@@ -201,8 +203,11 @@ export default function PosPage() {
   useEffect(() => {
     const compute = async () => {
       const recipeProducts = allProducts.filter(p => p.isRecipe)
-      if (recipeProducts.length === 0) { setRecipeAvailability({}); return }
       const fullList = await shopProductService.getByBranch(user.branchId)
+      // Update low ingredient list (always)
+      const ingredients = fullList.filter(p => p.category === 'วัตถุดิบ')
+      setLowIngredients(ingredients.filter(p => p.stock <= (p.minStock || 0)))
+      if (recipeProducts.length === 0) { setRecipeAvailability({}); return }
       const ingredientMap = Object.fromEntries(fullList.map(p => [p.id, p]))
       const result = {}
       for (const dish of recipeProducts) {
@@ -642,6 +647,23 @@ export default function PosPage() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+          {/* Low ingredient alert banner */}
+          {lowIngredients.length > 0 && (
+            <div className="mb-3">
+              <button
+                onClick={() => setShowLowIngredientList(true)}
+                className="w-full flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 hover:bg-amber-100 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+                  <p className="text-sm font-medium text-amber-800 text-left">
+                    มีวัตถุดิบ <span className="font-bold">{lowIngredients.length}</span> รายการใกล้หมด
+                  </p>
+                </div>
+                <span className="text-xs text-amber-600 font-medium">ดูรายการ →</span>
+              </button>
             </div>
           )}
           <h3 className="text-sm font-semibold text-slate-500 mb-2 px-1">
@@ -1408,10 +1430,41 @@ export default function PosPage() {
         </div>
       )}
 
+      {/* Low Ingredient List Modal */}
+      {showLowIngredientList && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setShowLowIngredientList(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle size={20} className="text-amber-600" />
+                <h2 className="text-lg font-bold text-slate-800">วัตถุดิบใกล้หมด</h2>
+              </div>
+              <button onClick={() => setShowLowIngredientList(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {lowIngredients.map(ing => (
+                <div key={ing.id} className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl p-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{ing.name}</p>
+                    <p className="text-xs text-slate-400">ขั้นต่ำ: {ing.minStock} {ing.unit}</p>
+                  </div>
+                  <span className={`text-sm font-bold ${ing.stock <= 0 ? 'text-red-600' : 'text-amber-600'}`}>
+                    {ing.stock} {ing.unit}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 text-center mt-4">ไปที่หน้า "จัดการสต็อก" เพื่อรับสินค้าเข้า</p>
+          </div>
+        </div>
+      )}
+
       {/* Receipt Modal */}
       {showReceipt && lastSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 animate-scale-in">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Receipt size={32} className="text-emerald-600" />
@@ -1419,7 +1472,22 @@ export default function PosPage() {
               <h2 className="text-xl font-bold text-slate-800">ชำระเงินสำเร็จ!</h2>
               <p className="text-sm text-slate-400 mt-1">ใบเสร็จ #{lastSale.id.slice(-6)}</p>
             </div>
-            <div className="bg-slate-50 rounded-2xl p-5 mb-6 space-y-3">
+            {/* Item list */}
+            {Array.isArray(lastSale.items) && lastSale.items.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4 space-y-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">รายการสินค้า</p>
+                {lastSale.items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="text-slate-800 truncate">{item.name}</p>
+                      <p className="text-xs text-slate-400">{item.qty} × ฿{(item.salePrice || 0).toLocaleString()}</p>
+                    </div>
+                    <span className="font-medium text-slate-800 shrink-0">฿{((item.salePrice || 0) * (item.qty || 0)).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="bg-slate-50 rounded-2xl p-5 mb-4 space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">จำนวนรายการ</span>
                 <span className="font-medium text-slate-800">{Array.isArray(lastSale.items) ? lastSale.items.reduce((s, i) => s + (i.qty || 0), 0) : (lastSale.items || 0)} ชิ้น</span>
