@@ -1156,23 +1156,25 @@ export default function InventoryPage() {
                               <p className="text-sm text-slate-700 truncate">{ing?.name || 'วัตถุดิบ'}</p>
                               <p className="text-xs text-slate-400">{item.quantity} {item.unit}</p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!ing) return
-                                setCurrentProductForUnits(ing)
-                                const units = await productUnitService.getByProduct(ing.id)
-                                setProductUnitsMap(prev => ({ ...prev, [ing.id]: units }))
-                                setShowUnitManager(true)
-                              }}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
-                              title="จัดการหน่วยแปลง"
-                            >
-                              <Settings size={14} />
-                            </button>
-                            <button onClick={() => setRecipeItems(prev => prev.filter((_, i) => i !== idx))} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500">
-                              <Trash2 size={14} />
-                            </button>
+                            <div className="flex items-center space-x-0.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!ing) return
+                                  setCurrentProductForUnits(ing)
+                                  const units = await productUnitService.getByProduct(ing.id)
+                                  setProductUnitsMap(prev => ({ ...prev, [ing.id]: units }))
+                                  setShowUnitManager(true)
+                                }}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                                title="จัดการหน่วยแปลง"
+                              >
+                                <Settings size={14} />
+                              </button>
+                              <button onClick={() => setRecipeItems(prev => prev.filter((_, i) => i !== idx))} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                         )
                       })}
@@ -1259,18 +1261,18 @@ export default function InventoryPage() {
                           value={ingredientQty}
                           onChange={e => setIngredientQty(e.target.value)}
                           placeholder="จำนวน"
-                          className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm"
+                          className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-slate-200 text-sm"
                         />
                         <select
                           value={ingredientUnit}
                           onChange={e => setIngredientUnit(e.target.value)}
-                          className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
+                          className="shrink-0 max-w-[110px] px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
                         >
                           {(productUnitsMap[selectedIngredientId] || []).map(u => (
                             <option key={u.id} value={u.unitName}>{u.unitName}</option>
                           ))}
                           <option value={products.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'}>
-                            {products.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'} (default)
+                            {products.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'}
                           </option>
                         </select>
                         <button
@@ -1287,7 +1289,7 @@ export default function InventoryPage() {
                             setIngredientQty('')
                             setIngredientUnit('')
                           }}
-                          className="px-3 py-2 rounded-xl bg-primary-600 text-white text-sm"
+                          className="shrink-0 px-3 py-2 rounded-xl bg-primary-600 text-white text-sm"
                         >
                           <Plus size={14} />
                         </button>
