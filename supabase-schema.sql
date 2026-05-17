@@ -454,16 +454,19 @@ ALTER TABLE recipe_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_units ENABLE ROW LEVEL SECURITY;
 
 -- Recipes RLS
+DROP POLICY IF EXISTS "Recipes read policy" ON recipes;
 CREATE POLICY "Recipes read policy" ON recipes
   FOR SELECT USING (
     branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
     OR get_my_role() = 'superadmin'
   );
+DROP POLICY IF EXISTS "Recipes insert policy" ON recipes;
 CREATE POLICY "Recipes insert policy" ON recipes
   FOR INSERT WITH CHECK (
     branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
     OR get_my_role() = 'superadmin'
   );
+DROP POLICY IF EXISTS "Recipes update policy" ON recipes;
 CREATE POLICY "Recipes update policy" ON recipes
   FOR UPDATE USING (
     branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
@@ -473,6 +476,7 @@ CREATE POLICY "Recipes update policy" ON recipes
     branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
     OR get_my_role() = 'superadmin'
   );
+DROP POLICY IF EXISTS "Recipes delete policy" ON recipes;
 CREATE POLICY "Recipes delete policy" ON recipes
   FOR DELETE USING (
     branch_id IN (SELECT id FROM branches WHERE shop_id = get_my_shop_id())
@@ -480,6 +484,7 @@ CREATE POLICY "Recipes delete policy" ON recipes
   );
 
 -- Recipe items RLS (through parent recipe)
+DROP POLICY IF EXISTS "Recipe items read policy" ON recipe_items;
 CREATE POLICY "Recipe items read policy" ON recipe_items
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
@@ -487,6 +492,7 @@ CREATE POLICY "Recipe items read policy" ON recipe_items
       OR get_my_role() = 'superadmin'
     ))
   );
+DROP POLICY IF EXISTS "Recipe items insert policy" ON recipe_items;
 CREATE POLICY "Recipe items insert policy" ON recipe_items
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
@@ -494,6 +500,7 @@ CREATE POLICY "Recipe items insert policy" ON recipe_items
       OR get_my_role() = 'superadmin'
     ))
   );
+DROP POLICY IF EXISTS "Recipe items update policy" ON recipe_items;
 CREATE POLICY "Recipe items update policy" ON recipe_items
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
@@ -507,6 +514,7 @@ CREATE POLICY "Recipe items update policy" ON recipe_items
       OR get_my_role() = 'superadmin'
     ))
   );
+DROP POLICY IF EXISTS "Recipe items delete policy" ON recipe_items;
 CREATE POLICY "Recipe items delete policy" ON recipe_items
   FOR DELETE USING (
     EXISTS (SELECT 1 FROM recipes r WHERE r.id = recipe_id AND (
@@ -516,6 +524,10 @@ CREATE POLICY "Recipe items delete policy" ON recipe_items
   );
 
 -- Product units RLS (through parent shop_product)
+DROP POLICY IF EXISTS "Product units read policy" ON product_units;
+DROP POLICY IF EXISTS "Product units insert policy" ON product_units;
+DROP POLICY IF EXISTS "Product units update policy" ON product_units;
+DROP POLICY IF EXISTS "Product units delete policy" ON product_units;
 CREATE POLICY "Product units read policy" ON product_units
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM shop_products sp WHERE sp.id = shop_product_id AND (
