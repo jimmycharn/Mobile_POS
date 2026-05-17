@@ -44,6 +44,7 @@ export default function InventoryPage() {
   const [unitForm, setUnitForm] = useState({ unitName: '', conversionRate: '1', isBase: false })
   const [currentProductForUnits, setCurrentProductForUnits] = useState(null)
   const [ingredientDropdownOpen, setIngredientDropdownOpen] = useState(false)
+  const [selectedIngredientId, setSelectedIngredientId] = useState('')
   const ingredientDropdownRef = useRef(null)
 
   const refresh = useCallback(async () => {
