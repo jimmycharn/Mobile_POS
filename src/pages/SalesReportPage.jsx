@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar, Wheat } from 'lucide-react'
+import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar, Wheat, Download } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { saleService, shopProductService, branchService, recipeService, productUnitService, convertToBaseUnit } from '../services/supabaseApi'
 import { startOfDay, endOfDay, subDays, format, parseISO, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
@@ -141,6 +141,44 @@ export default function SalesReportPage() {
 
   const maxRevenue = Math.max(...dailyData.map(d => d.revenue), 1)
 
+  const exportCSV = () => {
+    const rows = [['เลขที่บิล', 'วันเวลา', 'รายการ', 'ยอดสุทธิ', 'ส่วนลด', 'วิธีชำระ']]
+    for (const s of sales) {
+      const itemList = Array.isArray(s.items)
+        ? s.items.map(i => `${i.name} x${i.qty}`).join(' | ')
+        : ''
+      rows.push([
+        s.id.slice(-6),
+        format(parseISO(s.createdAt), 'yyyy-MM-dd HH:mm'),
+        itemList,
+        s.total,
+        s.discount || 0,
+        s.paymentMethod === 'cash' ? 'เงินสด' : (s.paymentMethod === 'transfer' ? 'โอน' : s.paymentMethod),
+      ])
+    }
+    // Add ingredient summary at end
+    if (ingredientUsage.length > 0) {
+      rows.push([])
+      rows.push(['== วัตถุดิบที่ใช้ =='])
+      rows.push(['ชื่อ', 'จำนวน', 'หน่วย', 'ต้นทุน'])
+      for (const u of ingredientUsage) {
+        rows.push([u.name, u.qty.toFixed(2), u.unit, u.cost.toFixed(2)])
+      }
+    }
+    const csv = '\uFEFF' + rows.map(r => r.map(c => {
+      const s = String(c ?? '')
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+    }).join(',')).join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const { start, end } = getDateRange()
+    a.href = url
+    a.download = `sales_${format(start, 'yyyyMMdd')}_${format(end, 'yyyyMMdd')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const dateRangeLabel = useMemo(() => {
     const { start, end } = getDateRange()
     if (isSameDay(start, end)) return format(start, 'dd MMM yyyy')
@@ -194,9 +232,19 @@ export default function SalesReportPage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center space-x-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
-            <Calendar size={16} className="text-slate-400" />
-            <span className="text-sm text-slate-600">{dateRangeLabel}</span>
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+              <Calendar size={16} className="text-slate-400" />
+              <span className="text-sm text-slate-600">{dateRangeLabel}</span>
+            </div>
+            <button
+              onClick={exportCSV}
+              disabled={sales.length === 0}
+              className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+            >
+              <Download size={16} />
+              <span>CSV</span>
+            </button>
           </div>
         </div>
 

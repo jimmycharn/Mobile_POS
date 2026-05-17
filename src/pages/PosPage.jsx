@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight, Building2, AlertTriangle } from 'lucide-react'
+import { Search, ShoppingCart, Minus, Plus, Trash2, CreditCard, Banknote, Receipt, X, ScanBarcode, Store, QrCode, ArrowRight, Building2, AlertTriangle, Printer } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import BranchSwitcher from '../components/BranchSwitcher'
 import { shopProductService, productService, saleService, cartService, getStats, authService, shopService, bankAccountService, branchService, recipeService, productUnitService, convertToBaseUnit } from '../services/supabaseApi'
@@ -1523,15 +1523,81 @@ export default function PosPage() {
                 <span className="font-bold text-primary-600 text-2xl">฿{lastSale.total.toLocaleString()}</span>
               </div>
             </div>
-            <button
-              onClick={() => setShowReceipt(false)}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-4 rounded-2xl text-lg"
-            >
-              ขายต่อ
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => printReceipt(lastSale, shop)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 rounded-2xl text-sm flex items-center justify-center space-x-2"
+              >
+                <Printer size={16} />
+                <span>พิมพ์</span>
+              </button>
+              <button
+                onClick={() => setShowReceipt(false)}
+                className="flex-[2] bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-2xl text-lg"
+              >
+                ขายต่อ
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   )
+}
+
+// Open a printable receipt window for thermal printers (58/80mm)
+function printReceipt(sale, shop) {
+  const date = new Date(sale.createdAt || Date.now())
+  const dateStr = date.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+  const itemsHtml = Array.isArray(sale.items) ? sale.items.map(i => `
+    <tr>
+      <td style="padding:2px 0">${escapeHtml(i.name)}<br><span style="color:#666;font-size:10px">${i.qty} × ฿${(i.salePrice || 0).toLocaleString()}</span></td>
+      <td style="padding:2px 0;text-align:right;vertical-align:top">฿${((i.salePrice || 0) * (i.qty || 0)).toLocaleString()}</td>
+    </tr>`).join('') : ''
+  const itemCount = Array.isArray(sale.items) ? sale.items.reduce((s, i) => s + (i.qty || 0), 0) : 0
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>ใบเสร็จ #${sale.id.slice(-6)}</title>
+    <style>
+      @page { size: 80mm auto; margin: 4mm; }
+      body { font-family: 'Sarabun', 'Tahoma', sans-serif; width: 72mm; margin: 0; color: #000; font-size: 12px; }
+      h1 { font-size: 14px; margin: 4px 0; text-align: center; }
+      .center { text-align: center; }
+      .muted { color: #666; font-size: 10px; }
+      table { width: 100%; border-collapse: collapse; }
+      hr { border: none; border-top: 1px dashed #999; margin: 6px 0; }
+      .total { font-size: 16px; font-weight: bold; }
+      @media print { button { display: none; } }
+    </style></head><body>
+    <h1>${escapeHtml(shop?.name || 'ร้านค้า')}</h1>
+    <div class="center muted">${escapeHtml(shop?.address || '')}</div>
+    ${shop?.phone ? `<div class="center muted">โทร: ${escapeHtml(shop.phone)}</div>` : ''}
+    <hr>
+    <div class="muted">เลขที่: #${sale.id.slice(-6)}</div>
+    <div class="muted">วันที่: ${dateStr}</div>
+    <hr>
+    <table>${itemsHtml}</table>
+    <hr>
+    <table>
+      <tr><td>รายการรวม</td><td style="text-align:right">${itemCount} ชิ้น</td></tr>
+      ${sale.discount > 0 ? `<tr><td>ส่วนลด</td><td style="text-align:right">-฿${sale.discount.toLocaleString()}</td></tr>` : ''}
+      <tr class="total"><td>ยอดสุทธิ</td><td style="text-align:right">฿${sale.total.toLocaleString()}</td></tr>
+      ${sale.paymentMethod === 'cash' ? `
+        <tr><td>รับเงิน</td><td style="text-align:right">฿${(sale.received || 0).toLocaleString()}</td></tr>
+        <tr><td>เงินทอน</td><td style="text-align:right">฿${(sale.change || 0).toLocaleString()}</td></tr>
+      ` : `<tr><td colspan="2" class="center">ชำระโดย ${sale.paymentMethod === 'transfer' ? 'โอนเงิน / PromptPay' : sale.paymentMethod}</td></tr>`}
+    </table>
+    <hr>
+    <div class="center muted">ขอบคุณที่ใช้บริการ</div>
+    <div style="text-align:center; margin-top:10px">
+      <button onclick="window.print()" style="padding:6px 12px;font-size:12px">พิมพ์</button>
+    </div>
+    <script>window.onload = () => setTimeout(() => window.print(), 250);<\/script>
+    </body></html>`
+  const w = window.open('', '_blank', 'width=400,height=600')
+  if (!w) { alert('กรุณาอนุญาต popup เพื่อพิมพ์ใบเสร็จ'); return }
+  w.document.write(html)
+  w.document.close()
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 }
