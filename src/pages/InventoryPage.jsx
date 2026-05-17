@@ -14,6 +14,8 @@ export default function InventoryPage() {
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [stockInQty, setStockInQty] = useState('')
   const [stockInCost, setStockInCost] = useState('')
+  const [stockInUnit, setStockInUnit] = useState('')
+  const [stockInUnits, setStockInUnits] = useState([])
   const [stockOutQty, setStockOutQty] = useState('')
   const [stockOutReason, setStockOutReason] = useState('spoilage')
   const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
@@ -426,24 +428,50 @@ export default function InventoryPage() {
       return
     }
     if (!selectedProduct || !stockInQty) return
-    const inQty = Number(stockInQty)
+    const inputQty = Number(stockInQty)
+    // Convert to base unit if user picked a non-base unit
+    const inQty = stockInUnit && stockInUnit !== selectedProduct.unit
+      ? convertToBaseUnit(inputQty, stockInUnit, stockInUnits)
+      : inputQty
+    const inputCost = Number(stockInCost) || 0
+    // Cost is per selected unit; convert to per-base-unit
+    const conversionRate = stockInUnit && stockInUnit !== selectedProduct.unit
+      ? (stockInUnits.find(u => u.unitName === stockInUnit)?.conversionRate || 1)
+      : 1
+    const baseCost = inputCost > 0 ? inputCost / conversionRate : 0
     const newStock = selectedProduct.stock + inQty
     const updates = { stock: newStock }
-    if (stockInCost && Number(stockInCost) > 0) {
-      const inCost = Number(stockInCost)
-      const avgCost = ((selectedProduct.stock * selectedProduct.costPrice) + (inQty * inCost)) / newStock
+    if (baseCost > 0) {
+      const avgCost = ((selectedProduct.stock * selectedProduct.costPrice) + (inQty * baseCost)) / newStock
       updates.costPrice = Math.round(avgCost * 100) / 100
     }
     await shopProductService.update(selectedProduct.id, updates)
-    const logDetail = stockInCost && Number(stockInCost) > 0
-      ? `รับสินค้า ${selectedProduct.name} จำนวน ${inQty} ${selectedProduct.unit} (ทุนล็อตใหม่ ${Number(stockInCost)} บ./หน่วย) (คงเหลือ ${newStock})`
-      : `รับสินค้า ${selectedProduct.name} จำนวน ${inQty} ${selectedProduct.unit} (คงเหลือ ${newStock})`
+    const unitLabel = stockInUnit || selectedProduct.unit
+    const logDetail = inputCost > 0
+      ? `รับสินค้า ${selectedProduct.name} จำนวน ${inputQty} ${unitLabel} = ${inQty} ${selectedProduct.unit} (ทุน ${inputCost} บ./${unitLabel}) (คงเหลือ ${newStock})`
+      : `รับสินค้า ${selectedProduct.name} จำนวน ${inputQty} ${unitLabel} = ${inQty} ${selectedProduct.unit} (คงเหลือ ${newStock})`
     await authService.logActivity('STOCK_IN', logDetail)
     setShowStockIn(false)
     setSelectedProduct(null)
     setStockInQty('')
     setStockInCost('')
+    setStockInUnit('')
+    setStockInUnits([])
     await refresh()
+  }
+
+  const openStockIn = async (product) => {
+    setSelectedProduct(product)
+    setShowStockIn(true)
+    setStockInQty('')
+    setStockInCost('')
+    setStockInUnit(product.unit || '')
+    try {
+      const units = await productUnitService.getByProduct(product.id)
+      setStockInUnits(units || [])
+    } catch {
+      setStockInUnits([])
+    }
   }
 
   const handleStockOut = async () => {
@@ -600,7 +628,7 @@ export default function InventoryPage() {
                         {canManage ? (
                           <div className="flex items-center justify-end space-x-1">
                             <button
-                              onClick={() => { setSelectedProduct(product); setShowStockIn(true); setStockInQty(''); setStockInCost('') }}
+                              onClick={() => openStockIn(product)}
                               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
                               title="รับสินค้าเข้า"
                             >
@@ -939,7 +967,7 @@ export default function InventoryPage() {
                             onChange={e => setIngredientSearch(e.target.value)}
                             className="w-full px-3 py-2 border-b border-slate-100 text-sm outline-none"
                           />
-                          {products.filter(p => p.category === 'วัตถุดิบ' && !p.isRecipe && (p.name || '').toLowerCase().includes((ingredientSearch || '').toLowerCase())).map(p => (
+                          {products.filter(p => p.category === 'วัตถุดิบ' && !p.isRecipe && p.id !== selectedProduct?.id && (p.name || '').toLowerCase().includes((ingredientSearch || '').toLowerCase())).map(p => (
                             <button
                               key={p.id}
                               type="button"
@@ -960,28 +988,32 @@ export default function InventoryPage() {
                           ))}
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               setIngredientDropdownOpen(false)
                               const name = prompt('ชื่อวัตถุดิบใหม่:')
                               if (!name) return
                               const unit = prompt('หน่วยพื้นฐาน (เช่น กรัม, ฟอง):') || 'ชิ้น'
-                              shopProductService.create({
-                                shopId: user.shopId,
-                                branchId: user.branchId,
-                                name,
-                                category: 'วัตถุดิบ',
-                                unit,
-                                costPrice: 0,
-                                salePrice: 0,
-                                stock: 0,
-                                minStock: 0,
-                              }).then(newIng => {
-                                refresh().then(() => {
-                                  setSelectedIngredientId(newIng.id)
-                                  setIngredientSearch(newIng.name)
-                                  setIngredientUnit(newIng.unit || 'ชิ้น')
+                              try {
+                                const newIng = await shopProductService.create({
+                                  shopId: user.shopId,
+                                  branchId: user.branchId,
+                                  name,
+                                  category: 'วัตถุดิบ',
+                                  unit,
+                                  costPrice: 0,
+                                  salePrice: 0,
+                                  stock: 0,
+                                  minStock: 0,
                                 })
-                              })
+                                // Update product list synchronously and set selection
+                                setProducts(prev => [...prev, { ...newIng, isStandard: false }])
+                                setSelectedIngredientId(newIng.id)
+                                setIngredientSearch(newIng.name)
+                                setIngredientUnit(newIng.unit || unit)
+                                refresh()
+                              } catch (err) {
+                                alert('สร้างวัตถุดิบไม่สำเร็จ: ' + err.message)
+                              }
                             }}
                             className="w-full text-left px-3 py-2 text-primary-600 text-sm font-medium border-t border-slate-100"
                           >
@@ -1197,17 +1229,40 @@ export default function InventoryPage() {
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-700 mb-1.5">จำนวนที่รับเข้า</label>
-              <input
-                type="number"
-                value={stockInQty}
-                onChange={e => setStockInQty(e.target.value)}
-                placeholder="ระบุจำนวน"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none text-lg font-semibold text-center"
-                autoFocus
-              />
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  value={stockInQty}
+                  onChange={e => setStockInQty(e.target.value)}
+                  placeholder="ระบุจำนวน"
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none text-lg font-semibold text-center"
+                  autoFocus
+                />
+                {stockInUnits.length > 0 ? (
+                  <select
+                    value={stockInUnit}
+                    onChange={e => setStockInUnit(e.target.value)}
+                    className="px-3 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium"
+                  >
+                    <option value={selectedProduct.unit}>{selectedProduct.unit}</option>
+                    {stockInUnits.map(u => (
+                      <option key={u.id} value={u.unitName}>{u.unitName}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="px-3 py-3 rounded-xl bg-slate-50 text-sm font-medium text-slate-500 border border-slate-200">{selectedProduct.unit}</span>
+                )}
+              </div>
+              {stockInUnit && stockInUnit !== selectedProduct.unit && stockInQty && (
+                <p className="text-xs text-primary-600 mt-1.5">
+                  = {convertToBaseUnit(Number(stockInQty), stockInUnit, stockInUnits).toLocaleString()} {selectedProduct.unit}
+                </p>
+              )}
             </div>
             <div className="mb-5">
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">ราคาทุนต่อหน่วยของล็อตนี้ (บาท)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                ราคาทุนต่อ{stockInUnit || selectedProduct.unit} (บาท)
+              </label>
               <input
                 type="number"
                 value={stockInCost}

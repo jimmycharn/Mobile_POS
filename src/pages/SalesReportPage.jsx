@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
-import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar } from 'lucide-react'
+import { TrendingUp, TrendingDown, ShoppingBag, DollarSign, Calendar, Wheat } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { saleService, shopProductService, branchService } from '../services/supabaseApi'
+import { saleService, shopProductService, branchService, recipeService, productUnitService, convertToBaseUnit } from '../services/supabaseApi'
 import { startOfDay, endOfDay, subDays, format, parseISO, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
 
 export default function SalesReportPage() {
@@ -15,6 +15,7 @@ export default function SalesReportPage() {
   const [branches, setBranches] = useState([])
   const [sales, setSales] = useState([])
   const [products, setProducts] = useState([])
+  const [ingredientUsage, setIngredientUsage] = useState([])
 
   const canFilterBranch = user && (user.role === 'owner' || user.role === 'superadmin') && branches.length > 1
   const effectiveBranchId = canFilterBranch ? (selectedBranch === 'all' ? null : selectedBranch) : user?.branchId
@@ -61,6 +62,44 @@ export default function SalesReportPage() {
         ? await shopProductService.getByBranch(effId)
         : await shopProductService.getByShop(user.shopId)
       setProducts(prodList)
+
+      // Compute ingredient consumption for the date range
+      const filteredSales = saleList.filter(s => {
+        const d = new Date(s.createdAt)
+        return d >= start && d <= end
+      })
+      const productMap = Object.fromEntries(prodList.map(p => [p.id, p]))
+      const usage = {} // { ingredientId: { name, unit, qty, cost } }
+      const recipeCache = {}
+      const unitsCache = {}
+      for (const sale of filteredSales) {
+        if (!Array.isArray(sale.items)) continue
+        for (const item of sale.items) {
+          if (!item.isRecipe) continue
+          let recipe = recipeCache[item.id]
+          if (recipe === undefined) {
+            recipe = await recipeService.getByShopProduct(item.id)
+            recipeCache[item.id] = recipe
+          }
+          if (!recipe || !recipe.recipeItems) continue
+          for (const ri of recipe.recipeItems) {
+            const ing = productMap[ri.ingredientShopProductId]
+            if (!ing) continue
+            let units = unitsCache[ing.id]
+            if (units === undefined) {
+              units = await productUnitService.getByProduct(ing.id)
+              unitsCache[ing.id] = units
+            }
+            const baseQty = convertToBaseUnit(ri.quantity * item.qty, ri.unit, units)
+            if (!usage[ing.id]) {
+              usage[ing.id] = { id: ing.id, name: ing.name, unit: ing.unit, qty: 0, cost: 0 }
+            }
+            usage[ing.id].qty += baseQty
+            usage[ing.id].cost += baseQty * (ing.costPrice || 0)
+          }
+        }
+      }
+      setIngredientUsage(Object.values(usage).sort((a, b) => b.cost - a.cost))
     }
     load()
   }, [user, selectedBranch, range, currentDate, customStart, customEnd])
@@ -252,6 +291,31 @@ export default function SalesReportPage() {
             </div>
           </div>
         </div>
+
+        {/* Ingredient Consumption (only if any) */}
+        {ingredientUsage.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="flex items-center space-x-2 mb-4">
+              <Wheat size={18} className="text-amber-600" />
+              <h3 className="font-semibold text-slate-800">วัตถุดิบที่ใช้ในช่วงนี้</h3>
+            </div>
+            <div className="space-y-2">
+              {ingredientUsage.slice(0, 15).map(u => (
+                <div key={u.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{u.name}</p>
+                    <p className="text-xs text-slate-400">{u.qty.toFixed(2)} {u.unit}</p>
+                  </div>
+                  <p className="text-sm font-semibold text-amber-600">฿{u.cost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between text-sm font-semibold">
+              <span className="text-slate-700">ต้นทุนวัตถุดิบรวม</span>
+              <span className="text-amber-600">฿{ingredientUsage.reduce((s, u) => s + u.cost, 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+        )}
 
         {/* Recent Sales */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5">

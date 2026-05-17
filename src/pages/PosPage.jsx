@@ -435,7 +435,15 @@ export default function PosPage() {
     const sale = await saleService.create({
       shop_id: user.shopId,
       branch_id: user.branchId,
-      items: cartItems,
+      items: cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        qty: item.qty,
+        salePrice: item.salePrice,
+        costPrice: item.costPrice,
+        unit: item.unit,
+        isRecipe: item.isRecipe || false,
+      })),
       total: finalTotal,
       discount: discountAmount,
       discount_type: discountType,
@@ -1414,7 +1422,7 @@ export default function PosPage() {
             <div className="bg-slate-50 rounded-2xl p-5 mb-6 space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">จำนวนรายการ</span>
-                <span className="font-medium text-slate-800">{lastSale.items} ชิ้น</span>
+                <span className="font-medium text-slate-800">{Array.isArray(lastSale.items) ? lastSale.items.reduce((s, i) => s + (i.qty || 0), 0) : (lastSale.items || 0)} ชิ้น</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">วิธีชำระเงิน</span>
