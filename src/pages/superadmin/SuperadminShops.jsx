@@ -17,8 +17,8 @@ export default function SuperadminShops() {
   }, [])
 
   const filtered = shops.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase())
+    (s.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.email || '').toLowerCase().includes(search.toLowerCase())
   )
 
   return (
