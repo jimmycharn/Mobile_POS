@@ -1776,8 +1776,8 @@ export default function InventoryPage() {
 
       {/* Transfer Stock Modal */}
       {showTransfer && transferSource && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center space-x-2">
                 <ArrowLeftRight size={20} className="text-blue-600" />
