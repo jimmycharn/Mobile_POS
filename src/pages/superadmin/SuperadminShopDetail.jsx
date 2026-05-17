@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2, TrendingUp, ShoppingBag, DollarSign, Calendar, CreditCard, Wallet, X, Eye } from 'lucide-react'
+import { Store, ClipboardList, ArrowLeft, LogIn, LogOut, Package, Pencil, ArrowRightLeft, User, Trash2, AlertTriangle, Ban, ChevronDown, Building2, TrendingUp, ShoppingBag, DollarSign, Calendar, CreditCard, Wallet, X, Eye, Shield } from 'lucide-react'
 import { logService, branchService, saleService, shopService, packageService } from '../../services/supabaseApi'
 import { format, parseISO, startOfDay, endOfDay, subDays, isSameDay, startOfMonth, endOfMonth, isValid, parse } from 'date-fns'
 
@@ -31,6 +31,7 @@ export default function SuperadminShopDetail() {
   const [selectedBranchId, setSelectedBranchId] = useState('all')
   const [branchOpen, setBranchOpen] = useState(false)
   const [packages, setPackages] = useState([])
+  const [pkgDropdownOpen, setPkgDropdownOpen] = useState(false)
   const [sales, setSales] = useState([])
   const [reportRange, setReportRange] = useState('7') // 'today', '7', 'month', 'custom'
   const [customStart, setCustomStart] = useState(format(subDays(new Date(), 6), 'yyyy-MM-dd'))
@@ -224,6 +225,38 @@ export default function SuperadminShopDetail() {
           <div className="bg-white rounded-xl border border-slate-100 p-4">
             <p className="text-slate-400 text-xs mb-1">วันที่สมัคร</p>
             <p className="font-bold text-slate-800">{shop?.createdAt ? format(parseISO(shop.createdAt), 'dd MMM yyyy') : '-'}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-100 p-4 relative">
+            <p className="text-slate-400 text-xs mb-1">แพ็คเกจ</p>
+            <button
+              onClick={() => setPkgDropdownOpen(!pkgDropdownOpen)}
+              className="flex items-center gap-1 font-bold text-slate-800"
+            >
+              <Shield size={14} className="text-primary-600" />
+              <span>{packages.find(p => p.id === shop?.packageId)?.name || 'ไม่มีแพ็คเกจ'}</span>
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
+            {pkgDropdownOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50 animate-scale-in">
+                {packages.map(pkg => (
+                  <button
+                    key={pkg.id}
+                    onClick={async () => {
+                      try {
+                        await shopService.update(shopId, { packageId: pkg.id })
+                        setShop(prev => ({ ...prev, packageId: pkg.id }))
+                        setPkgDropdownOpen(false)
+                      } catch (err) {
+                        alert('เปลี่ยนแพ็คเกจไม่สำเร็จ: ' + err.message)
+                      }
+                    }}
+                    className={`w-full text-left px-4 py-2 text-xs transition-colors ${shop?.packageId === pkg.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    {pkg.name} {pkg.price === 0 ? '(ฟรี)' : `฿${pkg.price.toLocaleString()}/เดือน`}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
