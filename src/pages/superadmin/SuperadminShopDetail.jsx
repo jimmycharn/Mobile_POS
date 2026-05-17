@@ -341,6 +341,36 @@ export default function SuperadminShopDetail() {
             </div>
           </div>
 
+          {/* Payment Methods */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <h3 className="font-semibold text-slate-800 mb-4">วิธีชำระเงิน</h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-slate-600 flex items-center gap-2"><Wallet size={14} /> เงินสด</span>
+                  <span className="font-medium">฿{paymentStats.cash.toLocaleString()}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full transition-all"
+                    style={{ width: `${reportStats.totalRevenue > 0 ? (paymentStats.cash / reportStats.totalRevenue) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-slate-600 flex items-center gap-2"><CreditCard size={14} /> โอนเงิน / QR</span>
+                  <span className="font-medium">฿{paymentStats.transfer.toLocaleString()}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary-500 rounded-full transition-all"
+                    style={{ width: `${reportStats.totalRevenue > 0 ? (paymentStats.transfer / reportStats.totalRevenue) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Activity Logs */}
