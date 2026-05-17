@@ -56,7 +56,7 @@ export default function InventoryPage() {
       if (search.trim()) list = list.filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.barcode || '').includes(search))
       if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
       if (filter === 'standard') list = list.filter(p => p.isStandard)
-      if (filter === 'custom') list = list.filter(p => !p.isStandard)
+      if (filter === 'custom') list = list.filter(p => !p.isStandard && p.category !== 'วัตถุดิบ')
       if (filter === 'ingredient') list = list.filter(p => p.category === 'วัตถุดิบ')
       setProducts(list)
       setCategories([...new Set(list.map(p => p.category))])
