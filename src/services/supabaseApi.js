@@ -543,7 +543,7 @@ export const packageService = {
 // ============================================================
 export const logService = {
   async getAll() {
-    const { data } = await supabase.from('activity_logs').select('*, profiles(name, email)').order('created_at', { ascending: false })
+    const { data } = await supabase.from('activity_logs').select('*, profiles(name, email), shops(name)').order('created_at', { ascending: false })
     return toCamel(data) || []
   },
   async getByShop(shopId) {

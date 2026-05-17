@@ -26,7 +26,7 @@ export default function SuperadminLogs() {
   }, [])
 
   return (
-    <div className="h-full">
+    <div className="h-full overflow-y-auto">
       <div className="bg-white border-b border-slate-100 px-6 py-4">
         <h1 className="text-xl font-bold text-slate-800">บันทึกกิจกรรมระบบ</h1>
         <p className="text-sm text-slate-400">ประวัติการใช้งานทั้งหมดในระบบ</p>
@@ -52,15 +52,15 @@ export default function SuperadminLogs() {
                   return (
                     <tr key={log.id} className="hover:bg-slate-50/50">
                       <td className="px-5 py-3 text-sm text-slate-500 whitespace-nowrap">{format(parseISO(log.createdAt), 'dd MMM yyyy HH:mm')}</td>
-                      <td className="px-5 py-3 text-sm text-slate-600">{log.shopName}</td>
-                      <td className="px-5 py-3 text-sm font-medium text-slate-700">{log.userName}</td>
+                      <td className="px-5 py-3 text-sm text-slate-600">{log.shops?.name || log.shopId?.slice(0, 8) || '—'}</td>
+                      <td className="px-5 py-3 text-sm font-medium text-slate-700">{log.profiles?.name || log.userId?.slice(0, 8) || 'ไม่ระบุ'}</td>
                       <td className="px-5 py-3">
                         <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color}`}>
                           <Icon size={14} />
                           <span>{config.label}</span>
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-sm text-slate-600">{log.detail}</td>
+                      <td className="px-5 py-3 text-sm text-slate-600">{log.details}</td>
                     </tr>
                   )
                 })}

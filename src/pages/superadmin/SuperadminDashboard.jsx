@@ -43,7 +43,7 @@ export default function SuperadminDashboard() {
   const recentShops = shops.slice(0, 5)
 
   return (
-    <div className="h-full">
+    <div className="h-full overflow-y-auto">
       <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800">แดชบอร์ด Super Admin</h1>
@@ -123,9 +123,9 @@ export default function SuperadminDashboard() {
               {logs.map(log => (
                 <div key={log.id} className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800">{log.userName}</p>
-                    <p className="text-xs text-slate-500">{log.shopName}</p>
-                    <p className="text-xs text-slate-400 mt-1">{log.detail}</p>
+                    <p className="text-sm font-medium text-slate-800">{log.profiles?.name || log.userId?.slice(0, 8) || 'ไม่ระบุ'}</p>
+                    <p className="text-xs text-slate-500">{log.shops?.name || log.action}</p>
+                    <p className="text-xs text-slate-400 mt-1">{log.details}</p>
                   </div>
                   <span className="text-xs text-slate-400 whitespace-nowrap">{format(parseISO(log.createdAt), 'HH:mm')}</span>
                 </div>
