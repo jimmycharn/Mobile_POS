@@ -415,6 +415,43 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
+-- Storage: product-images bucket policies
+-- ============================================================
+INSERT INTO storage.buckets (id, name, public, avif_autodetection, file_size_limit, allowed_mime_types)
+VALUES ('product-images', 'product-images', true, false, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg'])
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Public read access to product images
+DROP POLICY IF EXISTS "Product images public read" ON storage.objects;
+CREATE POLICY "Product images public read" ON storage.objects
+  FOR SELECT TO public
+  USING (bucket_id = 'product-images');
+
+-- Superadmin can upload/manage any image in product-images
+DROP POLICY IF EXISTS "Product images superadmin all" ON storage.objects;
+CREATE POLICY "Product images superadmin all" ON storage.objects
+  FOR ALL TO authenticated
+  USING (bucket_id = 'product-images' AND get_my_role() = 'superadmin')
+  WITH CHECK (bucket_id = 'product-images' AND get_my_role() = 'superadmin');
+
+-- Shop users can manage images in their own shop folder
+DROP POLICY IF EXISTS "Product images shop manage" ON storage.objects;
+CREATE POLICY "Product images shop manage" ON storage.objects
+  FOR ALL TO authenticated
+  USING (
+    bucket_id = 'product-images'
+    AND get_my_shop_id() IS NOT NULL
+    AND name LIKE (get_my_shop_id()::text || '/%')
+  )
+  WITH CHECK (
+    bucket_id = 'product-images'
+    AND get_my_shop_id() IS NOT NULL
+    AND name LIKE (get_my_shop_id()::text || '/%')
+  );
+
+-- ============================================================
 -- Migration: add sales_limit and is_visible to existing packages
 -- ============================================================
 ALTER TABLE packages ADD COLUMN IF NOT EXISTS sales_limit INTEGER;
