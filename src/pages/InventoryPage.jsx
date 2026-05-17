@@ -7,6 +7,7 @@ import { isStandardBarcode } from '../utils/barcode'
 export default function InventoryPage() {
   const { user } = useAuth()
   const [products, setProducts] = useState([])
+  const [allProducts, setAllProducts] = useState([])
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [showStockIn, setShowStockIn] = useState(false)
@@ -69,9 +70,9 @@ export default function InventoryPage() {
     if (!user?.branchId) return
     try {
       let list = await shopProductService.getByBranch(user.branchId)
-      if (search.trim()) list = list.filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.barcode || '').includes(search))
-      if (filter === 'all') list = list.filter(p => p.category !== 'วัตถุดิบ')
-      if (filter === 'low') list = list.filter(p => p.stock <= p.minStock)
+      setAllProducts(list)
+      if (search) list = list.filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()))
+      if (filter === 'low') list = list.filter(p => p.stock <= (p.minStock || 0) && p.stock > 0)
       if (filter === 'standard') list = list.filter(p => p.isStandard && p.category !== 'วัตถุดิบ')
       if (filter === 'custom') list = list.filter(p => !p.isStandard && p.category !== 'วัตถุดิบ')
       if (filter === 'ingredient') list = list.filter(p => p.category === 'วัตถุดิบ')
@@ -1215,7 +1216,7 @@ export default function InventoryPage() {
                   {recipeItems.length > 0 && (
                     <div className="space-y-2">
                       {recipeItems.map((item, idx) => {
-                        const ing = products.find(p => p.id === item.ingredientShopProductId)
+                        const ing = allProducts.find(p => p.id === item.ingredientShopProductId)
                         return (
                           <div key={idx} className="flex items-center justify-between bg-white rounded-lg p-2 border border-slate-100">
                             <div className="flex-1 min-w-0">
@@ -1368,7 +1369,7 @@ export default function InventoryPage() {
                         <p className="text-xs font-medium text-primary-700 mb-1">สูตรโดยสรุป</p>
                         <p className="text-xs text-primary-600">
                           1 {form.unit || 'ชิ้น'} {form.name || 'สินค้า'} = {recipeItems.map(item => {
-                            const ing = products.find(p => p.id === item.ingredientShopProductId)
+                            const ing = allProducts.find(p => p.id === item.ingredientShopProductId)
                             return `${ing?.name || '?'} ${item.quantity}${item.unit}`
                           }).join(' + ')}
                         </p>
@@ -1378,7 +1379,7 @@ export default function InventoryPage() {
                         onClick={async () => {
                           let total = 0
                           for (const item of recipeItems) {
-                            const ing = products.find(p => p.id === item.ingredientShopProductId)
+                            const ing = allProducts.find(p => p.id === item.ingredientShopProductId)
                             if (!ing) continue
                             const units = productUnitsMap[ing.id] || await productUnitService.getByProduct(ing.id)
                             const baseQty = convertToBaseUnit(Number(item.quantity), item.unit, units)
