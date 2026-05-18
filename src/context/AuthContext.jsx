@@ -10,7 +10,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     initSession()
+  }, [])
 
+  useEffect(() => {
     // Re-hydrate session when user returns from background (mobile PWA)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && !user) {
