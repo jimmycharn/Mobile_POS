@@ -187,6 +187,10 @@ export const branchService = {
     const { data } = await supabase.from('branches').select('*').eq('shop_id', shopId).order('created_at')
     return toCamel(data) || []
   },
+  async getAll() {
+    const { data } = await supabase.from('branches').select('*').order('created_at')
+    return toCamel(data) || []
+  },
   async getById(id) {
     const { data } = await supabase.from('branches').select('*').eq('id', id).single()
     return toCamel(data)

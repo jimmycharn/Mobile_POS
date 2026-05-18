@@ -13,7 +13,7 @@ export default function SuperadminShops() {
     const load = async () => {
       const [shopData, branchData] = await Promise.all([
         shopService.getAll(),
-        branchService.getByShop('*').catch(() => []),
+        branchService.getAll().catch(() => []),
       ])
       setShops(shopData)
       setBranches(branchData)
