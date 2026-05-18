@@ -1269,7 +1269,7 @@ export default function InventoryPage() {
                             onChange={e => setIngredientSearch(e.target.value)}
                             className="w-full px-3 py-2 border-b border-slate-100 text-sm outline-none"
                           />
-                          {products.filter(p => p.category === 'วัตถุดิบ' && !p.isRecipe && p.id !== selectedProduct?.id && (p.name || '').toLowerCase().includes((ingredientSearch || '').toLowerCase())).map(p => (
+                          {allProducts.filter(p => p.category === 'วัตถุดิบ' && !p.isRecipe && p.id !== selectedProduct?.id && (p.name || '').toLowerCase().includes((ingredientSearch || '').toLowerCase())).map(p => (
                             <button
                               key={p.id}
                               type="button"
@@ -1341,8 +1341,8 @@ export default function InventoryPage() {
                           {(productUnitsMap[selectedIngredientId] || []).map(u => (
                             <option key={u.id} value={u.unitName}>{u.unitName}</option>
                           ))}
-                          <option value={products.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'}>
-                            {products.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'}
+                          <option value={allProducts.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'}>
+                            {allProducts.find(p => p.id === selectedIngredientId)?.unit || 'ชิ้น'}
                           </option>
                         </select>
                         <button
