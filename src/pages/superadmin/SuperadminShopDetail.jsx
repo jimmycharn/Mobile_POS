@@ -31,7 +31,6 @@ export default function SuperadminShopDetail() {
   const [selectedBranchId, setSelectedBranchId] = useState('all')
   const [branchOpen, setBranchOpen] = useState(false)
   const [packages, setPackages] = useState([])
-  const [pkgDropdownOpen, setPkgDropdownOpen] = useState(false)
   const [sales, setSales] = useState([])
   const [reportRange, setReportRange] = useState('7') // 'today', '7', 'month', 'custom'
   const [customStart, setCustomStart] = useState(format(subDays(new Date(), 6), 'yyyy-MM-dd'))
@@ -212,88 +211,55 @@ export default function SuperadminShopDetail() {
       </div>
 
       <div className="p-4 md:p-6 space-y-4">
-        {/* Shop Info Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl border border-slate-100 p-4">
-            <p className="text-slate-400 text-xs mb-1">{selectedBranchId === 'all' ? 'สาขา' : 'สาขา'}</p>
-            <p className="font-bold text-slate-800">{selectedBranchId === 'all' ? branches.length : branches.find(b => b.id === selectedBranchId)?.name || '-'}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 p-4">
-            <p className="text-slate-400 text-xs mb-1">สถานะ</p>
-            <p className={`font-bold ${shop?.isActive ? 'text-green-600' : 'text-red-600'}`}>{shop?.isActive ? 'ใช้งาน' : 'ปิดการใช้งาน'}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 p-4">
-            <p className="text-slate-400 text-xs mb-1">วันที่สมัคร</p>
-            <p className="font-bold text-slate-800">{shop?.createdAt ? format(parseISO(shop.createdAt), 'dd MMM yyyy') : '-'}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 p-4 relative">
-            <p className="text-slate-400 text-xs mb-1">แพ็คเกจ</p>
-            <button
-              onClick={() => setPkgDropdownOpen(!pkgDropdownOpen)}
-              className="flex items-center gap-1 font-bold text-slate-800"
-            >
-              <Shield size={14} className="text-primary-600" />
-              <span>{packages.find(p => p.id === shop?.packageId)?.name || 'ไม่มีแพ็คเกจ'}</span>
-              <ChevronDown size={14} className="text-slate-400" />
-            </button>
-            {pkgDropdownOpen && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50 animate-scale-in">
-                {packages.map(pkg => (
-                  <button
-                    key={pkg.id}
-                    onClick={async () => {
-                      try {
-                        await shopService.update(shopId, { packageId: pkg.id })
-                        setShop(prev => ({ ...prev, packageId: pkg.id }))
-                        setPkgDropdownOpen(false)
-                      } catch (err) {
-                        alert('เปลี่ยนแพ็คเกจไม่สำเร็จ: ' + err.message)
-                      }
-                    }}
-                    className={`w-full text-left px-4 py-2 text-xs transition-colors ${shop?.packageId === pkg.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
-                  >
-                    {pkg.name} {pkg.price === 0 ? '(ฟรี)' : `฿${pkg.price.toLocaleString()}/เดือน`}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Branches Management */}
         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
           <div className="px-4 md:px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Building2 size={20} className="text-primary-600" />
               <h3 className="font-bold text-slate-800">สาขาของร้านค้า</h3>
-              <span className="text-xs text-slate-400">({branches.length} สาขา)</span>
+              <span className="text-xs text-slate-400">
+                ({selectedBranchId === 'all' ? branches.length : 1} สาขา)
+              </span>
             </div>
           </div>
           <div className="divide-y divide-slate-100">
-            {branches.map(branch => (
-              <div key={branch.id} className="px-4 md:px-5 py-3 flex items-center justify-between hover:bg-slate-50/50">
-                <div>
-                  <p className="text-sm font-medium text-slate-800">{branch.name}</p>
-                  <p className="text-xs text-slate-400">{branch.createdAt ? format(parseISO(branch.createdAt), 'dd MMM yyyy') : '-'}</p>
+            {branches
+              .filter(b => selectedBranchId === 'all' || b.id === selectedBranchId)
+              .map(branch => (
+                <div key={branch.id} className="px-4 md:px-5 py-3 flex items-center justify-between hover:bg-slate-50/50">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="text-sm font-medium text-slate-800">{branch.name}</p>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${shop?.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                        {shop?.isActive ? 'ใช้งาน' : 'ปิดการใช้งาน'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                      <span>{branch.createdAt ? format(parseISO(branch.createdAt), 'dd MMM yyyy') : '-'}</span>
+                      <span className="flex items-center gap-1">
+                        <Shield size={10} className="text-primary-500" />
+                        {packages.find(p => p.id === (branch.packageId || shop?.packageId))?.name || 'ไม่มีแพ็คเกจ'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`ยืนยันลบสาขา "${branch.name}"?`)) return
+                      try {
+                        await branchService.remove(branch.id)
+                        setBranches(prev => prev.filter(b => b.id !== branch.id))
+                        if (selectedBranchId === branch.id) setSelectedBranchId('all')
+                      } catch (err) {
+                        alert('ลบสาขาไม่สำเร็จ: ' + err.message)
+                      }
+                    }}
+                    className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors shrink-0 ml-3"
+                  >
+                    <Trash2 size={14} className="mr-1" />
+                    ลบ
+                  </button>
                 </div>
-                <button
-                  onClick={async () => {
-                    if (!confirm(`ยืนยันลบสาขา "${branch.name}"?`)) return
-                    try {
-                      await branchService.remove(branch.id)
-                      setBranches(prev => prev.filter(b => b.id !== branch.id))
-                      if (selectedBranchId === branch.id) setSelectedBranchId('all')
-                    } catch (err) {
-                      alert('ลบสาขาไม่สำเร็จ: ' + err.message)
-                    }
-                  }}
-                  className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                >
-                  <Trash2 size={14} className="mr-1" />
-                  ลบ
-                </button>
-              </div>
-            ))}
+              ))}
             {branches.length === 0 && (
               <div className="px-4 md:px-5 py-6 text-center">
                 <p className="text-sm text-slate-400 mb-3">ร้านค้านี้ไม่มีสาขาเหลืออยู่</p>
