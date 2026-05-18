@@ -114,7 +114,7 @@ export default function ShopSettingsPage() {
   }
 
   return (
-    <div className="min-h-full pb-24 md:pb-0">
+    <div className="h-full pb-24 md:pb-0 overflow-y-auto">
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4">
         <h1 className="text-lg md:text-xl font-bold text-slate-800">ตั้งค่าร้านค้า</h1>
         <p className="text-sm text-slate-400">ข้อมูลร้านค้าและการจัดการพนักงาน</p>
