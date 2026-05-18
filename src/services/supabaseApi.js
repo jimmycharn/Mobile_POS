@@ -278,6 +278,7 @@ export const shopProductService = {
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('branch_id', branchId)
+      .order('created_at', { ascending: false })
     return (toCamel(data) || []).map(mergeShopProduct)
   },
   async getById(id) {
