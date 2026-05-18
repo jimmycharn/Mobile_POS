@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard, PenLine, X, ChevronDown, ChevronUp, UserPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Store, Users, Plus, Trash2, User, Shield, Smartphone, LogOut, Edit3, MapPin, Building2, Landmark, CreditCard, PenLine, X, ChevronDown, ChevronUp, UserPlus, UtensilsCrossed, ChevronRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { shopService, userService, authService, packageService, branchService, bankAccountService } from '../services/supabaseApi'
 
@@ -171,6 +172,35 @@ export default function ShopSettingsPage() {
             <span className="px-2.5 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded-lg">เจ้าของร้าน</span>
           </div>
         </div>
+
+        {/* Restaurant Mode quick links (owner only) */}
+        {user?.role === 'owner' && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                <UtensilsCrossed size={18} className="text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">ระบบร้านอาหาร</h3>
+                <p className="text-xs text-slate-400">โหมดสั่งอาหารผ่าน QR · จัดการโต๊ะและแผนกครัว</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Link to="/restaurant" className="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100">
+                <span className="text-sm font-medium text-slate-700">ตั้งค่า · โต๊ะ · แผนก · QR</span>
+                <ChevronRight size={16} className="text-slate-400" />
+              </Link>
+              <Link to="/tables" className="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100">
+                <span className="text-sm font-medium text-slate-700">หน้าจัดการโต๊ะ (สำหรับพนักงาน)</span>
+                <ChevronRight size={16} className="text-slate-400" />
+              </Link>
+              <Link to="/cashier" className="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100">
+                <span className="text-sm font-medium text-slate-700">หน้าแคชเชียร์</span>
+                <ChevronRight size={16} className="text-slate-400" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Edit Shop Modal */}
         {editingShop && (

@@ -270,7 +270,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe, department_id,
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('shop_id', shopId)
@@ -282,7 +282,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe, department_id,
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('branch_id', branchId)
@@ -295,7 +295,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe, department_id,
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('id', id)
@@ -321,7 +321,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe, department_id,
         products:product_id(name, category, unit, image_url, barcode)
       `)
       .eq('shop_id', shopId)
@@ -334,7 +334,7 @@ export const shopProductService = {
       .select(`
         id, shop_id, branch_id, product_id,
         name, category, unit, image_url, barcode,
-        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe,
+        cost_price, sale_price, stock, min_stock, color, size, is_standard, is_recipe, department_id,
         products:product_id(name, category, unit, image_url, barcode)
       `)
     if (branchId) query = query.eq('branch_id', branchId)
@@ -629,6 +629,196 @@ export async function getStats(shopId, branchId = null) {
     lowStock: products.filter(p => (p.stock || 0) <= (p.minStock || 0)).length,
     totalProducts: products.length,
   }
+}
+
+// ============================================================
+// Restaurant Mode — Kitchen Departments
+// ============================================================
+export const departmentService = {
+  async getByShop(shopId) {
+    const { data } = await supabase.from('kitchen_departments').select('*').eq('shop_id', shopId).order('sort_order').order('created_at')
+    return toCamel(data) || []
+  },
+  async getByBranch(branchId) {
+    // Departments are shop-level; this filters by branch_id if used
+    const { data } = await supabase.from('kitchen_departments').select('*').eq('branch_id', branchId).order('sort_order').order('created_at')
+    return toCamel(data) || []
+  },
+  async getByCode(code) {
+    const { data } = await supabase.from('kitchen_departments').select('*').eq('code', code).maybeSingle()
+    return toCamel(data)
+  },
+  async create(dept) {
+    const { data, error } = await supabase.from('kitchen_departments').insert(toSnake(dept)).select().single()
+    if (error) throw new Error(error.message)
+    return toCamel(data)
+  },
+  async update(id, changes) {
+    const { data, error } = await supabase.from('kitchen_departments').update(toSnake(changes)).eq('id', id).select().single()
+    if (error) throw new Error(error.message)
+    return toCamel(data)
+  },
+  async remove(id) {
+    const { error } = await supabase.from('kitchen_departments').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+  },
+}
+
+// ============================================================
+// Restaurant Mode — Tables
+// ============================================================
+export const tableService = {
+  async getByShop(shopId) {
+    const { data } = await supabase.from('restaurant_tables').select('*').eq('shop_id', shopId).order('created_at')
+    return toCamel(data) || []
+  },
+  async getByBranch(branchId) {
+    const { data } = await supabase.from('restaurant_tables').select('*').eq('branch_id', branchId).order('created_at')
+    return toCamel(data) || []
+  },
+  async getById(id) {
+    const { data } = await supabase.from('restaurant_tables').select('*').eq('id', id).maybeSingle()
+    return toCamel(data)
+  },
+  async create(table) {
+    const { data, error } = await supabase.from('restaurant_tables').insert(toSnake(table)).select().single()
+    if (error) throw new Error(error.message)
+    return toCamel(data)
+  },
+  async update(id, changes) {
+    const { data, error } = await supabase.from('restaurant_tables').update(toSnake(changes)).eq('id', id).select().single()
+    if (error) throw new Error(error.message)
+    return toCamel(data)
+  },
+  async remove(id) {
+    const { error } = await supabase.from('restaurant_tables').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+  },
+  // RPC wrappers
+  async open(tableId) {
+    const { data, error } = await supabase.rpc('staff_open_table', { p_table_id: tableId })
+    if (error) throw new Error(error.message)
+    return data
+  },
+  async close(tableId) {
+    const { error } = await supabase.rpc('staff_close_table', { p_table_id: tableId })
+    if (error) throw new Error(error.message)
+  },
+}
+
+// ============================================================
+// Restaurant Mode — Orders & Items
+// ============================================================
+export const orderService = {
+  async getByBranch(branchId, statuses = ['open', 'awaiting_payment']) {
+    const { data } = await supabase
+      .from('restaurant_orders')
+      .select('*, restaurant_tables(name, code), order_items(*)')
+      .eq('branch_id', branchId)
+      .in('status', statuses)
+      .order('opened_at', { ascending: false })
+    return toCamel(data) || []
+  },
+  async getById(id) {
+    const { data } = await supabase
+      .from('restaurant_orders')
+      .select('*, restaurant_tables(name, code), order_items(*)')
+      .eq('id', id)
+      .maybeSingle()
+    return toCamel(data)
+  },
+  async getItemsByDepartment(deptId, statuses = ['pending', 'preparing', 'ready', 'cancel_requested']) {
+    const { data } = await supabase
+      .from('order_items')
+      .select('*, restaurant_orders(id, table_id, restaurant_tables(name, code))')
+      .eq('department_id', deptId)
+      .in('status', statuses)
+      .order('confirmed_at', { ascending: true })
+    return toCamel(data) || []
+  },
+  async setItemStatus(itemId, status) {
+    const { error } = await supabase.rpc('staff_set_item_status', { p_item_id: itemId, p_status: status })
+    if (error) throw new Error(error.message)
+  },
+  async closePaid(orderId, saleId) {
+    const { error } = await supabase.rpc('staff_close_order_paid', { p_order_id: orderId, p_sale_id: saleId })
+    if (error) throw new Error(error.message)
+  },
+  async merge(primaryOrderId, secondaryOrderId) {
+    const { error } = await supabase.rpc('staff_merge_tables', {
+      p_primary_order_id: primaryOrderId,
+      p_secondary_order_id: secondaryOrderId,
+    })
+    if (error) throw new Error(error.message)
+  },
+}
+
+// ============================================================
+// Restaurant Mode — Customer (public) RPCs
+// ============================================================
+export const customerApi = {
+  async getTable(tableCode) {
+    const { data, error } = await supabase.rpc('customer_get_table', { p_table_code: tableCode })
+    if (error) throw new Error(error.message)
+    return data
+  },
+  async getMenu(tableCode) {
+    const { data, error } = await supabase.rpc('customer_get_menu', { p_table_code: tableCode })
+    if (error) throw new Error(error.message)
+    return toCamel(data) || []
+  },
+  async addItem(tableCode, shopProductId, qty, note, sessionId) {
+    const { data, error } = await supabase.rpc('customer_add_item', {
+      p_table_code: tableCode,
+      p_shop_product_id: shopProductId,
+      p_qty: qty,
+      p_note: note || null,
+      p_session_id: sessionId,
+    })
+    if (error) throw new Error(error.message)
+    return data
+  },
+  async updateItem(tableCode, itemId, qty) {
+    const { error } = await supabase.rpc('customer_update_item', {
+      p_table_code: tableCode, p_item_id: itemId, p_qty: qty,
+    })
+    if (error) throw new Error(error.message)
+  },
+  async removeItem(tableCode, itemId) {
+    const { error } = await supabase.rpc('customer_remove_item', {
+      p_table_code: tableCode, p_item_id: itemId,
+    })
+    if (error) throw new Error(error.message)
+  },
+  async confirmOrder(tableCode) {
+    const { data, error } = await supabase.rpc('customer_confirm_order', { p_table_code: tableCode })
+    if (error) throw new Error(error.message)
+    return data
+  },
+  async cancelPending(tableCode, itemId) {
+    const { error } = await supabase.rpc('customer_cancel_pending', {
+      p_table_code: tableCode, p_item_id: itemId,
+    })
+    if (error) throw new Error(error.message)
+  },
+  async requestCancel(tableCode, itemId) {
+    const { error } = await supabase.rpc('customer_request_cancel', {
+      p_table_code: tableCode, p_item_id: itemId,
+    })
+    if (error) throw new Error(error.message)
+  },
+  async requestBill(tableCode) {
+    const { error } = await supabase.rpc('customer_request_bill', { p_table_code: tableCode })
+    if (error) throw new Error(error.message)
+  },
+  async listItems(orderId) {
+    const { data } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at')
+    return toCamel(data) || []
+  },
 }
 
 // ============================================================

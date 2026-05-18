@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Package, Plus, Minus, AlertTriangle, ArrowUpDown, Trash2, Edit3, X, Save, Barcode, Ban, Camera as CameraIcon, ScanBarcode, Tag, ChevronDown, FolderOpen, Settings, Calculator, Copy, ChefHat, ArrowLeftRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { shopProductService, productService, authService, branchService, storageService, recipeService, productUnitService, convertToBaseUnit } from '../services/supabaseApi'
+import { shopProductService, productService, authService, branchService, storageService, recipeService, productUnitService, convertToBaseUnit, departmentService } from '../services/supabaseApi'
 import { isStandardBarcode } from '../utils/barcode'
 
 export default function InventoryPage() {
@@ -35,7 +35,8 @@ export default function InventoryPage() {
   const [transferBarcodeMatches, setTransferBarcodeMatches] = useState([])
   const [transferNameMatches, setTransferNameMatches] = useState([])
   const [transferCreateSource, setTransferCreateSource] = useState(null)
-  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
+  const [form, setForm] = useState({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false, departmentId: '' })
+  const [departments, setDepartments] = useState([])
   const [centralProduct, setCentralProduct] = useState(null)
   const [filter, setFilter] = useState('all') // all, low, standard, custom, ingredient
   const [showScanner, setShowScanner] = useState(false)
@@ -81,6 +82,11 @@ export default function InventoryPage() {
       setCategories([...new Set(list.map(p => p.category))])
       setColors([...new Set(list.map(p => p.color).filter(Boolean))])
       setSizes([...new Set(list.map(p => p.size).filter(Boolean))])
+      // Load departments (shop-level)
+      try {
+        const deps = await departmentService.getByShop(user.shopId)
+        setDepartments(deps || [])
+      } catch { /* ignore */ }
     } catch (err) {
       console.error('refresh error:', err)
     }
@@ -229,6 +235,7 @@ export default function InventoryPage() {
           costPrice: Number(form.costPrice),
           salePrice: Number(form.salePrice),
           minStock: Number(form.minStock),
+          departmentId: form.departmentId || null,
           color: form.color || '',
           size: form.size || '',
         }
@@ -319,6 +326,7 @@ export default function InventoryPage() {
             unit: form.unit !== central.unit ? form.unit : null,
             imageUrl: form.imageUrl !== central.imageUrl ? (form.imageUrl || null) : null,
             barcode: null, // standard barcode lives in products table
+            departmentId: form.departmentId || null,
             costPrice: Number(form.costPrice) || 0,
             salePrice: Number(form.salePrice) || 0,
             stock: form.isRecipe ? 0 : (Number(form.stock) || 0),
@@ -363,6 +371,7 @@ export default function InventoryPage() {
             barcode: form.barcode || 'SHOP' + Date.now(),
             category: form.category || 'ทั่วไป',
             unit: form.unit || 'ชิ้น',
+            departmentId: form.departmentId || null,
             costPrice: Number(form.costPrice) || 0,
             salePrice: Number(form.salePrice) || 0,
             stock: form.isRecipe ? 0 : (Number(form.stock) || 0),
@@ -405,7 +414,7 @@ export default function InventoryPage() {
       setCentralProduct(null)
       setRecipeItems([])
       setTransferCreateSource(null)
-      setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false })
+      setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false, departmentId: '' })
       await refresh()
     } catch (err) {
       console.error('handleSave error:', err)
@@ -599,6 +608,7 @@ export default function InventoryPage() {
       color: p.color || '',
       size: p.size || '',
       isRecipe: p.isRecipe || false,
+      departmentId: p.departmentId || '',
     })
 
     // Load recipe if product is a recipe
@@ -750,7 +760,7 @@ export default function InventoryPage() {
                 <span>หมวดหมู่</span>
               </button>
               <button
-                onClick={() => { setShowForm(true); setSelectedProduct(null); setRecipeItems([]); setProductUnitsMap({}); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false }) }}
+                onClick={() => { setShowForm(true); setSelectedProduct(null); setRecipeItems([]); setProductUnitsMap({}); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false, departmentId: '' }) }}
                 className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
               >
                 <Plus size={18} />
@@ -965,7 +975,7 @@ export default function InventoryPage() {
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 pb-24 md:pb-6 animate-scale-in">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-800">{selectedProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}</h2>
-              <button onClick={() => { setShowForm(false); setSelectedProduct(null); setCentralProduct(null); setRecipeItems([]); setProductUnitsMap({}); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false }) }} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+              <button onClick={() => { setShowForm(false); setSelectedProduct(null); setCentralProduct(null); setRecipeItems([]); setProductUnitsMap({}); setForm({ name: '', barcode: '', category: '', unit: '', costPrice: '', salePrice: '', stock: '', minStock: '', imageUrl: '', color: '', size: '', isRecipe: false, departmentId: '' }) }} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
                 <X size={18} className="text-slate-500" />
               </button>
             </div>
@@ -1178,6 +1188,22 @@ export default function InventoryPage() {
                   <input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm" />
                 </div>
               </div>
+              {departments.length > 0 && form.category !== 'วัตถุดิบ' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">แผนกรับผิดชอบ (โหมดร้านอาหาร)</label>
+                  <select
+                    value={form.departmentId || ''}
+                    onChange={e => setForm({ ...form, departmentId: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm bg-white"
+                  >
+                    <option value="">— ไม่ระบุ —</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1.5">เมื่อลูกค้าสั่งสินค้านี้ ออเดอร์จะถูกส่งไปยังแผนกที่เลือก</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">สี</label>

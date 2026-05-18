@@ -21,6 +21,13 @@ import SuperadminLogs from './pages/superadmin/SuperadminLogs'
 import SuperadminSettings from './pages/superadmin/SuperadminSettings'
 import SuperadminShopDetail from './pages/superadmin/SuperadminShopDetail'
 
+// Restaurant mode pages
+import RestaurantSettingsPage from './pages/restaurant/RestaurantSettingsPage'
+import TableBoardPage from './pages/restaurant/TableBoardPage'
+import KitchenBoardPage from './pages/restaurant/KitchenBoardPage'
+import CashierPage from './pages/restaurant/CashierPage'
+import CustomerMenuPage from './pages/customer/CustomerMenuPage'
+
 function AppRoutes() {
   const { user } = useAuth()
 
@@ -36,6 +43,10 @@ function AppRoutes() {
         <Route path="/reports" element={<ProtectedRoute allowedRoles={['owner', 'staff']}><SalesReportPage /></ProtectedRoute>} />
         <Route path="/logs" element={<ProtectedRoute allowedRoles={['owner', 'staff']}><ActivityLogsPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute allowedRoles={['owner', 'staff']}><ShopSettingsPage /></ProtectedRoute>} />
+        {/* Restaurant Mode (authenticated) */}
+        <Route path="/restaurant" element={<ProtectedRoute allowedRoles={['owner']}><RestaurantSettingsPage /></ProtectedRoute>} />
+        <Route path="/tables" element={<ProtectedRoute allowedRoles={['owner', 'staff']}><TableBoardPage /></ProtectedRoute>} />
+        <Route path="/cashier" element={<ProtectedRoute allowedRoles={['owner', 'staff']}><CashierPage /></ProtectedRoute>} />
 
         {/* Superadmin Routes */}
         <Route path="/superadmin" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminDashboard /></ProtectedRoute>} />
@@ -45,6 +56,10 @@ function AppRoutes() {
         <Route path="/superadmin/shops/:shopId" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminShopDetail /></ProtectedRoute>} />
         <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperadminSettings /></ProtectedRoute>} />
       </Route>
+
+      {/* Public customer routes (no auth, no layout) */}
+      <Route path="/t/:tableCode" element={<CustomerMenuPage />} />
+      <Route path="/kitchen/:deptCode" element={<KitchenBoardPage />} />
 
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
