@@ -50,6 +50,12 @@ export default function PosPage() {
   const allProductsRef = useRef([])
   const discountInputRef = useRef(null)
   const receivedInputRef = useRef(null)
+  const qtyInputRef = useRef(null)
+  // Price modal for products without salePrice
+  const [showPriceModal, setShowPriceModal] = useState(false)
+  const [pendingProduct, setPendingProduct] = useState(null)
+  const [priceInput, setPriceInput] = useState('')
+  const [qtyInput, setQtyInput] = useState('1')
 
   useEffect(() => {
     allProductsRef.current = allProducts
@@ -295,7 +301,55 @@ export default function PosPage() {
     setCarts(prev => prev.map(c => c.id === activeCartId ? { ...c, items: typeof updater === 'function' ? updater(c.items) : updater } : c))
   }
 
+  const openPriceModal = (product) => {
+    // Find the latest cart item of this product (by id) to pre-fill price
+    const latestItem = [...cart].reverse().find(item => item.id === product.id)
+    setPendingProduct(product)
+    setPriceInput(latestItem ? String(latestItem.salePrice) : '')
+    setQtyInput('1')
+    setShowPriceModal(true)
+    // Focus price input for new products, qty input for existing ones
+    setTimeout(() => {
+      if (latestItem) {
+        qtyInputRef.current?.focus()
+        qtyInputRef.current?.select()
+      } else {
+        // focus stays on price input (first input in modal gets auto-focus)
+      }
+    }, 50)
+  }
+
+  const confirmPriceModal = () => {
+    const price = parseFloat(priceInput)
+    const qty = parseFloat(qtyInput)
+    if (!price || price <= 0 || !qty || qty <= 0 || !Number.isInteger(qty)) {
+      alert('กรุณาระบุราคาและจำนวนที่ถูกต้อง (จำนวนต้องเป็นจำนวนเต็ม)')
+      return
+    }
+    setActiveCartItems(prev => {
+      // Merge with existing item that has same id AND same salePrice
+      const existing = prev.find(item => item.id === pendingProduct.id && item.salePrice === price)
+      if (existing) {
+        return prev.map(item =>
+          item.id === pendingProduct.id && item.salePrice === price
+            ? { ...item, qty: item.qty + qty }
+            : item
+        )
+      }
+      return [...prev, { ...pendingProduct, salePrice: price, qty }]
+    })
+    setShowPriceModal(false)
+    setPendingProduct(null)
+    setPriceInput('')
+    setQtyInput('1')
+  }
+
   const addToCart = (product) => {
+    // If product has no salePrice, open price modal
+    if (!product.salePrice && product.salePrice !== 0) {
+      openPriceModal(product)
+      return
+    }
     const isRecipe = product.isRecipe
     const maxQty = isRecipe ? (recipeAvailability[product.id]?.maxServings ?? 0) : product.stock
     if (!isRecipe && product.stock <= 0) return
@@ -308,7 +362,7 @@ export default function PosPage() {
         return prev.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item)
       }
       if (isRecipe && maxQty <= 0) {
-        if (!confirm('วัตถุดิบหมด ต้องการขายต่อหรือไม่?')) return prev
+        if (!confirm('วัตถิบหมด ต้องการขายต่อหรือไม่?')) return prev
       }
       return [...prev, { ...product, qty: 1 }]
     })
@@ -766,7 +820,11 @@ export default function PosPage() {
                       </p>
                     )}
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-base font-bold text-primary-600">฿{product.salePrice.toLocaleString()}</span>
+                      {product.salePrice ? (
+                        <span className="text-base font-bold text-primary-600">฿{product.salePrice.toLocaleString()}</span>
+                      ) : (
+                        <span className="text-base font-bold text-amber-500">ไม่ระบุราคา</span>
+                      )}
                       <span className="text-xs text-slate-400">
                         {product.isRecipe ? `~${effectiveStock} ที่` : `${product.stock} ${product.unit}`}
                       </span>
@@ -1515,6 +1573,61 @@ export default function PosPage() {
               ))}
             </div>
             <p className="text-xs text-slate-400 text-center mt-4">ไปที่หน้า "จัดการสต็อก" เพื่อรับสินค้าเข้า</p>
+          </div>
+        </div>
+      )}
+
+      {/* Price Input Modal */}
+      {showPriceModal && pendingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setShowPriceModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-800">{pendingProduct.name}</h2>
+              <button onClick={() => setShowPriceModal(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">ราคาขาย</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={priceInput}
+                  onChange={e => setPriceInput(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-base font-semibold"
+                  autoFocus={!priceInput}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); qtyInputRef.current?.focus(); qtyInputRef.current?.select() } }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">จำนวน</label>
+                <input
+                  ref={qtyInputRef}
+                  type="number"
+                  inputMode="numeric"
+                  value={qtyInput}
+                  onChange={e => setQtyInput(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-base font-semibold"
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmPriceModal() } }}
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-5">
+              <button
+                onClick={() => setShowPriceModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={confirmPriceModal}
+                className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+              >
+                เพิ่มลงตะกร้า
+              </button>
+            </div>
           </div>
         </div>
       )}
