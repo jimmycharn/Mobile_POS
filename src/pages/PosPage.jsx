@@ -326,6 +326,22 @@ export default function PosPage() {
       alert('กรุณาระบุราคาและจำนวนที่ถูกต้อง (จำนวนต้องเป็นจำนวนเต็ม)')
       return
     }
+    // Stock check
+    const isRecipe = pendingProduct.isRecipe
+    const maxQty = isRecipe ? (recipeAvailability[pendingProduct.id]?.maxServings ?? 0) : pendingProduct.stock
+    if (!isRecipe) {
+      const currentCartTotal = cart.reduce((sum, item) => item.id === pendingProduct.id ? sum + item.qty : sum, 0)
+      if (currentCartTotal + qty > pendingProduct.stock) {
+        if (!confirm(`สต็อกมี ${pendingProduct.stock} ชิ้น\nในตะกร้ามี ${currentCartTotal} ชิ้น จะเพิ่มอีก ${qty} ชิ้นเกินสต็อก\nต้องการเพิ่มต่อหรือไม่?`)) return
+      }
+    } else {
+      if (maxQty > 0 && qty > maxQty) {
+        if (!confirm(`วัตถุดิบอาจไม่พอสำหรับ ${qty} ที่\nสูงสุดที่ทำได้ ~${maxQty} ที่\nต้องการเพิ่มต่อหรือไม่?`)) return
+      }
+      if (maxQty <= 0) {
+        if (!confirm('วัตถุดิบหมด ต้องการขายต่อหรือไม่?')) return
+      }
+    }
     setActiveCartItems(prev => {
       // Merge with existing item that has same id AND same salePrice
       const existing = prev.find(item => item.id === pendingProduct.id && item.salePrice === price)
