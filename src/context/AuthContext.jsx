@@ -52,6 +52,7 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     await authService.logout()
+    localStorage.removeItem('pos_shop_cache')
     setUser(null)
     setBranches([])
   }

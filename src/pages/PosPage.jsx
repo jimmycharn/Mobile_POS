@@ -23,7 +23,10 @@ export default function PosPage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [activeColor, setActiveColor] = useState('')
   const [activeSize, setActiveSize] = useState('')
-  const [shop, setShop] = useState(null)
+  const [shop, setShop] = useState(() => {
+    const cached = localStorage.getItem('pos_shop_cache')
+    try { return cached ? JSON.parse(cached) : null } catch { return null }
+  })
   const [allProducts, setAllProducts] = useState([])
   const [shopBankAccounts, setShopBankAccounts] = useState([])
   const [selectedBankAccount, setSelectedBankAccount] = useState(null)
@@ -88,6 +91,7 @@ export default function PosPage() {
         if (cancelled) return
         setStats(stats)
         setShop(shopData)
+        if (shopData) localStorage.setItem('pos_shop_cache', JSON.stringify(shopData))
       }
       if (user?.branchId) {
         loadedBranchId.current = user.branchId
