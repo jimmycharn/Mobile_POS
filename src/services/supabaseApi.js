@@ -73,7 +73,7 @@ export const authService = {
       isActive: profile.is_active,
     }
 
-    sessionStorage.setItem('pos_session', JSON.stringify(user))
+    localStorage.setItem('pos_session', JSON.stringify(user))
     return { user }
   },
 
@@ -130,18 +130,18 @@ export const authService = {
       isActive: true,
     }
 
-    sessionStorage.setItem('pos_session', JSON.stringify(user))
+    localStorage.setItem('pos_session', JSON.stringify(user))
     return { user }
   },
 
   getSession() {
-    const raw = sessionStorage.getItem('pos_session')
+    const raw = localStorage.getItem('pos_session')
     return raw ? JSON.parse(raw) : null
   },
 
   async logout() {
     await supabase.auth.signOut()
-    sessionStorage.removeItem('pos_session')
+    localStorage.removeItem('pos_session')
   },
 
   async logActivity(action, details = '') {

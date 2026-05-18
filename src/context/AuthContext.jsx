@@ -10,7 +10,16 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     initSession()
-  }, [])
+
+    // Re-hydrate session when user returns from background (mobile PWA)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !user) {
+        initSession()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [user])
 
   useEffect(() => {
     if (user?.shopId) {
@@ -37,7 +46,7 @@ export function AuthProvider({ children }) {
     const effectiveBranchId = result.user.branchId || (userBranches[0]?.id || null)
     const enrichedUser = { ...result.user, branchId: effectiveBranchId }
     setUser(enrichedUser)
-    sessionStorage.setItem('pos_session', JSON.stringify(enrichedUser))
+    localStorage.setItem('pos_session', JSON.stringify(enrichedUser))
     return { user: enrichedUser }
   }
 
@@ -52,7 +61,7 @@ export function AuthProvider({ children }) {
     if (user.branchId && user.role !== 'owner' && user.role !== 'superadmin') return
     const updated = { ...user, branchId }
     setUser(updated)
-    sessionStorage.setItem('pos_session', JSON.stringify(updated))
+    localStorage.setItem('pos_session', JSON.stringify(updated))
   }
 
   const signup = async (email, password, name, shopName, phone, packageId) => {

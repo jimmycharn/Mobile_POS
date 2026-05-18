@@ -242,21 +242,21 @@ export const authService = {
     if (!user) return { error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }
     // Remove password before storing in session
     const { password: _, ...safeUser } = user
-    sessionStorage.setItem('pos_session', JSON.stringify(safeUser))
+    localStorage.setItem('pos_session', JSON.stringify(safeUser))
     this.logActivity(user.id, user.shopId, 'LOGIN', 'เข้าสู่ระบบ')
     return { user: safeUser }
   },
 
   logout() {
-    const session = JSON.parse(sessionStorage.getItem('pos_session') || 'null')
+    const session = JSON.parse(localStorage.getItem('pos_session') || 'null')
     if (session) {
       this.logActivity(session.id, session.shopId, 'LOGOUT', 'ออกจากระบบ')
     }
-    sessionStorage.removeItem('pos_session')
+    localStorage.removeItem('pos_session')
   },
 
   getSession() {
-    return JSON.parse(sessionStorage.getItem('pos_session') || 'null')
+    return JSON.parse(localStorage.getItem('pos_session') || 'null')
   },
 
   signup(email, password, name, shopName, phone, packageId) {
@@ -293,12 +293,12 @@ export const authService = {
     insert(DB_KEYS.USERS, newUser)
 
     const { password: _, ...safeUser } = newUser
-    sessionStorage.setItem('pos_session', JSON.stringify(safeUser))
+    localStorage.setItem('pos_session', JSON.stringify(safeUser))
     return { user: safeUser }
   },
 
   logActivity(userId, shopId, action, detail) {
-    const session = JSON.parse(sessionStorage.getItem('pos_session') || 'null')
+    const session = JSON.parse(localStorage.getItem('pos_session') || 'null')
     insert(DB_KEYS.ACTIVITY_LOGS, {
       id: 'log-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
       userId,
