@@ -345,8 +345,9 @@ export default function PosPage() {
   }
 
   const addToCart = (product) => {
-    // If product has no salePrice, open price modal
-    if (!product.salePrice && product.salePrice !== 0) {
+    // If product has no salePrice (null, undefined, 0, or '0'), open price modal
+    const price = Number(product.salePrice)
+    if (product.salePrice == null || price === 0 || Number.isNaN(price)) {
       openPriceModal(product)
       return
     }
