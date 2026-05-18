@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Store, Search } from 'lucide-react'
-import { shopService } from '../../services/supabaseApi'
+import { Store, Search, Trash2, AlertTriangle } from 'lucide-react'
+import { shopService, branchService } from '../../services/supabaseApi'
 
 export default function SuperadminShops() {
   const navigate = useNavigate()
   const [shops, setShops] = useState([])
+  const [branches, setBranches] = useState([])
   const [search, setSearch] = useState('')
 
   useEffect(() => {
     const load = async () => {
-      const data = await shopService.getAll()
-      setShops(data)
+      const [shopData, branchData] = await Promise.all([
+        shopService.getAll(),
+        branchService.getByShop('*').catch(() => []),
+      ])
+      setShops(shopData)
+      setBranches(branchData)
     }
     load()
   }, [])
@@ -50,11 +55,15 @@ export default function SuperadminShops() {
                 <tr>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">ร้านค้า</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">ติดต่อ</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">สาขา</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">สถานะ</th>
+                  <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map(shop => (
+                {filtered.map(shop => {
+                  const branchCount = branches.filter(b => b.shopId === shop.id).length
+                  return (
                   <tr
                     key={shop.id}
                     onClick={() => navigate(`/superadmin/shops/${shop.id}`)}
@@ -76,14 +85,44 @@ export default function SuperadminShops() {
                       <div className="text-xs text-slate-400">{shop.phone || '-'}</div>
                     </td>
                     <td className="px-5 py-4">
+                      <span className="text-sm text-slate-600">{branchCount} สาขา</span>
+                    </td>
+                    <td className="px-5 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg ${
                         shop.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
                       }`}>
                         {shop.isActive ? 'ใช้งาน' : 'ปิดการใช้งาน'}
                       </span>
                     </td>
+                    <td className="px-5 py-4 text-right">
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          if (branchCount > 0) {
+                            alert(`ไม่สามารถลบร้านค้านี้ได้ เนื่องจากยังมี ${branchCount} สาขา\nกรุณาลบสาขาทั้งหมดก่อน`)
+                            return
+                          }
+                          if (!confirm(`ยืนยันลบร้านค้า "${shop.name}"?\nการลบจะไม่สามารถกู้คืนได้`)) return
+                          try {
+                            await shopService.remove(shop.id)
+                            setShops(prev => prev.filter(s => s.id !== shop.id))
+                          } catch (err) {
+                            alert('ลบร้านค้าไม่สำเร็จ: ' + err.message)
+                          }
+                        }}
+                        className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          branchCount > 0
+                            ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                            : 'bg-red-50 text-red-600 hover:bg-red-100'
+                        }`}
+                        title={branchCount > 0 ? 'ยังมีสาขา ไม่สามารถลบได้' : 'ลบร้านค้า'}
+                      >
+                        <Trash2 size={14} className="mr-1" />
+                        ลบ
+                      </button>
+                    </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

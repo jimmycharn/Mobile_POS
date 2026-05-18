@@ -260,6 +260,63 @@ export default function SuperadminShopDetail() {
           </div>
         </div>
 
+        {/* Branches Management */}
+        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+          <div className="px-4 md:px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Building2 size={20} className="text-primary-600" />
+              <h3 className="font-bold text-slate-800">สาขาของร้านค้า</h3>
+              <span className="text-xs text-slate-400">({branches.length} สาขา)</span>
+            </div>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {branches.map(branch => (
+              <div key={branch.id} className="px-4 md:px-5 py-3 flex items-center justify-between hover:bg-slate-50/50">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{branch.name}</p>
+                  <p className="text-xs text-slate-400">{branch.createdAt ? format(parseISO(branch.createdAt), 'dd MMM yyyy') : '-'}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`ยืนยันลบสาขา "${branch.name}"?`)) return
+                    try {
+                      await branchService.remove(branch.id)
+                      setBranches(prev => prev.filter(b => b.id !== branch.id))
+                      if (selectedBranchId === branch.id) setSelectedBranchId('all')
+                    } catch (err) {
+                      alert('ลบสาขาไม่สำเร็จ: ' + err.message)
+                    }
+                  }}
+                  className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                >
+                  <Trash2 size={14} className="mr-1" />
+                  ลบ
+                </button>
+              </div>
+            ))}
+            {branches.length === 0 && (
+              <div className="px-4 md:px-5 py-6 text-center">
+                <p className="text-sm text-slate-400 mb-3">ร้านค้านี้ไม่มีสาขาเหลืออยู่</p>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`ยืนยันลบร้านค้า "${shop?.name}"?\nการลบจะไม่สามารถกู้คืนได้`)) return
+                    try {
+                      await shopService.remove(shopId)
+                      navigate('/superadmin/shops')
+                    } catch (err) {
+                      alert('ลบร้านค้าไม่สำเร็จ: ' + err.message)
+                    }
+                  }}
+                  className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 size={16} className="mr-1.5" />
+                  ลบร้านค้านี้
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Sales Report Summary */}
         <div className="space-y-4">
           {/* Range Filter */}

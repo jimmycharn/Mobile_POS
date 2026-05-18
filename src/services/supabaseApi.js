@@ -173,6 +173,10 @@ export const shopService = {
     const { data } = await supabase.from('shops').update(toSnake(changes)).eq('id', id).select().single()
     return toCamel(data)
   },
+  async remove(id) {
+    const { error } = await supabase.from('shops').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+  },
 }
 
 // ============================================================
