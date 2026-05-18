@@ -56,6 +56,10 @@ export default function PosPage() {
   const [pendingProduct, setPendingProduct] = useState(null)
   const [priceInput, setPriceInput] = useState('')
   const [qtyInput, setQtyInput] = useState('1')
+  // Qty-only mode (checkbox) - show qty modal for every add
+  const [qtyMode, setQtyMode] = useState(false)
+  const [showQtyModal, setShowQtyModal] = useState(false)
+  const [qtyModalQty, setQtyModalQty] = useState('1')
 
   useEffect(() => {
     allProductsRef.current = allProducts
@@ -360,11 +364,60 @@ export default function PosPage() {
     setQtyInput('1')
   }
 
+  const openQtyModal = (product) => {
+    setPendingProduct(product)
+    setQtyModalQty('1')
+    setShowQtyModal(true)
+    setTimeout(() => {
+      qtyInputRef.current?.focus()
+      qtyInputRef.current?.select()
+    }, 50)
+  }
+
+  const confirmQtyModal = () => {
+    const qty = parseFloat(qtyModalQty)
+    if (!qty || qty <= 0 || !Number.isInteger(qty)) {
+      alert('กรุณาระบุจำนวนที่ถูกต้อง (จำนวนเต็ม)')
+      return
+    }
+    const product = pendingProduct
+    const isRecipe = product.isRecipe
+    const maxQty = isRecipe ? (recipeAvailability[product.id]?.maxServings ?? 0) : product.stock
+    if (!isRecipe) {
+      const currentCartTotal = cart.reduce((sum, item) => item.id === product.id ? sum + item.qty : sum, 0)
+      if (currentCartTotal + qty > product.stock) {
+        if (!confirm(`สต็อกมี ${product.stock} ชิ้น\nในตะกร้ามี ${currentCartTotal} ชิ้น จะเพิ่มอีก ${qty} ชิ้นเกินสต็อก\nต้องการเพิ่มต่อหรือไม่?`)) return
+      }
+    } else {
+      if (maxQty > 0 && qty > maxQty) {
+        if (!confirm(`วัตถุดิบอาจไม่พอสำหรับ ${qty} ที่\nสูงสุดที่ทำได้ ~${maxQty} ที่\nต้องการเพิ่มต่อหรือไม่?`)) return
+      }
+      if (maxQty <= 0) {
+        if (!confirm('วัตถุดิบหมด ต้องการขายต่อหรือไม่?')) return
+      }
+    }
+    setActiveCartItems(prev => {
+      const existing = prev.find(item => item.id === product.id)
+      if (existing) {
+        return prev.map(item => item.id === product.id ? { ...item, qty: item.qty + qty } : item)
+      }
+      return [...prev, { ...product, qty }]
+    })
+    setShowQtyModal(false)
+    setPendingProduct(null)
+    setQtyModalQty('1')
+  }
+
   const addToCart = (product) => {
     // If product has no salePrice (null, undefined, 0, or '0'), open price modal
     const price = Number(product.salePrice)
     if (product.salePrice == null || price === 0 || Number.isNaN(price)) {
       openPriceModal(product)
+      return
+    }
+    // Qty-mode: always show qty modal for products with a price
+    if (qtyMode) {
+      openQtyModal(product)
       return
     }
     const isRecipe = product.isRecipe
@@ -778,15 +831,26 @@ export default function PosPage() {
               </button>
             </div>
           )}
-          <h3 className="text-sm font-semibold text-slate-500 mb-2 px-1">
-            {activeCategory === 'all' ? 'เมนูทั้งหมด' : catLabel(activeCategory)}
-            {(activeColor || activeSize) && (
-              <span className="font-normal text-slate-400 ml-1">
-                {activeColor && `สี ${activeColor}`}{activeColor && activeSize && ' · '}{activeSize && `ขนาด ${activeSize}`}
-              </span>
-            )}
-            <span className="font-normal text-slate-400 ml-1">({products.length})</span>
-          </h3>
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h3 className="text-sm font-semibold text-slate-500">
+              {activeCategory === 'all' ? 'เมนูทั้งหมด' : catLabel(activeCategory)}
+              {(activeColor || activeSize) && (
+                <span className="font-normal text-slate-400 ml-1">
+                  {activeColor && `สี ${activeColor}`}{activeColor && activeSize && ' · '}{activeSize && `ขนาด ${activeSize}`}
+                </span>
+              )}
+              <span className="font-normal text-slate-400 ml-1">({products.length})</span>
+            </h3>
+            <label className="flex items-center space-x-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={qtyMode}
+                onChange={(e) => setQtyMode(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+              />
+              <span className="text-xs text-slate-500">ใส่จำนวนเอง</span>
+            </label>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {products.map(product => {
               const inCart = cart.find(c => c.id === product.id)
@@ -1640,6 +1704,47 @@ export default function PosPage() {
               </button>
               <button
                 onClick={confirmPriceModal}
+                className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
+              >
+                เพิ่มลงตะกร้า
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Qty-only Modal (qtyMode) */}
+      {showQtyModal && pendingProduct && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/40 overflow-y-auto pb-24" onClick={() => setShowQtyModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 animate-scale-in my-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-800">{pendingProduct.name}</h2>
+              <button onClick={() => setShowQtyModal(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">จำนวน</label>
+              <input
+                ref={qtyInputRef}
+                type="number"
+                inputMode="numeric"
+                value={qtyModalQty}
+                onChange={e => setQtyModalQty(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-base font-semibold"
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmQtyModal() } }}
+              />
+            </div>
+            <div className="flex space-x-3 mt-5">
+              <button
+                onClick={() => setShowQtyModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={confirmQtyModal}
                 className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm"
               >
                 เพิ่มลงตะกร้า
